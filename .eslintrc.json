@@ -1,0 +1,73 @@
+{
+  "env": {
+    "es2021": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:sonarjs/recommended"
+  ],
+  "rules": {
+    "@typescript-eslint/require-array-sort-compare": "error",
+    "constructor-super": "error",
+    "eqeqeq": ["error"],
+    "@typescript-eslint/switch-exhaustiveness-check": "error",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "sonarjs/cognitive-complexity": "off",
+    "no-buffer-constructor": "error",
+    "no-caller": "error",
+    "no-case-declarations": "error",
+    "no-debugger": "error",
+    "no-duplicate-case": "error",
+    "no-eval": "error",
+    "no-async-promise-executor": "error",
+    "no-extra-semi": "error",
+    "no-new-wrappers": "error",
+    "no-redeclare": "off",
+    "no-sparse-arrays": "error",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-unused-expressions": "error",
+    "@typescript-eslint/no-empty-function": "off",
+    "sonarjs/no-ignored-return": "error",
+    "sonarjs/no-duplicate-string": "off",
+    "sonarjs/no-redundant-jump": "off",
+    "sonarjs/no-small-switch": "off",
+    "sonarjs/prefer-immediate-return": "off",
+    "no-throw-literal": "error",
+    "no-unsafe-finally": "error",
+    "no-unused-labels": "error",
+    "@typescript-eslint/strict-boolean-expressions": ["error"],
+    "no-implicit-coercion": ["error", { "boolean": true, "allow": [] }],
+    "no-restricted-globals": [
+      "warn",
+      "name",
+      "length",
+      "event",
+      "closed",
+      "external",
+      "status",
+      "origin",
+      "orientation",
+      "context"
+    ], // non-complete list of globals that are easy to access unintentionally
+    "no-var": "error",
+    "semi": "off",
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "class",
+        "format": ["PascalCase"]
+      }
+    ]
+  },
+  "overrides": [],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "ignorePatterns": ["node_modules/"],
+  "plugins": ["@typescript-eslint", "sonarjs"]
+}
