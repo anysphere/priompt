@@ -11,7 +11,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "watch": "tsx watch --clear-screen=false src",
-    "build": "rimraf dist && tsc && cp src/types.d.ts dist/types.d.ts",
+    "build": "tsc && cp src/types.d.ts dist/types.d.ts",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "tsc --noEmit && eslint .",
     "test": "vitest",
