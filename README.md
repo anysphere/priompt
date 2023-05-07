@@ -6,7 +6,7 @@ Everything is rendered only once. Each child has a priority (generally 0 to 1000
 
 The key promise of the priompt render compiler is:
 
-> **Let $T$ be the token limit and $\operatorname{Prompt}(p_\text{cutoff})$ be the function that creates a prompt by including all scopes with priority $p_\text{scope} \geq p_\text{cutoff}$, and no other. Then, the rendered prompt is $\text{\textbf{P}} = \operatorname{Prompt}(p_\text{cutoff}^*)$ where $p_\text{cutoff}^*$ is the minimum value such that $|\operatorname{Prompt}(p_\text{cutoff}^*)| \leq T$.**
+> **Let $T$ be the token limit and $\text{Prompt}(p_\text{cutoff})$ be the function that creates a prompt by including all scopes with priority $p_\text{scope} \geq p_\text{cutoff}$, and no other. Then, the rendered prompt is $\text{\textbf{P}} = \text{Prompt}(p_\text{cutoff}^*)$ where $p_\text{cutoff}^*$ is the minimum value such that $|\text{Prompt}(p_\text{cutoff}^*)| \leq T$.**
 
 The building blocks of a priompt prompt are:
 
