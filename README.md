@@ -24,3 +24,7 @@ Some building blocks we're thinking of adding:
 
 1. The current version of priompt only supports around 10K scopes reasonably fast. If you have a really long file and you split it line-by-line, you probably want to implement something like "for lines farther than 1000 lines away from the cursor position we have scopes of 10 lines at a time".
 2. For latency-critical prompts you want to monitor the time usage in the priompt preview dashboard. If there are too many scopes you may want to performance-optimize.
+
+## Bugs
+
+1. `{condition && <Component />}` does not work. You need `{condition ? <Component /> : <></>}` instead. We should fix this.
