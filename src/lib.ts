@@ -231,14 +231,14 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 	while (exclusiveLowerBound < inclusiveUpperBound - 1) {
 		const candidateLevelIndex = Math.floor((exclusiveLowerBound + inclusiveUpperBound) / 2);
 		const candidateLevel = sortedPriorityLevels[candidateLevelIndex];
-		console.log(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
+		// console.log(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
 		try {
 			const start = performance.now();
 			const prompt = renderWithLevelAndEarlyExitWithTokenEstimation(elem, candidateLevel, tokenizer, tokenLimit);
 			// const prompt = renderWithLevel(elem, candidateLevel);
 			const tokenCount = countTokensExact(tokenizer, prompt.prompt ?? "");
 			const end = performance.now();
-			console.log(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - start} ms and has ${tokenCount} tokens`);
+			// console.log(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - start} ms and has ${tokenCount} tokens`);
 			if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
 				// this means that the candidateLevel is too low
 				exclusiveLowerBound = candidateLevelIndex;
@@ -623,7 +623,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 	prompt: Prompt | undefined;
 	emptyTokenCount: number;
 } {
-	if (elem === undefined || elem === null) {
+	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
 			emptyTokenCount: 0
@@ -714,7 +714,7 @@ function renderWithLevel(elem: PromptElement, level: number): {
 	prompt: Prompt | undefined;
 	emptyTokenCount: number;
 } {
-	if (elem === undefined || elem === null) {
+	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
 			emptyTokenCount: 0
@@ -813,7 +813,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 		return;
 	}
 
-	if (elem === undefined || elem === null) {
+	if (elem === undefined || elem === null || elem === false) {
 		return;
 	}
 
@@ -855,7 +855,7 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 		return;
 	}
 
-	if (elem === undefined || elem === null) {
+	if (elem === undefined || elem === null || elem === false) {
 		return;
 	}
 
@@ -904,7 +904,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 		return;
 	}
 
-	if (elem === undefined || elem === null) {
+	if (elem === undefined || elem === null || elem === false) {
 		return;
 	}
 
@@ -947,6 +947,8 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 			return;
 		}
 	}
+
+	console.log('ELEM', elem);
 
 	throw new Error(`BUG!! computePriorityLevels got an invalid node`);
 }

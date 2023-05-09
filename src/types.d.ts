@@ -30,7 +30,7 @@ export type ChatMessage = {
 }
 
 
-export type Node = First | Scope | Empty | ChatMessage | string | null | undefined | number;
+export type Node = First | Scope | Empty | ChatMessage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
