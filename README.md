@@ -27,4 +27,4 @@ Some building blocks we're thinking of adding:
 
 ## Bugs
 
-1. `{condition && <Component />}` does not work. You need `{condition ? <Component /> : <></>}` instead. We should fix this.
+(probably a lot of them, but none here yet)
