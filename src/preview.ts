@@ -106,6 +106,11 @@ class PreviewManagerImpl implements IPreviewManager {
 
     if (!fs.existsSync(priomptPath)) {
       fs.mkdirSync(priomptPath, { recursive: true });
+
+      // in this case, we want to write the file to the promptId path as well, as example01.yaml
+      // this makes it easier for other users to see what the prompt is supposed to look like
+      const filePath = path.join(priomptPath, `example01.yaml`);
+      fs.writeFileSync(filePath, dump);
     }
 
     if (!fs.existsSync(dumpsPath)) {
