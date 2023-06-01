@@ -24,6 +24,15 @@ function getProjectRoot(): string {
   return process.cwd();
 }
 
+export function dumpProps<T>(config: PreviewConfig<T>, props: T) {
+  const dump = config.dump
+    ? config.dump(props)
+    : yaml.dump(props, {
+      indent: 2,
+      lineWidth: -1,
+    });
+  return dump;
+}
 
 export type PreviewConfig<PropsT> = {
   id: string;
@@ -94,12 +103,7 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
   dump<T>(config: PreviewConfig<T>, props: T) {
-    const dump = config.dump
-      ? config.dump(props)
-      : yaml.dump(props, {
-        indent: 2,
-        lineWidth: -1,
-      });
+    const dump = dumpProps(config, props);
     const priomptPath = path.join(getProjectRoot(), 'priompt', config.id);
     console.log("PRIOMPT PATH: ", priomptPath);
     const dumpsPath = path.join(priomptPath, 'dumps');
