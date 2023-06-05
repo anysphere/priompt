@@ -7,19 +7,22 @@ export const CL100K_BASE = 'cl100k_base';
 export const R50K_BASE = 'r50k_base';
 export const P50K_BASE = 'p50k_base';
 export const GPT2_TOKENIZER = 'gpt2';
+export const AZURE_3_5_TURBO = 'azure-3.5-turbo';
 
 export const usableModels = [
 	GPT_3_5_TURBO,
 	GPT_4,
 	GPT_4_32K,
 	TEXT_EMBEDDING_ADA_002,
-	TEXT_DAVINCI_003
+	TEXT_DAVINCI_003,
+	AZURE_3_5_TURBO
 ] as const;
 
 export const usableLanguageModels = [
 	GPT_3_5_TURBO,
 	GPT_4,
 	GPT_4_32K,
+	AZURE_3_5_TURBO,
 ] as const;
 
 export const usableTokenizers = [
@@ -34,6 +37,7 @@ export const MODEL_CONTEXTS: {
 	[key in UsableLanguageModel]: number;
 } = {
 	[GPT_3_5_TURBO]: 2_000,
+	[AZURE_3_5_TURBO]: 2_000,
 	[GPT_4]: 4_000,
 	[GPT_4_32K]: 32_000,
 };
@@ -42,6 +46,7 @@ export const MAX_TOKENS: {
 	[key in UsableLanguageModel]: number;
 } = {
 	[GPT_3_5_TURBO]: 4096,
+	[AZURE_3_5_TURBO]: 4096,
 	[GPT_4]: 8192,
 	[GPT_4_32K]: 32_768,
 };
