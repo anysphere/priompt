@@ -1,14 +1,23 @@
 import { render, RenderOutput } from './lib';
-import { PromptElement } from './types';
+import { Prompt, PromptElement } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import { StreamChatCompletionResponse } from './openai';
 
 export type PreviewManagerGetPromptQuery = {
   promptId: string;
   propsId: string;
   tokenLimit: number;
 };
+
+export type PreviewManagerLiveModeQuery = {
+  alreadySeenLiveModeId?: string;
+}
+
+export type PreviewManagerLiveModeResultQuery = {
+  output: string;
+}
 
 export interface IPreviewManager {
   register<T>(config: PreviewConfig<T>): void;
@@ -18,6 +27,15 @@ export interface IPreviewManager {
   getPreviews(): Record<string, { dumps: string[], saved: string[] }>;
   getPrompt(query: PreviewManagerGetPromptQuery): RenderOutput;
 }
+
+type LiveModeOutput = {
+  liveModeId: string;
+};
+
+type LiveModeData = {
+  liveModeId: string;
+  promptElement: PromptElement;
+};
 
 function getProjectRoot(): string {
   // just do cwd / priompt for now
@@ -78,6 +96,12 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
   private getElement(promptId: string, propsId: string): PromptElement {
+    if (promptId === 'liveModePromptId') {
+      if (this.lastLiveModeData === null) {
+        throw new Error('live mode prompt not found');
+      }
+      return this.lastLiveModeData.promptElement;
+    }
     if (!Object.keys(this.previews).includes(promptId)) {
       throw new Error(`preview promptId ${promptId} not registered`);
     }
@@ -126,6 +150,83 @@ class PreviewManagerImpl implements IPreviewManager {
     fs.writeFileSync(filePath, dump);
   }
 
+  private lastLiveModeData: LiveModeData | null = null;
+  private lastLiveModeOutputPromise: Promise<void>;
+  private resolveLastLiveModeOutputPromise: () => void = () => { };
+
+  private liveModeResultPromise: Promise<string>;
+  private resolveLiveModeResult: (s: string) => void = () => { };
+
+  constructor() {
+    this.lastLiveModeOutputPromise = new Promise((resolve) => {
+      this.resolveLastLiveModeOutputPromise = resolve;
+    });
+    this.liveModeResultPromise = new Promise((resolve) => {
+      this.resolveLiveModeResult = resolve;
+    });
+  }
+
+  async *streamLiveModePrompt(promptElement: PromptElement, options: { model: string, abortSignal?: AbortSignal }): AsyncGenerator<StreamChatCompletionResponse> {
+    const liveModeData: LiveModeData = {
+      liveModeId: randomString(),
+      promptElement,
+    };
+    this.lastLiveModeData = liveModeData;
+    this.resolveLastLiveModeOutputPromise();
+    this.lastLiveModeOutputPromise = new Promise((resolve) => {
+      this.resolveLastLiveModeOutputPromise = resolve;
+    });
+    const result = await this.liveModeResultPromise;
+    const output: StreamChatCompletionResponse = {
+      'id': liveModeData.liveModeId,
+      'object': 'text_completion',
+      'created': Date.now(),
+      'model': options.model,
+      'choices': [
+        {
+          'delta': {
+            'role': 'assistant',
+            'content': result,
+          }
+        }
+      ]
+    };
+
+    yield output;
+  }
+
+  async liveMode(query: PreviewManagerLiveModeQuery, abortSignal?: AbortSignal): Promise<LiveModeOutput> {
+    while (true) {
+      const result = await Promise.race([
+        this.lastLiveModeOutputPromise,
+        new Promise((_, reject) => {
+          if (abortSignal) {
+            abortSignal.addEventListener('abort', () => reject(new Error('Aborted')));
+          }
+        }),
+      ]);
+
+      if (result instanceof Error) {
+        throw result;
+      }
+
+      if (this.lastLiveModeData === null) {
+        continue;
+      }
+      if (this.lastLiveModeData.liveModeId === query.alreadySeenLiveModeId) {
+        continue;
+      }
+      return this.lastLiveModeData;
+    }
+  }
+
+  liveModeResult(query: PreviewManagerLiveModeResultQuery) {
+    this.resolveLiveModeResult(query.output);
+    this.liveModeResultPromise = new Promise((resolve) => {
+      this.resolveLiveModeResult = resolve;
+    });
+  }
+
 
   private getDump(promptId: string, propsId: string): string {
     const priomptPath = path.join(getProjectRoot(), 'priompt', promptId);
@@ -146,3 +247,11 @@ class PreviewManagerImpl implements IPreviewManager {
 
 // GLOBALS FTW. i love globals.
 export const PreviewManager = new PreviewManagerImpl();
+
+function randomString() {
+  let s = '';
+  for (let i = 0; i < 10; i++) {
+    s += Math.floor(Math.random() * 10);
+  }
+  return s;
+}

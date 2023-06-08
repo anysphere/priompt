@@ -1,3 +1,5 @@
+import { ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionResponseChoicesInner } from 'openai';
+
 export const GPT_3_5_TURBO = 'gpt-3.5-turbo';
 export const GPT_4 = 'gpt-4';
 export const GPT_4_32K = 'gpt-4-32k';
@@ -62,3 +64,16 @@ export type UsableTokenizer = typeof usableTokenizers[number];
 // docs here: https://platform.openai.com/docs/guides/chat/introduction
 export const CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR = 4;
 export const CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT = 2;
+
+export interface StreamChatCompletionResponse extends CreateChatCompletionResponse {
+	/**
+	 *
+	 * @type {Array<StreamChatCompletionResponseChoicesInner>}
+	 * @memberof StreamChatCompletionResponse
+	 */
+	'choices': Array<StreamChatCompletionResponseChoicesInner>;
+}
+
+interface StreamChatCompletionResponseChoicesInner extends CreateChatCompletionResponseChoicesInner {
+	delta?: ChatCompletionResponseMessage;
+}
