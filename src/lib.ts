@@ -950,7 +950,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 
 	console.log('ELEM', elem);
 
-	throw new Error(`BUG!! computePriorityLevels got an invalid node`);
+	throw new Error(`BUG!! computePriorityLevels got an invalid node of type ${typeof elem} (see the console log above)`);
 }
 
 
