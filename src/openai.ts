@@ -38,8 +38,8 @@ export const usableTokenizers = [
 export const MODEL_CONTEXTS: {
 	[key in UsableLanguageModel]: number;
 } = {
-	[GPT_3_5_TURBO]: 2_000,
-	[AZURE_3_5_TURBO]: 2_000,
+	[GPT_3_5_TURBO]: 4_000,
+	[AZURE_3_5_TURBO]: 4_000,
 	[GPT_4]: 4_000,
 	[GPT_4_32K]: 32_000,
 };
