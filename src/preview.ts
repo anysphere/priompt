@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { StreamChatCompletionResponse } from './openai';
+import { CreateChatCompletionResponse } from 'openai';
 
 export type PreviewManagerGetPromptQuery = {
   promptId: string;
@@ -166,7 +167,7 @@ class PreviewManagerImpl implements IPreviewManager {
     });
   }
 
-  async *streamLiveModePrompt(promptElement: PromptElement, options: { model: string, abortSignal?: AbortSignal }): AsyncGenerator<StreamChatCompletionResponse> {
+  async getLiveModePromptCompletion(promptElement: PromptElement, options: { model: string, abortSignal?: AbortSignal }): Promise<CreateChatCompletionResponse> {
     const liveModeData: LiveModeData = {
       liveModeId: randomString(),
       promptElement,
@@ -177,20 +178,28 @@ class PreviewManagerImpl implements IPreviewManager {
       this.resolveLastLiveModeOutputPromise = resolve;
     });
     const result = await this.liveModeResultPromise;
-    const output: StreamChatCompletionResponse = {
+    const output: CreateChatCompletionResponse = {
       'id': liveModeData.liveModeId,
       'object': 'text_completion',
       'created': Date.now(),
       'model': options.model,
       'choices': [
         {
-          'delta': {
+          'message': {
             'role': 'assistant',
             'content': result,
           }
         }
       ]
     };
+
+    return output;
+  }
+
+  async *streamLiveModePromptCompletion(promptElement: PromptElement, options: { model: string, abortSignal?: AbortSignal }): AsyncGenerator<StreamChatCompletionResponse> {
+    const output: StreamChatCompletionResponse = await this.getLiveModePromptCompletion(promptElement, options);
+
+    output.choices[0].delta = output.choices[0].message;
 
     yield output;
   }
