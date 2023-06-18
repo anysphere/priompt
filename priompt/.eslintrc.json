@@ -1,0 +1,6 @@
+{
+  "extends": ["../.eslintrc.base"],
+  "rules": {
+    // additional rules specific to this config
+  }
+}

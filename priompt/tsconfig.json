@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "outDir": "./dist",
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "declaration": true,
+    "isolatedModules": true,
+    "target": "ES2019",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "jsx": "react",
+    "jsxFactory": "Priompt.createElement",
+    "jsxFragmentFactory": "Priompt.Fragment",
+    "sourceMap": true,
+    "strictPropertyInitialization": true
+  },
+  "include": ["./src/index.ts", "./src/**/*.d.ts", "./src/**/*.test.ts*"]
+}

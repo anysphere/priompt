@@ -1,0 +1,3 @@
+message: bad the prompt buton not work
+includeFunctions:
+  - insert_sql_row

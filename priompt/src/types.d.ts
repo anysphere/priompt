@@ -1,5 +1,8 @@
 
 // First picks out the first child (in order) that is prioritized enough
+
+import { JSONSchema7 } from 'json-schema';
+
 // It is a REQUIREMENT that the children have decreasing token counts
 export type First = {
 	type: 'first';
@@ -29,8 +32,14 @@ export type ChatMessage = {
 	children: Node[];
 }
 
+export type FunctionDefinition = {
+	type: 'functionDefinition';
+	name: string;
+	description: string;
+	parameters: JSONSchema7;
+}
 
-export type Node = First | Scope | Empty | ChatMessage | string | null | undefined | number | false;
+export type Node = FunctionDefinition | First | Scope | Empty | ChatMessage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -72,4 +81,19 @@ export type ChatPrompt = {
 	messages: ChatPromptMessage[];
 }
 
-export type Prompt = string | ChatPrompt;
+export type TextPrompt = {
+	type: 'text';
+	text: string;
+}
+
+export type ChatAndFunctionPromptFunction = {
+	name: string;
+	description: string;
+	parameters: JSONSchema7;
+}
+
+export type FunctionPrompt = {
+	functions: ChatAndFunctionPromptFunction[];
+}
+
+export type Prompt = string | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);

@@ -3,18 +3,33 @@
 
 // TODO: add an IDE plugin or something that renders the prompt when you hover over it (and has a slider for the priority)
 
-import { ChatCompletionRequestMessage } from 'openai';
+import { ChatCompletionRequestMessage, ChatCompletionFunctions } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer } from './openai';
 import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerFromName, getTokenizerName } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction } from './types';
 
 
 
-function isChatPrompt(prompt: Prompt | undefined): prompt is ChatPrompt {
+export function isChatPrompt(prompt: Prompt | undefined): prompt is ChatPrompt {
 	return typeof prompt === 'object' && prompt.type === 'chat';
 }
-function isPlainPrompt(prompt: Prompt | undefined): prompt is string {
+export function isPlainPrompt(prompt: Prompt | undefined): prompt is string {
 	return typeof prompt === 'string';
+}
+function isTextPromptPotentiallyWithFunctions(prompt: Prompt | undefined): prompt is ((TextPrompt & FunctionPrompt) | string) {
+	return (typeof prompt === 'object' && 'text' in prompt) || typeof prompt === 'string';
+}
+export function promptHasFunctions(prompt: Prompt | undefined): prompt is ((ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt)) {
+	return typeof prompt === 'object' && 'functions' in prompt && prompt.functions !== undefined;
+}
+function promptGetText(prompt: Prompt | undefined): string | undefined {
+	if (!isTextPromptPotentiallyWithFunctions(prompt)) {
+		return undefined;
+	}
+	if (typeof prompt === 'string') {
+		return prompt;
+	}
+	return prompt.text;
 }
 
 function sumPrompts(a: Prompt | undefined, b: Prompt | undefined): Prompt | undefined {
@@ -24,16 +39,29 @@ function sumPrompts(a: Prompt | undefined, b: Prompt | undefined): Prompt | unde
 	if (b === undefined) {
 		return a;
 	}
-	if (isChatPrompt(a) && isChatPrompt(b)) {
-		return {
+	if ((isChatPrompt(a) && isChatPrompt(b)) || (isChatPrompt(a) && promptGetText(b) === '') || (isChatPrompt(b) && promptGetText(a) === '')) {
+		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
+		const prompt: (ChatPrompt & FunctionPrompt) | ChatPrompt = {
 			type: 'chat',
-			messages: [...a.messages, ...b.messages]
+			messages: [...(isChatPrompt(a) ? a.messages : []), ...(isChatPrompt(b) ? b.messages : [])],
+			functions: functions.length > 0 ? functions : undefined
 		};
+		return prompt;
+	}
+	if ((promptHasFunctions(a) || promptHasFunctions(b)) && (isTextPromptPotentiallyWithFunctions(a) && isTextPromptPotentiallyWithFunctions(b))) {
+		// valid, should return TextPrompt & FunctionPrompt
+		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
+		const prompt: TextPrompt & FunctionPrompt = {
+			type: 'text',
+			text: (isPlainPrompt(a) ? a : a.text) + (isPlainPrompt(b) ? b : b.text),
+			functions,
+		};
+		return prompt;
 	}
 	if (isPlainPrompt(a) && isPlainPrompt(b)) {
 		return a + b;
 	}
-	throw new Error(`cannot sum prompts ${a} and ${b}`);
+	throw new Error(`cannot sum prompts ${a} (${typeof a === 'string' ? 'string' : a.type}) and ${b} (${typeof b === 'string' ? 'string' : b.type})`);
 }
 
 export function createElement(tag: ((props: BaseProps & Record<string, unknown>) => PromptElement) | string, props: Record<string, unknown> | null, ...children: PromptElement[]): PromptElement {
@@ -469,7 +497,10 @@ type NormalizedFirst = Omit<First, 'children'> & {
 type NormalizedChatMessage = Omit<ChatMessage, 'children'> & {
 	children: NormalizedNode[];
 };
-type NormalizedNode = NormalizedFirst | NormalizedScope | Empty | NormalizedChatMessage | NormalizedString;
+type NormalizedFunctionDefinition = FunctionDefinition & {
+	cachedCount: number | undefined;
+}
+type NormalizedNode = NormalizedFirst | NormalizedScope | Empty | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
 type NormalizedPromptElement = NormalizedNode[];
 function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	// we want to merge all the strings together
@@ -500,6 +531,13 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 			switch (node.type) {
 				case 'empty': {
 					newNode = node;
+					break;
+				}
+				case 'functionDefinition': {
+					newNode = {
+						...node,
+						cachedCount: undefined
+					};
 					break;
 				}
 				case 'first': {
@@ -576,6 +614,27 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 				emptyTokenCount: elem.tokenCount
 			}
 		}
+		case 'functionDefinition': {
+			if (elem.cachedCount === undefined) {
+				elem.cachedCount = countFunctionTokens(elem, tokenizer);
+			}
+			const prompt: (TextPrompt & FunctionPrompt) = {
+				type: 'text',
+				text: "",
+				functions: [
+					{
+						name: elem.name,
+						description: elem.description,
+						parameters: elem.parameters,
+					}
+				]
+			};
+			return {
+				prompt,
+				tokenCount: elem.cachedCount,
+				emptyTokenCount: 0
+			}
+		}
 		case 'chat': {
 			const p = renderWithLevelAndCountTokens(elem.children, level, tokenizer);
 			if (isChatPrompt(p.prompt)) {
@@ -586,8 +645,9 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 					type: 'chat',
 					messages: [{
 						role: elem.role,
-						content: p.prompt ?? "",
-					}]
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}],
+					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				tokenCount: p.tokenCount + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR,
 				emptyTokenCount: p.emptyTokenCount,
@@ -632,7 +692,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 	if (Array.isArray(elem)) {
 		return elem.map(e => renderWithLevelAndEarlyExitWithTokenEstimation(e, level, tokenizer, tokenLimit)).reduce((a, b) => {
 			const sum = sumPrompts(a.prompt, b.prompt);
-			const lowerBound = isChatPrompt(sum) ? sum.messages.reduce((a, b) => (a + estimateTokensUsingCharcount(b.content, tokenizer)[0]), 0) : (sum === undefined ? 0 : estimateTokensUsingCharcount(sum, tokenizer)[0]);
+			const lowerBound = isChatPrompt(sum) ? sum.messages.reduce((a, b) => (a + estimateTokensUsingCharcount(b.content, tokenizer)[0]), 0) : (sum === undefined ? 0 : estimateTokensUsingCharcount(isPlainPrompt(sum) ? sum : sum.text, tokenizer)[0]) + (promptHasFunctions(sum) ? sum.functions.reduce((a, b) => (a + estimateFunctionTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);
 			if (lowerBound > tokenLimit) {
 				throw new Error(`Token limit exceeded!`);
 			}
@@ -679,6 +739,23 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				emptyTokenCount: elem.tokenCount
 			}
 		}
+		case 'functionDefinition': {
+			const prompt: (TextPrompt & FunctionPrompt) = {
+				type: 'text',
+				text: "",
+				functions: [
+					{
+						name: elem.name,
+						description: elem.description,
+						parameters: elem.parameters,
+					}
+				]
+			};
+			return {
+				prompt,
+				emptyTokenCount: 0
+			}
+		}
 		case 'chat': {
 			const p = renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
 			if (isChatPrompt(p.prompt)) {
@@ -689,8 +766,9 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 					type: 'chat',
 					messages: [{
 						role: elem.role,
-						content: p.prompt ?? "",
-					}]
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}],
+					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				emptyTokenCount: p.emptyTokenCount,
 			}
@@ -765,6 +843,23 @@ function renderWithLevel(elem: PromptElement, level: number): {
 				emptyTokenCount: elem.tokenCount
 			}
 		}
+		case 'functionDefinition': {
+			const prompt: (TextPrompt & FunctionPrompt) = {
+				type: 'text',
+				text: "",
+				functions: [
+					{
+						name: elem.name,
+						description: elem.description,
+						parameters: elem.parameters,
+					}
+				]
+			};
+			return {
+				prompt,
+				emptyTokenCount: 0
+			}
+		}
 		case 'chat': {
 			const p = renderWithLevel(elem.children, level);
 			if (isChatPrompt(p.prompt)) {
@@ -775,8 +870,9 @@ function renderWithLevel(elem: PromptElement, level: number): {
 					type: 'chat',
 					messages: [{
 						role: elem.role,
-						content: p.prompt ?? "",
-					}]
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}],
+					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				emptyTokenCount: p.emptyTokenCount,
 			}
@@ -832,6 +928,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 			}
 			return;
 		}
+		case 'functionDefinition':
 		case 'empty': {
 			return;
 		}
@@ -874,6 +971,7 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 			}
 			return;
 		}
+		case 'functionDefinition':
 		case 'empty': {
 			return;
 		}
@@ -925,6 +1023,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 			}
 			return;
 		}
+		case 'functionDefinition':
 		case 'empty': {
 			// nothing happens
 			return;
@@ -966,6 +1065,15 @@ function countTokensExact(tokenizer: UsableTokenizer, prompt: Prompt): number {
 	throw new Error(`BUG!! countTokensExact got an invalid prompt`);
 }
 
+export function promptToOpenAIChatRequest(prompt: Prompt): { messages: Array<ChatCompletionRequestMessage>; functions: ChatCompletionFunctions[] | undefined } {
+	const functions = promptHasFunctions(prompt) ? prompt.functions : undefined;
+	const messages = promptToOpenAIChat(prompt);
+	return {
+		messages,
+		functions
+	};
+}
+
 export function promptToOpenAIChat(prompt: Prompt): Array<ChatCompletionRequestMessage> {
 	if (isPlainPrompt(prompt)) {
 		return [
@@ -983,4 +1091,29 @@ export function promptToOpenAIChat(prompt: Prompt): Array<ChatCompletionRequestM
 		});
 	}
 	throw new Error(`BUG!! promptToOpenAIChat got an invalid prompt`);
+}
+
+
+function countFunctionTokens(functionDefinition: NormalizedFunctionDefinition, tokenizer: UsableTokenizer): number {
+	// hmmmm how do we count these tokens? openai has been quite unclear
+	// for now we JSON stringify and count tokens, and hope that that is reasonably close
+	const stringifiedFunction = JSON.stringify({
+		name: functionDefinition.name,
+		description: functionDefinition.description,
+		parameters: functionDefinition.parameters,
+	}, null, 2);
+	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
+	const raw = getTokenizerFromName(tokenizer).encode(stringifiedFunction).length;
+	return Math.ceil(raw * 1.5) + 10;
+}
+
+function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): [number, number] {
+	const stringifiedFunction = JSON.stringify({
+		name: functionDefinition.name,
+		description: functionDefinition.description,
+		parameters: functionDefinition.parameters,
+	}, null, 2);
+	const raw = estimateTokensUsingCharcount(stringifiedFunction, tokenizer);
+	// we multiply by 1.5 and add 10 just to be safe until we've done more testing for the upper bound
+	return [Math.ceil(raw[0] * 0.5), Math.ceil(raw[1] * 1.5) + 10];
 }

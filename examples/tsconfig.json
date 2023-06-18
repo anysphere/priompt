@@ -6,13 +6,11 @@
     "noImplicitAny": true,
     "declaration": true,
     "isolatedModules": true,
-    "target": "ES2019",
-    "module": "CommonJS",
+    "target": "es2022",
     "moduleResolution": "node",
     "jsx": "react",
     "jsxFactory": "Priompt.createElement",
     "jsxFragmentFactory": "Priompt.Fragment",
-    "sourceMap": true
-  },
-  "include": ["./src/index.ts", "./src/**/*.d.ts"]
+    "strictPropertyInitialization": true
+  }
 }
