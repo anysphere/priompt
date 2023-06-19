@@ -34,7 +34,7 @@ export async function* streamChat(createChatCompletionRequest: CreateChatComplet
 
 		const response = await fetch('https://api.openai.com/v1/chat/completions', requestOptions);
 		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
+			throw new Error(`HTTP error! status: ${response.status}. message: ${await response.text()}`);
 		}
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		streamer = streamSource<StreamChatCompletionResponse>(response.body!);

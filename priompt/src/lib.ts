@@ -175,6 +175,9 @@ export type RenderOutput = {
 	priorityCutoff: number;
 	durationMs?: number;
 };
+export type FunctionCallOptions = {
+	name: string;
+}
 
 
 // priority level if it is not set becomes 1e9, i.e. it is always rendered
