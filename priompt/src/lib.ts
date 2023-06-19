@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer } from './openai';
 import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerFromName, getTokenizerName } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage } from './types';
 
 
 
@@ -494,9 +494,16 @@ type NormalizedScope = Omit<Scope, 'children'> & {
 type NormalizedFirst = Omit<First, 'children'> & {
 	children: NormalizedScope[];
 };
-type NormalizedChatMessage = Omit<ChatMessage, 'children'> & {
+type NormalizedChatUserSystemMessage = Omit<ChatUserSystemMessage, 'children'> & {
 	children: NormalizedNode[];
 };
+type NormalizedChatAssistantMessage = Omit<ChatAssistantMessage, 'children'> & {
+	children: NormalizedNode[];
+};
+type NormalizedChatFunctionResultMessage = Omit<ChatFunctionResultMessage, 'children'> & {
+	children: NormalizedNode[];
+};
+type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAssistantMessage | NormalizedChatFunctionResultMessage;
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
@@ -640,16 +647,46 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
+
+			let extraTokenCount = 0;
+			let message: ChatPromptMessage;
+			if (elem.role === 'user' || elem.role === 'system') {
+				message = {
+					role: elem.role,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				};
+			} else if (elem.role === 'assistant') {
+				if (elem.functionCall !== undefined) {
+					message = {
+						role: elem.role,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+						functionCall: elem.functionCall,
+					}
+					extraTokenCount += countFunctionCallMessageTokens(elem.functionCall, tokenizer);
+				} else {
+					message = {
+						role: elem.role,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}
+				}
+			} else if (elem.role === 'function') {
+				message = {
+					role: elem.role,
+					name: elem.name,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				}
+				extraTokenCount += getTokenizerFromName(tokenizer).encode(elem.name).length;
+			} else {
+				throw new Error(`BUG!! Invalid role ${elem.role}`);
+			}
+
 			return {
 				prompt: {
 					type: 'chat',
-					messages: [{
-						role: elem.role,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-					}],
+					messages: [message],
 					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
-				tokenCount: p.tokenCount + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR,
+				tokenCount: p.tokenCount + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR + extraTokenCount,
 				emptyTokenCount: p.emptyTokenCount,
 			}
 		}
@@ -692,7 +729,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 	if (Array.isArray(elem)) {
 		return elem.map(e => renderWithLevelAndEarlyExitWithTokenEstimation(e, level, tokenizer, tokenLimit)).reduce((a, b) => {
 			const sum = sumPrompts(a.prompt, b.prompt);
-			const lowerBound = isChatPrompt(sum) ? sum.messages.reduce((a, b) => (a + estimateTokensUsingCharcount(b.content, tokenizer)[0]), 0) : (sum === undefined ? 0 : estimateTokensUsingCharcount(isPlainPrompt(sum) ? sum : sum.text, tokenizer)[0]) + (promptHasFunctions(sum) ? sum.functions.reduce((a, b) => (a + estimateFunctionTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);
+			const lowerBound = estimateLowerBoundTokensForPrompt(sum, tokenizer);
 			if (lowerBound > tokenLimit) {
 				throw new Error(`Token limit exceeded!`);
 			}
@@ -761,13 +798,40 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
+
+			let message: ChatPromptMessage;
+			if (elem.role === 'user' || elem.role === 'system') {
+				message = {
+					role: elem.role,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				};
+			} else if (elem.role === 'assistant') {
+				if (elem.functionCall !== undefined) {
+					message = {
+						role: elem.role,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+						functionCall: elem.functionCall,
+					}
+				} else {
+					message = {
+						role: elem.role,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}
+				}
+			} else if (elem.role === 'function') {
+				message = {
+					role: elem.role,
+					name: elem.name,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				}
+			} else {
+				throw new Error(`BUG!! Invalid role ${elem.role}`);
+			}
+
 			return {
 				prompt: {
 					type: 'chat',
-					messages: [{
-						role: elem.role,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-					}],
+					messages: [message],
 					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				emptyTokenCount: p.emptyTokenCount,
@@ -865,13 +929,40 @@ function renderWithLevel(elem: PromptElement, level: number): {
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
+
+			let message: ChatPromptMessage;
+			if (elem.role === 'user' || elem.role === 'system') {
+				message = {
+					role: elem.role,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				};
+			} else if (elem.role === 'assistant') {
+				if (elem.functionCall !== undefined) {
+					message = {
+						role: elem.role,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+						functionCall: elem.functionCall,
+					}
+				} else {
+					message = {
+						role: elem.role,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}
+				}
+			} else if (elem.role === 'function') {
+				message = {
+					role: elem.role,
+					name: elem.name,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				}
+			} else {
+				throw new Error(`BUG!! Invalid role ${elem.role}`);
+			}
+
 			return {
 				prompt: {
 					type: 'chat',
-					messages: [{
-						role: elem.role,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-					}],
+					messages: [message],
 					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				emptyTokenCount: p.emptyTokenCount,
@@ -1055,46 +1146,84 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 
 function countTokensExact(tokenizer: UsableTokenizer, prompt: Prompt): number {
 	const tokenizerObj = getTokenizerFromName(tokenizer);
+	let tokens = 0;
 	if (isPlainPrompt(prompt)) {
-		return tokenizerObj.encode(prompt).length;
+		tokens += tokenizerObj.encode(prompt).length;
 	} else if (isChatPrompt(prompt)) {
-		const msgTokens = prompt.messages.map(msg => tokenizerObj.encode(msg.content).length);
+		const msgTokens = prompt.messages.map(msg => countMessageTokens(msg, tokenizer));
 		// docs here: https://platform.openai.com/docs/guides/chat/introduction
-		return msgTokens.reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
+		tokens += msgTokens.reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
+	} else {
+		tokens += tokenizerObj.encode(prompt.text).length;
 	}
-	throw new Error(`BUG!! countTokensExact got an invalid prompt`);
+	if (promptHasFunctions(prompt)) {
+		// we assume an extra 2 tokens per function
+		tokens += prompt.functions.reduce((a, b) => a + countFunctionTokens(b, tokenizer) + 2, 0);
+	}
+	return tokens;
 }
 
 export function promptToOpenAIChatRequest(prompt: Prompt): { messages: Array<ChatCompletionRequestMessage>; functions: ChatCompletionFunctions[] | undefined } {
 	const functions = promptHasFunctions(prompt) ? prompt.functions : undefined;
-	const messages = promptToOpenAIChat(prompt);
+	const messages = promptToOpenAIChatMessages(prompt);
 	return {
 		messages,
 		functions
 	};
 }
 
-export function promptToOpenAIChat(prompt: Prompt): Array<ChatCompletionRequestMessage> {
+export function promptToOpenAIChatMessages(prompt: Prompt): Array<ChatCompletionRequestMessage> {
 	if (isPlainPrompt(prompt)) {
 		return [
 			{
 				role: 'user',
 				content: prompt
 			}
-		]
+		];
 	} else if (isChatPrompt(prompt)) {
 		return prompt.messages.map(msg => {
-			return {
-				role: msg.role,
-				content: msg.content
+			if (msg.role === 'function') {
+				return {
+					role: msg.role,
+					name: msg.name,
+					content: msg.content,
+				}
+			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
+				return {
+					role: msg.role,
+					content: msg.content ?? "", // openai is lying when they say this should not be provided
+					function_call: msg.functionCall,
+				}
+			} else {
+				return {
+					role: msg.role,
+					content: msg.content,
+				}
 			}
 		});
 	}
-	throw new Error(`BUG!! promptToOpenAIChat got an invalid prompt`);
+	throw new Error(`BUG!! promptToOpenAIChatMessagesgot an invalid prompt`);
 }
 
+function countMessageTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): number {
+	const tokenizerObj = getTokenizerFromName(tokenizer);
+	if (message.role === 'function') {
+		// add an extra 2 tokens for good measure
+		return tokenizerObj.encode(message.name).length + tokenizerObj.encode(message.content).length + 2;
+	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
+		return countFunctionCallMessageTokens(message.functionCall, tokenizer) + (message.content !== undefined ? tokenizerObj.encode(message.content).length : 0);
+	} else {
+		return tokenizerObj.encode(message.content ?? "").length;
+	}
+}
 
-function countFunctionTokens(functionDefinition: NormalizedFunctionDefinition, tokenizer: UsableTokenizer): number {
+function countFunctionCallMessageTokens(functionCall: { name: string; arguments: string; }, tokenizer: UsableTokenizer): number {
+	const tokenizerObj = getTokenizerFromName(tokenizer);
+	// add some constant factor here because who knows what's actually going on with functions
+	return tokenizerObj.encode(functionCall.name).length + tokenizerObj.encode(functionCall.arguments).length + 5;
+}
+
+function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): number {
 	// hmmmm how do we count these tokens? openai has been quite unclear
 	// for now we JSON stringify and count tokens, and hope that that is reasonably close
 	const stringifiedFunction = JSON.stringify({
@@ -1116,4 +1245,31 @@ function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctio
 	const raw = estimateTokensUsingCharcount(stringifiedFunction, tokenizer);
 	// we multiply by 1.5 and add 10 just to be safe until we've done more testing for the upper bound
 	return [Math.ceil(raw[0] * 0.5), Math.ceil(raw[1] * 1.5) + 10];
+}
+
+function estimateLowerBoundTokensForPrompt(prompt: Prompt | undefined, tokenizer: UsableTokenizer): number {
+	if (prompt === undefined) {
+		return 0;
+	}
+	let contentTokens;
+	if (isChatPrompt(prompt)) {
+		contentTokens = prompt.messages.reduce((a, b) => {
+			if (b.role === 'function') {
+				// since this is a lower bound, we assume there are no extra tokens here
+				return a + estimateTokensUsingCharcount(b.name + b.content, tokenizer)[0];
+			} else if (b.role === 'assistant' && b.functionCall !== undefined) {
+				return a + estimateTokensUsingCharcount(b.functionCall.name + b.functionCall.arguments + (b.content ?? ""), tokenizer)[0];
+			} else {
+				return a + estimateTokensUsingCharcount(b.content ?? "", tokenizer)[0];
+			}
+		}, 0);
+	} else if (isPlainPrompt(prompt)) {
+		contentTokens = estimateTokensUsingCharcount(prompt, tokenizer)[0];
+	} else {
+		contentTokens = estimateTokensUsingCharcount(prompt.text, tokenizer)[0];
+	}
+
+	const functionTokens = (promptHasFunctions(prompt) ? prompt.functions.reduce((a, b) => (a + estimateFunctionTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);
+
+	return contentTokens + functionTokens;
 }

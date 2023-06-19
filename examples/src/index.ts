@@ -1,4 +1,4 @@
-import { promptToOpenAIChat, promptToOpenAIChatRequest, render } from 'priompt';
+import { promptToOpenAIChatMessages, promptToOpenAIChatRequest, render } from 'priompt';
 import { handlePriomptPreview } from './priompt-preview-handlers';
 import { ExamplePrompt } from './prompt';
 import fastifyCors from "@fastify/cors";
@@ -51,7 +51,7 @@ async function main() {
 
 		const requestConfig: CreateChatCompletionRequest = {
 			model: "gpt-3.5-turbo",
-			messages: promptToOpenAIChat(output.prompt),
+			messages: promptToOpenAIChatMessages(output.prompt),
 		};
 
 		try {
@@ -66,20 +66,25 @@ async function main() {
 		}
 	});
 	S.get("/database", async (request, reply) => {
-		const query = request.query as { message: string; };
+		const query = request.query as { message: string; confuse: string | undefined; };
 		if (query.message === undefined) {
 			return reply.status(400).send("Bad request; message is required.");
 		}
 		const message = query.message as string;
-		const prompt = FunctionCallingPrompt({ message, includeFunctions: ["insert_sql_row"] }, { dump: process.env.NODE_ENV === "development" });
+		const prompt = FunctionCallingPrompt({ message, includeFunctions: ["insert_sql_row", "update_sql_row"], causeConfusion: query.confuse === "true" }, { dump: process.env.NODE_ENV === "development" });
 		const output = render(prompt, {
 			model: "gpt-3.5-turbo"
 		});
+
+		console.log(JSON.stringify(output.prompt, null, 2));
 
 		const requestConfig: CreateChatCompletionRequest = {
 			...promptToOpenAIChatRequest(output.prompt),
 			model: "gpt-3.5-turbo-0613",
 		};
+
+		// make this print all nested values in node
+		console.log(JSON.stringify(requestConfig, null, 2));
 
 		try {
 			const openaiResult = await openai.createChatCompletion(requestConfig);

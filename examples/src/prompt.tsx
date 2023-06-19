@@ -36,6 +36,7 @@ export function ExamplePrompt(
         transition seem like it never happened.
       </SystemMessage>
       <UserMessage>{props.message}</UserMessage>
+      <empty tokens={1000} />
     </>
   );
 }

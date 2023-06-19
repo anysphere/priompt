@@ -6,28 +6,35 @@
  */
 export interface ChatCompletionRequestMessage {
 	/**
-	 * The role of the author of this message.
+	 * The role of the messages author. One of `system`, `user`, `assistant`, or `function`.
 	 * @type {string}
 	 * @memberof ChatCompletionRequestMessage
 	 */
 	'role': ChatCompletionRequestMessageRoleEnum;
 	/**
-	 * The contents of the message
+	 * The contents of the message. `content` is required for all messages except assistant messages with function calls.
 	 * @type {string}
 	 * @memberof ChatCompletionRequestMessage
 	 */
-	'content': string;
+	'content'?: string;
 	/**
-	 * The name of the user in a multi-user chat
+	 * The name of the author of this message. `name` is required if role is `function`, and it should be the name of the function whose response is in the `content`. May contain a-z, A-Z, 0-9, and underscores, with a maximum length of 64 characters.
 	 * @type {string}
 	 * @memberof ChatCompletionRequestMessage
 	 */
 	'name'?: string;
+	/**
+	 *
+	 * @type {ChatCompletionRequestMessageFunctionCall}
+	 * @memberof ChatCompletionRequestMessage
+	 */
+	'function_call'?: ChatCompletionRequestMessageFunctionCall;
 }
 export declare const ChatCompletionRequestMessageRoleEnum: {
 	readonly System: "system";
 	readonly User: "user";
 	readonly Assistant: "assistant";
+	readonly Function: "function";
 };
 export interface ChatCompletionFunctions {
 	/**
@@ -283,7 +290,7 @@ export interface ChatCompletionResponseMessage {
 	 * @type {string}
 	 * @memberof ChatCompletionResponseMessage
 	 */
-	'content': string;
+	'content'?: string;
 	/**
 	 *
 	 * @type {ChatCompletionRequestMessageFunctionCall}
@@ -309,5 +316,6 @@ export declare const ChatCompletionResponseMessageRoleEnum: {
 	readonly System: "system";
 	readonly User: "user";
 	readonly Assistant: "assistant";
+	readonly Function: "function";
 };
 export declare type ChatCompletionResponseMessageRoleEnum = typeof ChatCompletionResponseMessageRoleEnum[keyof typeof ChatCompletionResponseMessageRoleEnum];

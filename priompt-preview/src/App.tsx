@@ -3,6 +3,7 @@ import { Prompt } from "priompt";
 import { streamChat } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "priompt/dist/types";
+import { ChatCompletionResponseMessage } from "./openai_interfaces";
 
 function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   callback: T,
@@ -68,7 +69,9 @@ const App = () => {
 
   console.log("New Change!");
 
-  const [completion, setCompletion] = useState<string>("");
+  const [completion, setCompletion] = useState<
+    ChatCompletionResponseMessage | undefined
+  >(undefined);
   const [loadingCompletion, setLoadingCompletion] = useState<boolean>(false);
 
   const [abortController, setAbortController] = useState<
@@ -146,7 +149,7 @@ const App = () => {
       } else {
         setFullPrompts({
           prompt: prompt,
-          texts: prompt.messages.map((message) => message.content),
+          texts: prompt.messages.map((message) => message.content ?? ""),
           functions: "functions" in prompt ? prompt.functions : [],
         });
       }
@@ -169,7 +172,7 @@ const App = () => {
         };
       });
     },
-    1000 // debounce delay in milliseconds
+    100 // debounce delay in milliseconds
   );
 
   const fetchPrompt = useCallback(
@@ -184,7 +187,7 @@ const App = () => {
       if (promptId === "liveModePromptId" && propsId === "") {
         setErrorMessage("waiting for live mode prompt...");
         setPrompt(undefined);
-        setCompletion("");
+        setCompletion(undefined);
         return;
       }
 
@@ -206,12 +209,12 @@ const App = () => {
           setPriorityCutoff(data.priorityCutoff);
           setPrompt(data.prompt);
           setErrorMessage("");
-          setCompletion("");
+          setCompletion(undefined);
         })
         .catch((error) => {
           setErrorMessage(error.message);
           setPrompt(undefined);
-          setCompletion("");
+          setCompletion(undefined);
         });
     },
     []
@@ -339,12 +342,12 @@ const App = () => {
         setSelectedPropsId(data.propsId);
         localStorage.setItem("selectedPropsId", data.propsId);
         setErrorMessage("");
-        setCompletion("");
+        setCompletion(undefined);
       })
       .catch((error) => {
         setErrorMessage(error.message);
         setPrompt(undefined);
-        setCompletion("");
+        setCompletion(undefined);
       });
   }, [selectedPrompt, selectedPropsId]);
 
@@ -378,7 +381,7 @@ const App = () => {
         alert("we only support chat prompts for now in the playground");
         return;
       }
-      setCompletion("");
+      setCompletion(undefined);
       setLoadingCompletion(true);
 
       const abort = new AbortController();
@@ -394,14 +397,27 @@ const App = () => {
               if (fullPrompts?.texts[i] !== undefined) {
                 content = fullPrompts.texts[i];
               } else {
-                content = m.content;
+                content = m.content ?? "";
               }
-              console.log("Content", content);
 
-              return {
-                role: m.role,
-                content: content,
-              };
+              if (m.role === "function") {
+                return {
+                  role: m.role,
+                  name: m.name,
+                  content,
+                };
+              } else if (m.role === "assistant" && m.functionCall) {
+                return {
+                  role: m.role,
+                  function_call: m.functionCall,
+                  content,
+                };
+              } else {
+                return {
+                  role: m.role,
+                  content: content,
+                };
+              }
             }),
             temperature: 0,
             functions: functions.length > 0 ? functions : undefined,
@@ -414,14 +430,28 @@ const App = () => {
           setLoadingCompletion(false);
           console.log(message);
           const text = message.choices[0].delta?.content;
-          if (text) {
-            setCompletion((c) => c + text);
-          }
-          if (message.choices[0].delta?.function_call !== undefined) {
-            setCompletion(
-              (c) => c + JSON.stringify(message.choices[0].delta?.function_call)
-            );
-          }
+          const function_call = message.choices[0].delta?.function_call;
+          setCompletion((c) => {
+            return {
+              ...c,
+              role: "assistant",
+              content:
+                text !== undefined || c?.content !== undefined
+                  ? (c?.content ?? "") + (text ?? "")
+                  : undefined,
+              function_call:
+                c?.function_call !== undefined || function_call !== undefined
+                  ? {
+                      name:
+                        (c?.function_call?.name ?? "") +
+                        (function_call?.name ?? ""),
+                      arguments:
+                        (c?.function_call?.arguments ?? "") +
+                        (function_call?.arguments ?? ""),
+                    }
+                  : undefined,
+            };
+          });
         }
       } catch (e) {
         if ((e as Error).name !== "AbortError") {
@@ -462,7 +492,7 @@ const App = () => {
             prompt !== undefined &&
             prompt.type === "chat"
           ) {
-            r.value = prompt.messages[i].content;
+            r.value = prompt.messages[i].content ?? "";
           }
           fixTextareaHeight(r);
         }
@@ -616,14 +646,47 @@ const App = () => {
             <div
               style={{
                 backgroundColor: "rgba(150, 150, 10, 0.4)",
-                border: "solid 1px rgba(0,0,0)",
               }}
             >
-              <div>function name: {f.name}</div>
-              <div>function description: {f.description}</div>
-              <div>
-                function parameters:{" "}
-                <pre>{JSON.stringify(f.parameters, null, 2)}</pre>
+              <b>function</b>
+              <div
+                style={{
+                  border: "solid 1px rgba(0,0,0)",
+                }}
+              >
+                <div>
+                  <i>name:</i>
+                  <div
+                    style={{
+                      border: "solid 1px rgba(0,0,0,0.2)",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {f.name}
+                  </div>
+                </div>
+                <div>
+                  <i>description:</i>
+                  <div
+                    style={{
+                      border: "solid 1px rgba(0,0,0,0.2)",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {f.description}
+                  </div>
+                </div>
+                <div>
+                  <i>parameters:</i>
+                  <div
+                    style={{
+                      border: "solid 1px rgba(0,0,0,0.2)",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {JSON.stringify(f.parameters, null, 2)}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -641,14 +704,16 @@ const App = () => {
                           ? "rgba(0, 0, 255, 0.2)"
                           : msg.role === "assistant"
                           ? "rgba(0, 128, 0, 0.2)"
-                          : "rgba(100, 100, 100, 0.1)",
+                          : msg.role === "system"
+                          ? "rgba(100, 100, 100, 0.1)"
+                          : "rgba(180,100,0,0.5)",
                       width: "100%",
                       // height: "fit-content",
                     }}
                   >
                     <b>{msg.role}</b>
+                    {msg.role === "function" && <i>: {msg.name}</i>}
                     <br />
-
                     <textarea
                       ref={(el) => (textAreaRefs.current[i] = el ?? undefined)}
                       id={`prompt-textarea-${i}-${forceRerender}`}
@@ -657,6 +722,7 @@ const App = () => {
                         width: "100%",
                         outline: "none",
                         resize: "none",
+                        display: "block",
                         // remove the border from the textarea
                         border: "solid 1px",
                         // background completely transparent
@@ -685,6 +751,33 @@ const App = () => {
                       // do not check spelling
                       spellCheck={false}
                     ></textarea>
+                    {msg.role === "assistant" && msg.functionCall && (
+                      <div
+                        style={{
+                          border: "solid 1px",
+                          borderTop: "none",
+                        }}
+                      >
+                        <i>calling function name:</i>
+                        <div
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            border: "solid 1px rgba(0,0,0,0.1)",
+                          }}
+                        >
+                          {msg.functionCall.name}
+                        </div>
+                        <i>arguments:</i>
+                        <div
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            border: "solid 1px rgba(0,0,0,0.1)",
+                          }}
+                        >
+                          {msg.functionCall.arguments}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -723,7 +816,7 @@ const App = () => {
           </>
         )}
       </div>
-      {(completion.length > 0 || loadingCompletion) && (
+      {(completion !== undefined || loadingCompletion) && (
         <div
           style={{
             backgroundColor: "rgba(0,228,0,0.3)",
@@ -733,12 +826,39 @@ const App = () => {
           <div
             style={{
               whiteSpace: "pre-wrap",
-              border: "solid 1px rgba(0,0,0,0.2)",
+              border: "solid 1px",
             }}
           >
             {loadingCompletion && <>loading...</>}
-            {completion}
+            <>{completion ? completion.content : ""}</>
           </div>
+          {completion?.role === "assistant" && completion?.function_call && (
+            <div
+              style={{
+                border: "solid 1px",
+                borderTop: "none",
+              }}
+            >
+              <i>calling function name:</i>
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  border: "solid 1px rgba(0,0,0,0.1)",
+                }}
+              >
+                {completion.function_call.name}
+              </div>
+              <i>arguments:</i>
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  border: "solid 1px rgba(0,0,0,0.1)",
+                }}
+              >
+                {completion.function_call.arguments}
+              </div>
+            </div>
+          )}
         </div>
       )}
       {selectedPrompt === "liveModePromptId" && selectedPropsId !== "" && (
@@ -783,14 +903,14 @@ const App = () => {
                 })
                 .then(() => {
                   setSelectedPropsId("");
-                  setCompletion("");
+                  setCompletion(undefined);
                   setPrompt(undefined);
                   setErrorMessage("waiting for live mode prompt...");
                 })
                 .catch((error) => {
                   setErrorMessage(error.message);
                   setPrompt(undefined);
-                  setCompletion("");
+                  setCompletion(undefined);
                 });
             }}
           >
@@ -799,9 +919,17 @@ const App = () => {
           {completion && (
             <button
               onClick={() => {
+                // if completion is a function call, not supported yet
+                if (completion.role === "function") {
+                  alert(
+                    "function calls not supported in priompt live mode yet"
+                  );
+                  return;
+                }
+
                 // submit to the server!
                 const query = {
-                  output: completion,
+                  output: completion.content ?? "",
                 };
 
                 fetch(
@@ -820,14 +948,14 @@ const App = () => {
                   })
                   .then(() => {
                     setSelectedPropsId("");
-                    setCompletion("");
+                    setCompletion(undefined);
                     setPrompt(undefined);
                     setErrorMessage("waiting for live mode prompt...");
                   })
                   .catch((error) => {
                     setErrorMessage(error.message);
                     setPrompt(undefined);
-                    setCompletion("");
+                    setCompletion(undefined);
                   });
               }}
             >

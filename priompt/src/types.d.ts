@@ -26,11 +26,32 @@ export type Scope = {
 	relativePriority: number | undefined;
 };
 
-export type ChatMessage = {
+export type ChatUserSystemMessage = {
 	type: 'chat';
-	role: 'user' | 'assistant' | 'system';
+	role: 'user' | 'system';
 	children: Node[];
 }
+
+export type ChatAssistantMessage = {
+	type: 'chat';
+	role: 'assistant';
+	children: Node[]; // can be empty!
+
+	// the functionCall is provided by the assistant
+	functionCall?: {
+		name: string;
+		arguments: string; // json string
+	};
+}
+
+export type ChatFunctionResultMessage = {
+	type: 'chat';
+	role: 'function';
+	name: string;
+	children: Node[];
+}
+
+export type ChatMessage = ChatUserSystemMessage | ChatFunctionResultMessage | ChatAssistantMessage;
 
 export type FunctionDefinition = {
 	type: 'functionDefinition';
@@ -71,10 +92,27 @@ export namespace JSX {
 	}
 }
 
-export type ChatPromptMessage = {
-	role: 'user' | 'assistant' | 'system';
+export type ChatPromptUserSystemMessage = {
+	role: 'user' | 'system';
+	content: string;
+}
+
+export type ChatPromptAssistantMessage = {
+	role: 'assistant';
+	content?: string;
+	functionCall?: {
+		name: string;
+		arguments: string; // json string
+	}
+}
+
+export type ChatPromptFunctionResultMessage = {
+	role: 'function';
+	name: string;
 	content: string;
 };
+
+export type ChatPromptMessage = ChatPromptUserSystemMessage | ChatPromptAssistantMessage | ChatPromptFunctionResultMessage;
 
 export type ChatPrompt = {
 	type: 'chat';
