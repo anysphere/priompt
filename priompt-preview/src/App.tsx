@@ -512,6 +512,7 @@ const App = () => {
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap",
           flexDirection: "row",
           gap: "10px",
           maxWidth: "100%",
