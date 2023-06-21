@@ -19,9 +19,12 @@ export function getTokenizer(model: UsableModel): tiktoken.Encoding {
 export function getTokenizerName(model: UsableModel): UsableTokenizer {
 	switch (model) {
 		case 'gpt-4':
+    case 'gpt-4-0613':
 		case 'gpt-4-32k':
+    case 'gpt-4-32k-0613':
 		case 'text-embedding-ada-002':
 		case 'gpt-3.5-turbo':
+    case 'gpt-3.5-turbo-0613':
 		case 'azure-3.5-turbo':
 			return 'cl100k_base';
 		case 'text-davinci-003':

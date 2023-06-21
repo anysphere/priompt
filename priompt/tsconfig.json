@@ -13,7 +13,8 @@
     "jsxFactory": "Priompt.createElement",
     "jsxFragmentFactory": "Priompt.Fragment",
     "sourceMap": true,
-    "strictPropertyInitialization": true
+    "strictPropertyInitialization": true,
+    "declarationMap": true
   },
   "include": ["./src/index.ts", "./src/**/*.d.ts", "./src/**/*.test.ts*"]
 }
