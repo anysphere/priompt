@@ -7,6 +7,7 @@ import { ChatCompletionRequestMessage, ChatCompletionFunctions } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer } from './openai';
 import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerFromName, getTokenizerName } from './tokenizer';
 import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage } from './types';
+import * as Types from './types';
 
 
 

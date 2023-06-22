@@ -16,5 +16,5 @@
     "strictPropertyInitialization": true,
     "declarationMap": true
   },
-  "include": ["./src/index.ts", "./src/**/*.d.ts", "./src/**/*.test.ts*"]
+  "include": ["./src/**/*.ts", "./src/**/*.tsx"]
 }
