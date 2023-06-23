@@ -18,7 +18,7 @@ fi
 # cd to the root everysphere folder
 cd "$SCRIPT_DIR"/../../..
 
-git subtree pull --prefix=backend/packages/priompt git@github.com:anysphere/vscode main
+git subtree pull --prefix=backend/packages/priompt git@github.com:anysphere/priompt main
 
 echo "NOW REVIEW THE CHANGES AND PUSH TO GITHUB"
 echo "Run git push after reviewing git log NOW."
