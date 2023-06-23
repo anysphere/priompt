@@ -30,4 +30,4 @@ curl 'localhost:8008/message?message=what%20is%20the%20advantage%20of%20rust%20o
 
 You should get a response within a few seconds.
 
-Go to `localhost:6284` to see the prompt in the priompt preview.
+Go to [`localhost:6284`](localhost:6284) to see the prompt in the priompt preview.
