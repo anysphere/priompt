@@ -20,7 +20,6 @@ function ExamplePrompt(
     history: { case: "user" | "assistant", message: string },
   }>
 ): PromptElement {
-  // make the name have a capitalized first letter
   const capitalizedName = props.name[0].toUpperCase() + props.name.slice(1);
   return (
     <>
