@@ -206,7 +206,6 @@ class PreviewManagerImpl implements IPreviewManager {
 
   async liveMode(query: PreviewManagerLiveModeQuery, abortSignal?: AbortSignal): Promise<LiveModeOutput> {
     while (true) {
-      console.log("while true");
       const result = await Promise.race([
         this.lastLiveModeOutputPromise,
         new Promise((_, reject) => {

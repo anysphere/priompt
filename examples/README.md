@@ -8,16 +8,32 @@ this example uses `fastify` for the server, but any server library or framework 
 
 ## running
 
-Make sure you've run `./init.sh` in the root directory and configured your OpenAI key in `.env`.
+First run:
 
-First: `pnpm i`
+```bash
+cd .. && ./init.sh
+```
 
-In one terminal: `pnpm priompt`
+Then configure your OpenAI key in `.env`.
 
-In another: `pnpm watch`
+In one terminal:
 
-In a third: `curl 'localhost:8000/message?message=what%20is%20the%20advantage%20of%20rust%20over%20c&name=a%20curious%20explorer'`
+```bash
+pnpm priompt
+```
+
+In another:
+
+```bash
+pnpm watch
+```
+
+In a third:
+
+```bash
+curl 'localhost:8008/message?message=what%20is%20the%20advantage%20of%20rust%20over%20c&name=a%20curious%20explorer'
+```
 
 You should get a response within a few seconds.
 
-Go to `localhost:6283` to see the prompt in the priompt preview.
+Go to [localhost:6284](http://localhost:6284) to see the prompt in the priompt preview.

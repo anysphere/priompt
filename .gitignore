@@ -1,2 +1,4 @@
 pnpm-workspace.yaml
 dist
+pnpm-lock.yaml
+node_modules
