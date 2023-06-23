@@ -14,6 +14,9 @@ const port = parseInt(portString);
 
 const S = Fastify();
 
+if (process.env.OPENAI_API_KEY === undefined || process.env.OPENAI_API_KEY === "" || process.env.OPENAI_API_KEY === "sk-your-openai-secret-key") {
+	throw new Error("OPENAI_API_KEY is undefined. Please run the ./init.sh script to create a .env file, and then insert your API key in the .env file.");
+}
 
 const configuration = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
