@@ -1,6 +1,6 @@
 # Priompt
 
-Priompt (_priority + prompt_) is a JSX-based prompting library where priorities dictate what to include in the context window.
+Priompt (_priority + prompt_) is a JSX-based prompting library. It uses priorities to decide what to include in the context window.
 
 Priompt is an attempt at a _prompt design_ library, inspired by web design libraries like React. Read more about the motivation [here](https://arvid.xyz/prompt-design).
 
