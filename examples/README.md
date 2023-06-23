@@ -8,9 +8,15 @@ this example uses `fastify` for the server, but any server library or framework 
 
 ## running
 
-Make sure you've run `./init.sh` in the root directory and configured your OpenAI key in `.env`.
+First run:
 
-Then, in one terminal:
+```bash
+cd .. && ./init.sh
+```
+
+Then configure your OpenAI key in `.env`.
+
+In one terminal:
 
 ```bash
 pnpm priompt
