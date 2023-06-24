@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Prompt } from "priompt";
+import { Prompt } from "@anysphere/priompt";
 import { streamChat } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
-import { ChatAndFunctionPromptFunction } from "priompt/dist/types";
+import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
 import { ChatCompletionResponseMessage } from "./openai_interfaces";
 
 function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(

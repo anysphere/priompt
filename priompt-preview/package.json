@@ -1,11 +1,19 @@
 {
-  "name": "priompt-preview",
+  "name": "@anysphere/priompt-preview",
   "license": "MIT",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "An interactive preview of priompt prompts.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anysphere/priompt"
+  },
+  "homepage": "https://github.com/anysphere/priompt",
+  "author": "Arvid Lunnemark",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
@@ -28,7 +36,7 @@
     "react-dom": "^18.2.0",
     "use-debounce": "^9.0.4",
     "axios": "^0.26.1",
-    "priompt": "workspace:*"
+    "@anysphere/priompt": "workspace:*"
   },
   "bin": {
     "serve": "./scripts/serve.cjs"
