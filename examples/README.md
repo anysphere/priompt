@@ -1,12 +1,10 @@
-# priompt examples
+# Priompt examples
 
-a few examples showing how to use `priompt` and `priompt-preview`.
+An example showing how to use `priompt` and `priompt-preview`; somewhat useful for testing random prompts.
 
-somewhat useful for testing random prompts
+This example uses `fastify` for the server, but any server library or framework should work
 
-this example uses `fastify` for the server, but any server library or framework should work
-
-## running
+## Running
 
 First run:
 
