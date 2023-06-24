@@ -4,6 +4,20 @@ Priompt (_priority + prompt_) is a JSX-based prompting library. It uses prioriti
 
 Priompt is an attempt at a _prompt design_ library, inspired by web design libraries like React. Read more about the motivation [here](https://arvid.xyz/prompt-design).
 
+## Installation
+
+Install from npm:
+
+```bash
+npm install @anysphere/priompt && npm install -D @anysphere/priompt-preview
+```
+
+or
+
+```bash
+yarn add @anysphere/priompt && yarn add @anysphere/priompt-preview --dev
+```
+
 ## Examples
 
 Read [examples/README.md](examples/README.md) to run the examples.
