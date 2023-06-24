@@ -56,7 +56,7 @@ function ExamplePrompt(
 }
 ```
 
-A component is rendered only once. Each child has a priority, where a higher priority means that the child is more important to include in the prompt. If no priority is specified, the child is included if and only if it's parent is included. Absolute priorities are specified with `p` and relative ones are specified with `prel`.
+A component is rendered only once. Each child has a priority, where a higher priority means that the child is more important to include in the prompt. If no priority is specified, the child is included if and only if its parent is included. Absolute priorities are specified with `p` and relative ones are specified with `prel`.
 
 In the example above, we always include the system message and the latest user message, and are including as many messages from the history as possible, where later messages are prioritized over earlier messages.
 
