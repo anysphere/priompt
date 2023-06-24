@@ -2,6 +2,13 @@
   "name": "priompt-preview",
   "license": "MIT",
   "version": "0.1.0",
+  "description": "An interactive preview of priompt prompts.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anysphere/priompt"
+  },
+  "homepage": "https://github.com/anysphere/priompt",
+  "author": "Arvid Lunnemark",
   "type": "module",
   "scripts": {
     "dev": "vite",

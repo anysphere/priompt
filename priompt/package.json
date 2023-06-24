@@ -2,6 +2,18 @@
   "name": "priompt",
   "license": "MIT",
   "version": "0.1.0",
+  "description": "A JSX-based prompt design library.",
+  "keywords": [
+    "prompting",
+    "prompt design",
+    "prompt engineering"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anysphere/priompt"
+  },
+  "homepage": "https://github.com/anysphere/priompt",
+  "author": "Arvid Lunnemark",
   "engines": {
     "npm": "please-use-pnpm",
     "yarn": "please-use-pnpm",
