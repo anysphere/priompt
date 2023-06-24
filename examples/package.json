@@ -35,6 +35,6 @@
     "dotenv-cli": "^7.2.1",
     "fastify": "^4.17.0",
     "openai": "^3.3.0",
-    "@anysphere/priompt": "workspace:*",
+    "@anysphere/priompt": "workspace:*"
   }
 }
