@@ -83,11 +83,11 @@ We're also thinking about making a framework around Priompt for agents. It would
 
 ## Caveats
 
-1. We've discovered that adding priorities to everything is sort of an anti-pattern. It is possible that priorities are the wrong abstraction. We have found them useful for including long files in the prompt in a line-by-line way.
-2. The prompt renderer has no builtin support for creating cacheable prompts. If you overuse priorities, it is easy to make hard-to-cache prompts, which may increase your cost or latency for LLM inference. We are interested in good solutions here, but for now it is up to the prompt designer to think about caching when writing the prompt.
-3. The current version of priompt only supports around 10K scopes reasonably fast (this is enough for most use cases!). If you want to include a file in the prompt that is really long (>10K lines), and you split it line-by-line, you probably want to implement something like "for lines farther than 1000 lines away from the cursor position we have coarser scopes of 10 lines at a time".
-4. For latency-critical prompts you want to monitor the time usage in the priompt preview dashboard. If there are too many scopes you may want to performance-optimize.
-5. The priompt renderer is not always guaranteed to produce the perfect $p_\text{cutoff}^*$. For example, if a higher-priority child of a `<first>` has more tokens than a lower-priority child, the currently implemented binary search renderer may return a (very slightly) incorrect result.
+1. We've discovered that adding priorities to everything is sort of an anti-pattern. It is possible that priorities are the wrong abstraction. We have found them useful though for including long files in the prompt in a line-by-line way.
+2. The Priompt renderer has no builtin support for creating cacheable prompts. If you overuse priorities, it is easy to make hard-to-cache prompts, which may increase your cost or latency for LLM inference. We are interested in good solutions here, but for now it is up to the prompt designer to think about caching.
+3. The current version of priompt only supports around 10K scopes reasonably fast (this is enough for most use cases). If you want to include a file in the prompt that is really long (>10K lines), and you split it line-by-line, you probably want to implement something like "for lines farther than 1000 lines away from the cursor position we have coarser scopes of 10 lines at a time".
+4. For latency-critical prompts you want to monitor the time usage in the priompt preview dashboard. If there are too many scopes you may want to optimize for performance.
+5. The Priompt renderer is not always guaranteed to produce the perfect $p_\text{opt-cutoff}$. For example, if a higher-priority child of a `<first>` has more tokens than a lower-priority child, the currently implemented binary search renderer may return a (very slightly) incorrect result.
 
 ## Contributions
 
