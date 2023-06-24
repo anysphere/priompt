@@ -16,7 +16,7 @@ if [[ $(git branch --show-current) != "main" ]]; then
 fi
 
 # copy over the eslintrc.base.json
-cp -f "$SCRIPT_DIR"/../../.eslintrc.base.json "$SCRIPT_DIR"/eslintrc.base.json
+cp -f "$SCRIPT_DIR"/../../.eslintrc.base.json "$SCRIPT_DIR"/.eslintrc.base.json
 if [[ -n $(git status --porcelain) ]]; then
   git add .
   git commit -m "update the eslintrc.base.json"
