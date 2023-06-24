@@ -1,5 +1,5 @@
 {
-  "name": "priompt-preview",
+  "name": "@anysphere/priompt-preview",
   "license": "MIT",
   "version": "0.1.0",
   "description": "An interactive preview of priompt prompts.",
@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "publish": "pnpm build && pnpm publish --access=public",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"

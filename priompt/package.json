@@ -1,5 +1,5 @@
 {
-  "name": "priompt",
+  "name": "@anysphere/priompt",
   "license": "MIT",
   "version": "0.1.0",
   "description": "A JSX-based prompt design library.",
@@ -24,6 +24,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "watch": "tsx watch --clear-screen=false src",
+    "publish": "pnpm build && pnpm publish --access=public",
     "build": "tsc && cp src/types.d.ts dist/types.d.ts",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "tsc --noEmit && eslint .",
