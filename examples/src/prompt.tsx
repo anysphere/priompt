@@ -1,4 +1,4 @@
-import * as Priompt from "priompt";
+import * as Priompt from "@anysphere/priompt";
 import {
   PreviewConfig,
   PreviewManager,
@@ -6,7 +6,7 @@ import {
   PromptProps,
   SystemMessage,
   UserMessage,
-} from "priompt";
+} from "@anysphere/priompt";
 
 const ExamplePromptConfig: PreviewConfig<ExamplePromptProps> = {
   id: "examplePrompt",

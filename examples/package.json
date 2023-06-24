@@ -15,7 +15,7 @@
     "lint": "tsc --noEmit && eslint .",
     "test": "vitest",
     "coverage": "vitest run --coverage",
-    "priompt": "dotenv -e .env pnpm npx priompt-preview serve"
+    "priompt": "dotenv -e .env pnpm npx @anysphere/priompt-preview serve"
   },
   "devDependencies": {
     "@types/node": "^18.15.11",
@@ -34,7 +34,7 @@
     "dotenv-cli": "^7.2.1",
     "fastify": "^4.17.0",
     "openai": "^3.3.0",
-    "priompt": "workspace:*",
-    "priompt-preview": "workspace:*"
+    "@anysphere/priompt": "workspace:*",
+    "@anysphere/priompt-preview": "workspace:*"
   }
 }

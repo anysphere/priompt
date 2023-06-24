@@ -1,4 +1,4 @@
-import * as Priompt from "priompt";
+import * as Priompt from "@anysphere/priompt";
 import {
   PreviewConfig,
   PreviewManager,
@@ -9,7 +9,7 @@ import {
   Function,
   FunctionMessage,
   AssistantMessage,
-} from "priompt";
+} from "@anysphere/priompt";
 
 const FunctionCallingPromptConfig: PreviewConfig<FunctionCallingPromptProps> = {
   id: "functionCallingPrompt",

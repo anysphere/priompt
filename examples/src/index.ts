@@ -1,4 +1,4 @@
-import { promptToOpenAIChatMessages, promptToOpenAIChatRequest, render } from 'priompt';
+import { promptToOpenAIChatMessages, promptToOpenAIChatRequest, render } from '@anysphere/priompt';
 import { handlePriomptPreview } from './priompt-preview-handlers';
 import { ExamplePrompt } from './prompt';
 import fastifyCors from "@fastify/cors";

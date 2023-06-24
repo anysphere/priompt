@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { PreviewManager, PreviewManagerGetPromptQuery } from 'priompt';
-import { PreviewManagerLiveModeQuery, PreviewManagerLiveModeResultQuery } from 'priompt/dist/preview';
+import { PreviewManager, PreviewManagerGetPromptQuery, PreviewManagerLiveModeQuery, PreviewManagerLiveModeResultQuery } from '@anysphere/priompt';
 
 
 export async function handlePriomptPreview(S: FastifyInstance) {
