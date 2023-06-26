@@ -25,6 +25,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'text-embedding-ada-002':
 		case 'gpt-3.5-turbo':
 		case 'gpt-3.5-turbo-0613':
+		case 'gpt-3.5-turbo-16k':
 		case 'azure-3.5-turbo':
 			return 'cl100k_base';
 		case 'text-davinci-003':
