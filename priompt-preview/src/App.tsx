@@ -879,6 +879,10 @@ const App = () => {
                 boxSizing: "border-box",
               }}
               ref={liveModeTextareaRef}
+              onKeyDown={(e) => {
+                // Capture all keydown events
+                e.stopPropagation();
+              }}
             ></textarea>
           </div>
           <button
