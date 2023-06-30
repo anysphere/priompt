@@ -67,8 +67,6 @@ const App = () => {
     | undefined
   >(undefined);
 
-  console.log("New Change!");
-
   const [completion, setCompletion] = useState<
     ChatCompletionResponseMessage | undefined
   >(undefined);
@@ -173,6 +171,37 @@ const App = () => {
       });
     },
     100 // debounce delay in milliseconds
+  );
+
+  // Set a particular chat's data
+  const debouncedSetFunctionData = useDebouncedCallback2(
+    (functionIndex: number, data: ChatAndFunctionPromptFunction) => {
+      setFullPrompts((prev) => {
+        if (prev === undefined) {
+          return undefined;
+        }
+        const newFunctions = [...prev.functions];
+        newFunctions[functionIndex] = data;
+
+        if (typeof prev.prompt !== "string" && "functions" in prev.prompt) {
+          return {
+            prompt: {
+              ...prev.prompt,
+              functions: newFunctions,
+            },
+            texts: prev.texts,
+            functions: newFunctions,
+          };
+        } else {
+          return {
+            prompt: prev.prompt,
+            texts: prev.texts,
+            functions: newFunctions,
+          };
+        }
+      });
+    },
+    100
   );
 
   const fetchPrompt = useCallback(
@@ -643,53 +672,14 @@ const App = () => {
       <hr />
       <div id="prompt-display">
         {fullPrompts &&
-          fullPrompts.functions.map((f) => (
-            <div
-              style={{
-                backgroundColor: "rgba(150, 150, 10, 0.4)",
-              }}
-            >
-              <b>function</b>
-              <div
-                style={{
-                  border: "solid 1px rgba(0,0,0)",
-                }}
-              >
-                <div>
-                  <i>name:</i>
-                  <div
-                    style={{
-                      border: "solid 1px rgba(0,0,0,0.2)",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {f.name}
-                  </div>
-                </div>
-                <div>
-                  <i>description:</i>
-                  <div
-                    style={{
-                      border: "solid 1px rgba(0,0,0,0.2)",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {f.description}
-                  </div>
-                </div>
-                <div>
-                  <i>parameters:</i>
-                  <div
-                    style={{
-                      border: "solid 1px rgba(0,0,0,0.2)",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {JSON.stringify(f.parameters, null, 2)}
-                  </div>
-                </div>
-              </div>
-            </div>
+          fullPrompts.functions.map((f, index) => (
+            <FullPromptFunction
+              fn={f}
+              functionIndex={index}
+              setForceRerender={setForceRerender}
+              debouncedSetFnData={debouncedSetFunctionData}
+              prompt={prompt}
+            />
           ))}
         {prompt &&
           (typeof prompt === "string" || prompt.type === "text" ? (
@@ -715,43 +705,16 @@ const App = () => {
                     <b>{msg.role}</b>
                     {msg.role === "function" && <i>: {msg.name}</i>}
                     <br />
-                    <textarea
-                      ref={(el) => (textAreaRefs.current[i] = el ?? undefined)}
-                      id={`prompt-textarea-${i}-${forceRerender}`}
-                      style={{
-                        whiteSpace: "pre-wrap",
-                        width: "100%",
-                        outline: "none",
-                        resize: "none",
-                        display: "block",
-                        // remove the border from the textarea
-                        border: "solid 1px",
-                        // background completely transparent
-                        backgroundColor: "rgba(0,0,0,0)",
-                        boxSizing: "border-box",
+                    <TextAreaWithSetting
+                      key={`${i}-${forceRerender}`}
+                      setFullText={(newText: string) => {
+                        debouncedSetFullPrompts(i, newText);
                       }}
-                      onKeyDown={(e) => {
-                        // Capture all keydown events
-                        e.stopPropagation();
+                      setTextArea={(value: HTMLTextAreaElement | undefined) => {
+                        textAreaRefs.current[i] = value;
                       }}
-                      onChange={(e) => {
-                        // Get the scroll height and adjust the height accordingly
-                        fixTextareaHeight(e.target);
-                        // console.log("CHANGING!", e);
-
-                        const currentTextArea = textAreaRefs.current[i];
-                        if (currentTextArea !== undefined) {
-                          currentTextArea.value = e.target.value ?? "";
-                        }
-                        debouncedSetFullPrompts(i, e.target.value ?? "");
-                      }}
-                      // readOnly
-                      // onChange={(e) => {
-
-                      // }}>
-                      // do not check spelling
-                      spellCheck={false}
-                    ></textarea>
+                      currentTextArea={textAreaRefs.current[i]}
+                    />
                     {msg.role === "assistant" && msg.functionCall && (
                       <div
                         style={{
@@ -1015,3 +978,211 @@ const memoizedMakeDateNicer = (() => {
     return formattedDate;
   };
 })();
+
+function TextAreaWithSetting(props: {
+  setTextArea: (value: HTMLTextAreaElement | undefined) => void;
+  currentTextArea: HTMLTextAreaElement | undefined;
+  key: string;
+  setFullText: (value: string) => void;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <textarea
+      ref={(el) => props.setTextArea(el ?? undefined)}
+      id={`prompt-textarea-${props.key}`}
+      style={{
+        whiteSpace: "pre-wrap",
+        width: "100%",
+        outline: "none",
+        resize: "none",
+        display: "block",
+        // remove the border from the textarea
+        border: "solid 1px",
+        // background completely transparent
+        backgroundColor: "rgba(0,0,0,0)",
+        boxSizing: "border-box",
+        ...props.style,
+      }}
+      onKeyDown={(e) => {
+        // Capture all keydown events
+        e.stopPropagation();
+      }}
+      onChange={(e) => {
+        // Get the scroll height and adjust the height accordingly
+        fixTextareaHeight(e.target);
+        // console.log("CHANGING!", e);
+
+        // const currentTextArea = textAreaRefs.current[i];
+        if (props.currentTextArea !== undefined) {
+          props.currentTextArea.value = e.target.value ?? "";
+        }
+        props.setFullText(e.target.value ?? "");
+      }}
+      spellCheck={false}
+    />
+  );
+}
+
+function FullPromptFunction({
+  fn,
+  functionIndex,
+  debouncedSetFnData,
+  prompt,
+  setForceRerender,
+}: {
+  fn: ChatAndFunctionPromptFunction;
+  functionIndex: number;
+  debouncedSetFnData: (
+    index: number,
+    newData: ChatAndFunctionPromptFunction
+  ) => void;
+  prompt: Prompt | undefined;
+  setForceRerender: (fn: (oldValue: number) => number) => void;
+}) {
+  const functionNameRef = useRef<HTMLTextAreaElement>();
+  const functionDescriptionRef = useRef<HTMLTextAreaElement>();
+  const functionParametersRef = useRef<HTMLTextAreaElement>();
+  const forceRerender = useCallback(() => {
+    setForceRerender((oldValue: number) => oldValue + 1);
+  }, [setForceRerender]);
+
+  useEffect(() => {
+    console.log("CURRENT PROMPT", prompt);
+    console.log("CURRENT FUNCTION index", functionIndex);
+    console.log("FORCE RERENDER", forceRerender);
+    if (prompt) {
+      if (
+        typeof prompt !== "string" &&
+        prompt !== undefined &&
+        prompt.type === "chat" &&
+        "functions" in prompt
+      ) {
+        if (functionIndex >= prompt.functions.length) {
+          // Set everything to undefined and force a rerender
+          functionNameRef.current = undefined;
+          functionDescriptionRef.current = undefined;
+          functionParametersRef.current = undefined;
+
+          // Force a rerender
+          forceRerender();
+          return;
+        }
+
+        if (functionNameRef.current) {
+          functionNameRef.current.value =
+            prompt.functions[functionIndex].name ?? "";
+          fixTextareaHeight(functionNameRef.current);
+        }
+        if (functionDescriptionRef.current) {
+          functionDescriptionRef.current.value =
+            prompt.functions[functionIndex].description ?? "";
+          fixTextareaHeight(functionDescriptionRef.current);
+        }
+
+        if (functionParametersRef.current) {
+          functionParametersRef.current.value = JSON.stringify(
+            prompt.functions[functionIndex].parameters ?? "",
+            null,
+            2
+          );
+          fixTextareaHeight(functionParametersRef.current);
+        }
+      }
+    }
+  }, [prompt, functionIndex, forceRerender]);
+
+  const setNewName = useCallback(
+    (newName: string) => {
+      debouncedSetFnData(functionIndex, {
+        ...fn,
+        name: newName,
+      });
+    },
+    [fn, debouncedSetFnData, functionIndex]
+  );
+
+  const setNewDescription = useCallback(
+    (newDescription: string) => {
+      debouncedSetFnData(functionIndex, {
+        ...fn,
+        description: newDescription,
+      });
+    },
+    [fn, debouncedSetFnData, functionIndex]
+  );
+
+  const setNewParameters = useCallback(
+    (newParameters: string) => {
+      debouncedSetFnData(functionIndex, {
+        ...fn,
+        parameters: JSON.parse(newParameters),
+      });
+    },
+    [fn, debouncedSetFnData, functionIndex]
+  );
+
+  return (
+    <div
+      style={{
+        backgroundColor: "rgba(150, 150, 10, 0.4)",
+      }}
+    >
+      <b>function</b>
+      <div
+        style={{
+          border: "solid 1px rgba(0,0,0)",
+        }}
+      >
+        <div>
+          <i>name:</i>
+          <TextAreaWithSetting
+            style={{
+              border: "solid 1px rgba(0,0,0,0.2)",
+              whiteSpace: "pre-wrap",
+            }}
+            setTextArea={(el) => {
+              functionNameRef.current = el ?? undefined;
+            }}
+            currentTextArea={functionNameRef.current}
+            key=""
+            setFullText={setNewName}
+            // key={`function-name-${functionIndex}`}
+          />
+        </div>
+        <div>
+          <i>description:</i>
+          {/* TODO - make this a textarea */}
+          <TextAreaWithSetting
+            style={{
+              border: "solid 1px rgba(0,0,0,0.2)",
+              whiteSpace: "pre-wrap",
+            }}
+            setTextArea={(el) => {
+              functionDescriptionRef.current = el ?? undefined;
+            }}
+            currentTextArea={functionDescriptionRef.current}
+            key=""
+            setFullText={setNewDescription}
+          />
+        </div>
+        <div>
+          <i>parameters:</i>
+          <TextAreaWithSetting
+            style={{
+              border: "solid 1px rgba(0,0,0,0.2)",
+              whiteSpace: "pre-wrap",
+            }}
+            setTextArea={(el) => {
+              functionParametersRef.current = el ?? undefined;
+            }}
+            currentTextArea={functionParametersRef.current}
+            key=""
+            setFullText={setNewParameters}
+          />
+          {/* {JSON.stringify(f.parameters, null, 2)}
+          </div> */}
+        </div>
+      </div>
+    </div>
+  );
+}
