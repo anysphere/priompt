@@ -3,6 +3,12 @@
 
 import { JSONSchema7 } from 'json-schema';
 
+export type FunctionBody = {
+	name: string;
+	description: string;
+	parameters: JSONSchema7;
+}
+
 // It is a REQUIREMENT that the children have decreasing token counts
 export type First = {
 	type: 'first';
