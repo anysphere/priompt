@@ -199,7 +199,7 @@ export function render(elem: PromptElement, options: RenderOptions): RenderOutpu
 
 export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): RenderOutput {
 	let startTime: number | undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
 	}
 
@@ -218,17 +218,17 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 	}
 
 	let startTimeValidating: number | undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTimeValidating = performance.now();
 	}
 	validateUnrenderedPrompt(elem);
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endTimeValidating = performance.now();
 		console.log(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
 	}
 
 	let startTimeComputingPriorityLevels = undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTimeComputingPriorityLevels = performance.now();
 	}
 	// for now, we do a much simple thing, which is just to render the whole thing every time
@@ -237,7 +237,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 	priorityLevels.add(BASE_PRIORITY);
 	// convert to array and sort them from lowest to highest
 	const sortedPriorityLevels = Array.from(priorityLevels).sort((a, b) => a - b);
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endTimeComputingPriorityLevels = performance.now();
 		console.log(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
@@ -245,7 +245,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 	// if the first one is higher than the base priority, then print a warning because it will not have any effect
 
 	let startTimeRendering = undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTimeRendering = performance.now();
 	}
 
@@ -280,13 +280,13 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 		}
 	}
 
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endTimeRendering = performance.now();
 		console.log(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
 	}
 
 	let startExactTokenCount = undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startExactTokenCount = performance.now();
 	}
 
@@ -301,7 +301,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 		throw new Error(`Base prompt estimated token count is ${tokenCount} with ${prompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
 	}
 
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endExactTokenCount = performance.now();
 		console.log(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
 	}
@@ -326,7 +326,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 
 export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): RenderOutput {
 	let startTime: number | undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
 	}
 
@@ -345,11 +345,11 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 	}
 
 	let startTimeValidating: number | undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTimeValidating = performance.now();
 	}
 	validateUnrenderedPrompt(elem);
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endTimeValidating = performance.now();
 		console.log(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
 	}
@@ -371,11 +371,11 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 	// TODO: come up with a better algorithm here. this one is fine for now. just doesn't work if someone creates really low-character scopes but why would they
 
 	let startTimeNormalizing = undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTimeNormalizing = performance.now();
 	}
 	const normalizedElem = normalizePrompt(elem);
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endTimeNormalizing = performance.now();
 		console.log(`Normalizing prompt took ${endTimeNormalizing - (startTimeNormalizing ?? 0)} ms`);
 	}
@@ -384,7 +384,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 
 
 	let startTimeComputingPriorityLevels = undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTimeComputingPriorityLevels = performance.now();
 	}
 	// for now, we do a much simple thing, which is just to render the whole thing every time
@@ -393,7 +393,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 	priorityLevels.add(BASE_PRIORITY);
 	// convert to array and sort them from highest to lowest
 	const sortedPriorityLevels = Array.from(priorityLevels).sort((a, b) => b - a);
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endTimeComputingPriorityLevels = performance.now();
 		console.log(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
@@ -401,7 +401,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 	// if the first one is higher than the base priority, then print a warning because it will not have any effect
 
 	let startTimeRendering = undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startTimeRendering = performance.now();
 	}
 
@@ -429,7 +429,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 		prevLevel = level;
 	}
 
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endTimeRendering = performance.now();
 		console.log(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
 	}
@@ -443,7 +443,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 	}
 
 	let startExactTokenCount = undefined;
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		startExactTokenCount = performance.now();
 	}
 
@@ -463,7 +463,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 		}
 	}
 
-	if (process.env.NODE_ENV !== 'production') {
+	if (process.env.NODE_ENV === 'development') {
 		const endExactTokenCount = performance.now();
 		console.log(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
 	}
