@@ -1,10 +1,10 @@
-import { promptToOpenAIChatMessages, promptToOpenAIChatRequest, render } from '@anysphere/priompt';
+import { promptToOpenAIChatMessages, promptToOpenAIChatRequest, render, renderun } from '@anysphere/priompt';
 import { handlePriomptPreview } from './priompt-preview-handlers';
-import { ExamplePrompt } from './prompt';
+import { ExamplePrompt, SimplePrompt } from './prompt';
 import fastifyCors from "@fastify/cors";
 import Fastify, { FastifyError, FastifyLoggerOptions, FastifyReply, FastifyRequest, RawServerDefault, RouteGenericInterface } from "fastify";
 import { Configuration, CreateChatCompletionRequest, OpenAIApi } from 'openai';
-import { FunctionCallingPrompt } from './function-calling-prompt';
+import { FunctionCallingPrompt, SimpleFunction } from './function-calling-prompt';
 
 const portString = process.env.SERVER_PORT;
 if (portString === undefined || Number.isNaN(parseInt(portString))) {
@@ -95,6 +95,55 @@ async function main() {
 			const openaiOutput = openaiResult.data.choices[0];
 
 			return reply.type("text/json").send(JSON.stringify(openaiOutput));
+		} catch (error) {
+			console.error(error);
+			return reply.status(500).send("Internal server error.");
+		}
+	});
+
+	S.get("/simple", async (request, reply) => {
+		const query = request.query as { language: string; };
+		if (query.language === undefined) {
+			return reply.status(400).send("Bad request; language is required.");
+		}
+		const language = query.language as string;
+		const text = "Cursor är den bästa plattformen för att skriva kod.";
+		try {
+			const answer = await renderun({
+				prompt: SimplePrompt,
+				props: { text, language },
+				renderOptions: {
+					model: "gpt-3.5-turbo",
+				},
+				modelCall: async (x) => (await openai.createChatCompletion({ ...x, model: "gpt-3.5-turbo" })).data
+			});
+			return reply.type("text/plain").send(JSON.stringify({ answer }));
+		} catch (error) {
+			console.error(error);
+			return reply.status(500).send("Internal server error.");
+		}
+	});
+
+	S.get("/fixcode", async (request, reply) => {
+		const query = request.query as { type: string; };
+		let code, error: string;
+		if (query.type === undefined || query.type !== 'code') {
+			code = "function x() {\n\treturn z.object({\n\t\ta: z.string(),\n\t\tb: z.number(),\n\t});\n}";
+			error = "'z' is not defined";
+		} else {
+			code = "function x() {\n\treturn z.object({\n\t\ta: z.string(),\n\t\tb: z.umber(),\n\t});\n}";
+			error = "'umber' is not defined";
+		}
+		try {
+			const action = await renderun({
+				prompt: SimpleFunction,
+				props: { code, error },
+				renderOptions: {
+					model: "gpt-4",
+				},
+				modelCall: async (x) => (await openai.createChatCompletion({ ...x, model: "gpt-4" })).data
+			});
+			return reply.type("text/plain").send(JSON.stringify(action));
 		} catch (error) {
 			console.error(error);
 			return reply.status(500).send("Internal server error.");

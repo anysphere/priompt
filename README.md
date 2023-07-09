@@ -69,6 +69,7 @@ The building blocks of a priompt prompt are:
 1. `<scope>`: this allows you to set priorities `p` for absolute or `prel` for relative.
 2. `<first>`: the first child with a sufficiently high priority will be included, and all children below it will not. This is useful for fallbacks for implementing something like "when the result is too long we want to say `(result omitted)`".
 3. `<empty>`: for specifying empty space, useful for reserving tokens for generation.
+4. `<capture>`: capture the output and parse it right within the prompt.
 
 You can create components all you want, just like in React.
 

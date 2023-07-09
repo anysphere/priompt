@@ -9,7 +9,9 @@ import {
   Function,
   FunctionMessage,
   AssistantMessage,
+  ZFunction,
 } from "@anysphere/priompt";
+import { z } from "zod";
 
 const FunctionCallingPromptConfig: PreviewConfig<FunctionCallingPromptProps> = {
   id: "functionCallingPrompt",
@@ -22,7 +24,7 @@ export type FunctionCallingPromptProps = PromptProps<{
   causeConfusion: boolean;
 }>;
 
-PreviewManager.register(FunctionCallingPromptConfig);
+PreviewManager.registerConfig(FunctionCallingPromptConfig);
 
 // array of 10000 integers
 const arr = Array.from(Array(800).keys());
@@ -110,6 +112,81 @@ export function FunctionCallingPrompt(
         ))} */}
       </UserMessage>
       <empty tokens={1000} />
+    </>
+  );
+}
+
+// returns the new code
+PreviewManager.register(SimpleFunction);
+export function SimpleFunction(
+  props: PromptProps<
+    {
+      code: string;
+      error: string;
+    },
+    | {
+        type: "newImport";
+        newImport: string;
+      }
+    | {
+        type: "newCode";
+        newCode: string;
+      }
+  >
+) {
+  return (
+    <>
+      <ZFunction
+        name={"add_import"}
+        description="Add an import statement in the file. Include the entire line and it will be added to the top of the file."
+        parameters={z.object({
+          import: z
+            .string()
+            .describe("The entire line of the import statement to add."),
+        })}
+        onCall={async (args) => {
+          return await props.onOutput({
+            type: "newImport",
+            newImport: args.import,
+          });
+        }}
+      />
+      <SystemMessage>
+        You are a coding assistant. The user will give you a function that has
+        linter errors. Your job is to fix the errors. You have two options:
+        either, you can call the `add_import` function, which adds an import
+        statement at the top of the file, or you can rewrite the entire
+        function. If you rewrite the function, start your message with ```.
+      </SystemMessage>
+      <UserMessage>
+        Function:
+        <br />
+        ```
+        <br />
+        {props.code}
+        <br />
+        ```
+        <br />
+        <br />
+        Errors:
+        <br />
+        ```
+        <br />
+        {props.error}
+        <br />
+        ```
+        <br />
+      </UserMessage>
+      <capture
+        onOutput={async (msg) => {
+          if (msg.content !== undefined) {
+            return await props.onOutput({
+              type: "newCode",
+              newCode: msg.content,
+            });
+          }
+        }}
+      />
     </>
   );
 }

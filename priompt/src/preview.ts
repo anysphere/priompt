@@ -21,7 +21,7 @@ export type PreviewManagerLiveModeResultQuery = {
 }
 
 export interface IPreviewManager {
-  register<T>(config: PreviewConfig<T>): void;
+  registerConfig<T>(config: PreviewConfig<T>): void;
   dump<T>(config: PreviewConfig<T>, props: T): void;
 
   // these two methods need to be implemented on the server for priompt to work
@@ -62,6 +62,16 @@ export type PreviewConfig<PropsT> = {
 }
 
 class PreviewManagerImpl implements IPreviewManager {
+
+  private _shouldDump: boolean = process.env.NODE_ENV === 'development';
+
+  get shouldDump(): boolean {
+    return this._shouldDump;
+  }
+
+  set shouldDump(value: boolean) {
+    this._shouldDump = value;
+  }
 
   private readonly previews: Record<string, PreviewConfig<unknown>> = {};
 
@@ -110,11 +120,18 @@ class PreviewManagerImpl implements IPreviewManager {
     return config.prompt(this.hydrate(config, this.getDump(promptId, propsId)));
   }
 
-  register<T>(config: PreviewConfig<T>) {
+  registerConfig<T>(config: PreviewConfig<T>) {
     if (Object.keys(this.previews).includes(config.id)) {
       throw new Error(`preview id ${config.id} already registered`);
     }
     this.previews[config.id] = config;
+  }
+  register<T>(prompt: (props: T) => PromptElement) {
+    const config = {
+      id: prompt.name,
+      prompt,
+    }
+    this.registerConfig(config);
   }
 
 
@@ -125,6 +142,17 @@ class PreviewManagerImpl implements IPreviewManager {
     const yamlData = yaml.load(dump);
     const props: T = yamlData as T;
     return props;
+  }
+
+  maybeDump<T>(prompt: (props: T) => PromptElement, props: T) {
+    if (!this.shouldDump) {
+      return;
+    }
+    const config = {
+      id: prompt.name,
+      prompt,
+    }
+    this.dump(config, props);
   }
 
   dump<T>(config: PreviewConfig<T>, props: T) {

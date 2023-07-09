@@ -12,7 +12,7 @@ const ExamplePromptConfig: PreviewConfig<ExamplePromptProps> = {
   id: "examplePrompt",
   prompt: ExamplePrompt,
 };
-PreviewManager.register(ExamplePromptConfig);
+PreviewManager.registerConfig(ExamplePromptConfig);
 
 export type ExamplePromptProps = PromptProps<{
   name: string;
@@ -37,6 +37,40 @@ export function ExamplePrompt(
       </SystemMessage>
       <UserMessage>{props.message}</UserMessage>
       <empty tokens={1000} />
+    </>
+  );
+}
+
+PreviewManager.register(SimplePrompt);
+export function SimplePrompt(
+  props: PromptProps<
+    {
+      language: string;
+      text: string;
+    },
+    boolean
+  >
+): PromptElement {
+  return (
+    <>
+      <SystemMessage>
+        Please determine if the following text is in {props.language}. If it is,
+        please reply with "yes". If it is not, please reply with "no". Do not
+        output anything else.
+      </SystemMessage>
+      <UserMessage>{props.text}</UserMessage>
+      <empty tokens={1000} />
+      <capture
+        onOutput={async (output) => {
+          if (output.content?.toLowerCase().includes("yes") === true) {
+            return await props.onOutput(true);
+          } else if (output.content?.toLowerCase().includes("no") === true) {
+            return await props.onOutput(false);
+          }
+          // bad
+          throw new Error(`Invalid output: ${output.content}`);
+        }}
+      />
     </>
   );
 }

@@ -2,6 +2,7 @@
 // First picks out the first child (in order) that is prioritized enough
 
 import { JSONSchema7 } from 'json-schema';
+import { ChatCompletionResponseMessage } from 'openai';
 
 export type FunctionBody = {
 	name: string;
@@ -19,6 +20,11 @@ export type Empty = {
 	type: 'empty';
 	tokenCount: number;
 };
+
+export type Capture = {
+	type: 'capture';
+	onOutput: OutputHandler;
+}
 
 // the scope will exist iff the final priority is lower than the priority here
 // it shouldn't be the case that both the relative priority and the absolute priority is set
@@ -66,7 +72,7 @@ export type FunctionDefinition = {
 	parameters: JSONSchema7;
 }
 
-export type Node = FunctionDefinition | First | Scope | Empty | ChatMessage | string | null | undefined | number | false;
+export type Node = FunctionDefinition | First | Capture | Scope | Empty | ChatMessage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -81,7 +87,13 @@ export type BaseProps = {
 	children?: PromptElement[] | PromptElement;
 };
 
-export type PromptProps<T = Record<never, never>> = (keyof T extends never ? BaseProps : BaseProps & T);
+export type CaptureProps<T> = {
+	onOutput: OutputHandler<T>;
+	// TODO: add streaming support here
+}
+
+type BasePromptProps<T = Record<never, never>> = (keyof T extends never ? BaseProps : BaseProps & T);
+export type PromptProps<T = Record<never, never>, OutputT = never> = ([OutputT] extends [never] ? BasePromptProps<T> : BasePromptProps<T> & CaptureProps<OutputT>);
 
 export namespace JSX {
 	interface IntrinsicElements {
@@ -91,6 +103,8 @@ export namespace JSX {
 		// automatically use a certain number of tokens (useful for leaving space for the model to give its answer)
 		empty: BaseProps & { tokens: number; };
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
+		// TODO: make the onOutput work for other kinds of completions that aren't chat
+		capture: Omit<BaseProps, 'children'> & CaptureProps<ChatCompletionResponseMessage>;
 	}
 	type Element = PromptElement;
 	interface ElementAttributesProperty {
@@ -139,5 +153,9 @@ export type ChatAndFunctionPromptFunction = {
 export type FunctionPrompt = {
 	functions: ChatAndFunctionPromptFunction[];
 }
+
+// the p is used to specify the priority of the handler
+// higher priority handler will be called first in case there are multiple
+export type OutputHandler<T = ChatCompletionResponseMessage> = (output: T, options?: { p?: number }) => Promise<void>;
 
 export type Prompt = string | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);

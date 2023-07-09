@@ -3,10 +3,12 @@
 
 // TODO: add an IDE plugin or something that renders the prompt when you hover over it (and has a slider for the priority)
 
-import { ChatCompletionRequestMessage, ChatCompletionFunctions } from 'openai';
-import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer } from './openai';
+import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
+import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
 import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerFromName, getTokenizerName } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps } from './types';
+import { NewOutputCatcher } from './outputCatcher.ai';
+import { PreviewManager } from './preview';
 
 
 
@@ -149,6 +151,25 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
 				};
 			}
+		case 'capture':
+			{
+				if (children.length > 0) {
+					throw new Error(`capture tag must have no children, got ${children}`);
+				}
+				if (!props || typeof props.onOutput !== 'function') {
+					throw new Error(`capture tag must have an onOutput prop that's a function, got ${props}`);
+				}
+
+				return {
+					type: 'scope',
+					children: [{
+						type: 'capture',
+						onOutput: props.onOutput as OutputHandler,
+					}],
+					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
+					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
+				};
+			}
 		default:
 			throw new Error(`Unknown tag ${tag}`);
 	}
@@ -173,6 +194,7 @@ export type RenderOutput = {
 	tokenCount: number;
 	tokensReserved: number;
 	priorityCutoff: number;
+	outputHandlers: OutputHandler[];
 	durationMs?: number;
 };
 
@@ -195,6 +217,77 @@ export function render(elem: PromptElement, options: RenderOptions): RenderOutpu
 	// return renderBackwardsLinearSearch(elem, options);
 
 	return renderBinarySearch(elem, options);
+}
+
+// returns the highest-priority onOutput call
+// may throw
+export async function renderun<
+	OutputT,
+	PropsT extends Record<string, unknown>
+>({
+	prompt,
+	props,
+	renderOptions,
+	modelCall,
+}: {
+	prompt: (props: PromptProps<PropsT, OutputT>) => PromptElement;
+	props: Omit<PropsT, "onOutput">;
+	renderOptions: RenderOptions;
+	modelCall: (
+		args: ReturnType<typeof promptToOpenAIChatRequest>
+	) => Promise<CreateChatCompletionResponse>;
+}): Promise<OutputT> {
+	// create an output catcher
+	const outputCatcher = NewOutputCatcher<OutputT>();
+
+	const baseProps: Omit<BasePromptProps<PropsT>, "onOutput"> = props;
+
+	const captureProps: CaptureProps<OutputT> = {
+		onOutput: (x) => outputCatcher.onOutput(x),
+	};
+
+	// this is fine because onOutput will get overridden
+	const realProps: PromptProps<PropsT, OutputT> = {
+		...baseProps,
+		...captureProps,
+	} as PromptProps<PropsT, OutputT>;
+
+	PreviewManager.maybeDump(prompt, baseProps);
+
+	// first render
+	const rendered = render(prompt(realProps), renderOptions);
+
+	const modelRequest = promptToOpenAIChatRequest(rendered.prompt);
+
+	// now do the model call
+	const modelOutput = await modelCall(modelRequest);
+
+	if (modelOutput.choices.length === 0) {
+		throw new Error(`model returned no choices`);
+	}
+
+	const modelOutputMessage = modelOutput.choices[0].message;
+
+	if (modelOutputMessage === undefined) {
+		throw new Error(`model returned no message`);
+	}
+
+	// call all of them and wait all of them in parallel
+	await Promise.all(
+		rendered.outputHandlers.map((handler) => handler(modelOutputMessage))
+	);
+
+	// now return the first output
+	const firstOutput = outputCatcher.getOutput();
+
+	if (firstOutput === undefined) {
+		// bad bad! let's throw an error
+		throw new Error(
+			`No output was captured. Did you forget to include a <capture> element?`
+		);
+	} else {
+		return firstOutput;
+	}
 }
 
 export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): RenderOutput {
@@ -319,6 +412,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 		tokenCount: tokenCount,
 		tokensReserved: prompt.emptyTokenCount,
 		durationMs: duration,
+		outputHandlers: prompt.outputHandlers,
 		priorityCutoff: sortedPriorityLevels[inclusiveUpperBound],
 	};
 
@@ -410,12 +504,14 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 		prompt: Prompt | undefined;
 		tokenCount: number;
 		emptyTokenCount: number;
+		outputHandlers: OutputHandler[];
 	} | undefined = undefined;
 	let prevLevel: number | undefined = undefined;
 	let thisPrompt: {
 		prompt: Prompt | undefined;
 		tokenCount: number;
 		emptyTokenCount: number;
+		outputHandlers: OutputHandler[];
 	} | undefined = undefined;
 	for (const level of sortedPriorityLevels) {
 		thisPrompt = renderWithLevelAndCountTokens(normalizedElem, level, tokenizer);
@@ -477,6 +573,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 		prompt: prevPrompt.prompt ?? "",
 		tokenCount: prevPrompt.tokenCount,
 		tokensReserved: prevPrompt.emptyTokenCount,
+		outputHandlers: prevPrompt.outputHandlers,
 		durationMs: duration,
 		priorityCutoff: prevLevel ?? BASE_PRIORITY,
 	};
@@ -507,7 +604,7 @@ type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAss
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
-type NormalizedNode = NormalizedFirst | NormalizedScope | Empty | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
+type NormalizedNode = NormalizedFirst | NormalizedScope | Empty | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
 type NormalizedPromptElement = NormalizedNode[];
 function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	// we want to merge all the strings together
@@ -536,6 +633,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 			pushCurrentString();
 			let newNode: NormalizedNode;
 			switch (node.type) {
+				case 'capture':
 				case 'empty': {
 					newNode = node;
 					break;
@@ -583,18 +681,21 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 	prompt: Prompt | undefined;
 	tokenCount: number;
 	emptyTokenCount: number;
+	outputHandlers: OutputHandler[];
 } {
 	if (Array.isArray(elem)) {
 		return elem.map(e => renderWithLevelAndCountTokens(e, level, tokenizer)).reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
 				tokenCount: a.tokenCount + b.tokenCount,
-				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount
+				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
+				outputHandlers: [...a.outputHandlers, ...b.outputHandlers]
 			};
 		}, {
 			prompt: undefined,
 			tokenCount: 0,
-			emptyTokenCount: 0
+			emptyTokenCount: 0,
+			outputHandlers: []
 		});
 	}
 	switch (elem.type) {
@@ -611,14 +712,24 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 			return {
 				prompt: undefined,
 				tokenCount: 0,
-				emptyTokenCount: 0
+				emptyTokenCount: 0,
+				outputHandlers: []
 			};
+		}
+		case 'capture': {
+			return {
+				prompt: undefined,
+				tokenCount: 0,
+				emptyTokenCount: 0,
+				outputHandlers: [elem.onOutput]
+			}
 		}
 		case 'empty': {
 			return {
 				prompt: undefined,
 				tokenCount: 0,
-				emptyTokenCount: elem.tokenCount
+				emptyTokenCount: elem.tokenCount,
+				outputHandlers: []
 			}
 		}
 		case 'functionDefinition': {
@@ -639,7 +750,8 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 			return {
 				prompt,
 				tokenCount: elem.cachedCount,
-				emptyTokenCount: 0
+				emptyTokenCount: 0,
+				outputHandlers: []
 			}
 		}
 		case 'chat': {
@@ -688,6 +800,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 				},
 				tokenCount: p.tokenCount + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR + extraTokenCount,
 				emptyTokenCount: p.emptyTokenCount,
+				outputHandlers: p.outputHandlers
 			}
 		}
 		case 'scope': {
@@ -700,7 +813,8 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 			return {
 				prompt: undefined,
 				tokenCount: 0,
-				emptyTokenCount: 0
+				emptyTokenCount: 0,
+				outputHandlers: []
 			}
 		}
 		case 'normalizedString': {
@@ -710,7 +824,8 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 			return {
 				prompt: elem.s,
 				tokenCount: elem.cachedCount,
-				emptyTokenCount: 0
+				emptyTokenCount: 0,
+				outputHandlers: []
 			};
 		}
 	}
@@ -769,6 +884,13 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				prompt: undefined,
 				emptyTokenCount: 0
 			};
+		}
+		case 'capture': {
+			// we're not rendering the capture here
+			return {
+				prompt: undefined,
+				emptyTokenCount: 0
+			}
 		}
 		case 'empty': {
 			return {
@@ -855,34 +977,40 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 function renderWithLevel(elem: PromptElement, level: number): {
 	prompt: Prompt | undefined;
 	emptyTokenCount: number;
+	outputHandlers: OutputHandler[];
 } {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
-			emptyTokenCount: 0
+			emptyTokenCount: 0,
+			outputHandlers: []
 		};
 	}
 	if (Array.isArray(elem)) {
 		return elem.map(e => renderWithLevel(e, level)).reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
-				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount
+				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
+				outputHandlers: a.outputHandlers.concat(b.outputHandlers),
 			};
 		}, {
 			prompt: undefined,
-			emptyTokenCount: 0
+			emptyTokenCount: 0,
+			outputHandlers: []
 		});
 	}
 	if (typeof elem === 'string') {
 		return {
 			prompt: elem,
-			emptyTokenCount: 0
+			emptyTokenCount: 0,
+			outputHandlers: []
 		};
 	}
 	if (typeof elem === 'number') {
 		return {
 			prompt: elem.toString(),
-			emptyTokenCount: 0
+			emptyTokenCount: 0,
+			outputHandlers: []
 		};
 	}
 	switch (elem.type) {
@@ -898,13 +1026,24 @@ function renderWithLevel(elem: PromptElement, level: number): {
 			// nothing returned from first, which is ok
 			return {
 				prompt: undefined,
-				emptyTokenCount: 0
+				emptyTokenCount: 0,
+				outputHandlers: []
 			};
+		}
+		case 'capture': {
+			return {
+				prompt: undefined,
+				emptyTokenCount: 0,
+				outputHandlers: [
+					elem.onOutput
+				]
+			}
 		}
 		case 'empty': {
 			return {
 				prompt: undefined,
-				emptyTokenCount: elem.tokenCount
+				emptyTokenCount: elem.tokenCount,
+				outputHandlers: []
 			}
 		}
 		case 'functionDefinition': {
@@ -921,7 +1060,8 @@ function renderWithLevel(elem: PromptElement, level: number): {
 			};
 			return {
 				prompt,
-				emptyTokenCount: 0
+				emptyTokenCount: 0,
+				outputHandlers: []
 			}
 		}
 		case 'chat': {
@@ -966,6 +1106,7 @@ function renderWithLevel(elem: PromptElement, level: number): {
 					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				emptyTokenCount: p.emptyTokenCount,
+				outputHandlers: p.outputHandlers
 			}
 		}
 		case 'scope': {
@@ -977,7 +1118,8 @@ function renderWithLevel(elem: PromptElement, level: number): {
 			}
 			return {
 				prompt: undefined,
-				emptyTokenCount: 0
+				emptyTokenCount: 0,
+				outputHandlers: []
 			}
 		}
 	}
@@ -1019,6 +1161,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 			}
 			return;
 		}
+		case 'capture':
 		case 'functionDefinition':
 		case 'empty': {
 			return;
@@ -1062,6 +1205,7 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 			}
 			return;
 		}
+		case 'capture':
 		case 'functionDefinition':
 		case 'empty': {
 			return;
@@ -1114,6 +1258,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 			}
 			return;
 		}
+		case 'capture':
 		case 'functionDefinition':
 		case 'empty': {
 			// nothing happens

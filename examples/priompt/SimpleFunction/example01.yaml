@@ -1,0 +1,8 @@
+code: |-
+  function x() {
+  	return z.object({
+  		a: z.string(),
+  		b: z.number(),
+  	});
+  }
+error: '''z'' is not defined'

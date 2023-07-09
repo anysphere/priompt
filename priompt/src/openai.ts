@@ -43,6 +43,11 @@ export const usableLanguageModels = [
 	AZURE_3_5_TURBO
 ] as const;
 
+export function isUsableLanguageModel(s: string): s is UsableLanguageModel {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return usableLanguageModels.includes(s as any);
+}
+
 export const usableTokenizers = [
 	CL100K_BASE,
 	R50K_BASE,
