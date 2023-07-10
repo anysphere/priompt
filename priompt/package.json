@@ -29,6 +29,7 @@
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "tsc --noEmit && eslint .",
     "test": "vitest",
+    "test:nowatch": "vitest run",
     "coverage": "vitest run --coverage"
   },
   "devDependencies": {

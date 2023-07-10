@@ -19,3 +19,7 @@ export function NewOutputCatcher<T>(): OutputCatcher<T> {
 
 // @cursor-agent {"dependsOn": "interface", "hash": "7034e4452cc668449b0b967116683a95303c4509d263ed535851b081164751bb"}
 // @cursor-agent {"passedInitialVerification": true}
+
+
+// @cursor-agent {"dependsOn": "allFiles", "hash": "bd574f28bd5ebd5a493044d7bdaf54e43529f4b849ae540d9a5df45b9ad44ad1"}
+// @cursor-agent {"passedAllTests": true}
