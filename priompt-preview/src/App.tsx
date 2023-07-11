@@ -31,6 +31,11 @@ function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
 
 // Usage example:
 const App = () => {
+  console.log("RENDERING APP");
+  const [timeToFirstToken, setTimeToFirstToken] = useState<number | null>();
+  const [timeToRemainingTokens, setTimeToRemainingTokens] = useState<
+    number | null
+  >();
   const [selectedPrompt, setSelectedPrompt] = useState("");
   const [selectedPropsId, setSelectedPropsId] = useState("");
   const [tokenCount, setTokenCount] = useState(8192);
@@ -418,6 +423,9 @@ const App = () => {
 
       try {
         const functions = fullPrompts?.functions ?? [];
+        let start = performance.now();
+        setTimeToFirstToken(undefined);
+        setTimeToRemainingTokens(undefined);
         const stream = streamChat(
           {
             model,
@@ -455,7 +463,13 @@ const App = () => {
           abort.signal
         );
 
+        let first = true;
         for await (const message of stream) {
+          if (first) {
+            setTimeToFirstToken(performance.now() - start);
+            first = false;
+            start = performance.now();
+          }
           setLoadingCompletion(false);
           console.log(message);
           const text = message.choices[0].delta?.content;
@@ -482,6 +496,7 @@ const App = () => {
             };
           });
         }
+        setTimeToRemainingTokens(performance.now() - start);
       } catch (e) {
         if ((e as Error).name !== "AbortError") {
           console.error(e);
@@ -820,6 +835,21 @@ const App = () => {
                 }}
               >
                 {completion.function_call.arguments}
+              </div>
+            </div>
+          )}
+          {(timeToFirstToken !== undefined ||
+            timeToRemainingTokens !== undefined) && (
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                border: "solid 1px",
+              }}
+            >
+              <div>Time to first token: {timeToFirstToken ?? "loading..."}</div>
+              <div>
+                Time to remaining tokens:{" "}
+                {timeToRemainingTokens ?? "loading..."}
               </div>
             </div>
           )}
