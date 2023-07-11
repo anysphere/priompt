@@ -84,6 +84,8 @@ export function Function(
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   return (
     <>
       {{
@@ -129,29 +131,29 @@ export function ZFunction<ParamT>(
   }>
 ) {
   return (
-    <>
-      <Function
-        name={props.name}
-        description={props.description}
-        parameters={zodToJsonSchema(props.parameters)}
-        onCall={async (rawArgs: string) => {
-          if (props.onCall === undefined) {
-            // do nothing
-            return;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    <Function
+      name={props.name}
+      description={props.description}
+      parameters={zodToJsonSchema(props.parameters)}
+      onCall={async (rawArgs: string) => {
+        if (props.onCall === undefined) {
+          // do nothing
+          return;
+        }
+        try {
+          const args = props.parameters.parse(JSON.parse(rawArgs));
+          await props.onCall(args);
+        } catch (error) {
+          if (props.onParseError !== undefined) {
+            await props.onParseError(error, rawArgs);
+          } else {
+            throw error;
           }
-          try {
-            const args = props.parameters.parse(JSON.parse(rawArgs));
-            await props.onCall(args);
-          } catch (error) {
-            if (props.onParseError !== undefined) {
-              await props.onParseError(error, rawArgs);
-            } else {
-              throw error;
-            }
-          }
-        }}
-      />
-    </>
+        }
+      }}
+    />
   );
 }
 

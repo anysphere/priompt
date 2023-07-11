@@ -12,6 +12,8 @@ import { PromptElement, PromptProps } from "./types";
 
 describe("SystemMessage", () => {
   function TestSystemMessage(props: PromptProps): PromptElement {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     return <SystemMessage>hi this is a system message</SystemMessage>;
   }
 
@@ -26,8 +28,12 @@ describe("SystemMessage", () => {
 
 describe("Function", () => {
   function TestFunction(props: PromptProps): PromptElement {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     return (
       <>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <Function
           name={"echo"}
           description={"Echo a message to the user."}
@@ -42,6 +48,8 @@ describe("Function", () => {
             required: ["message"],
           }}
         />
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <UserMessage>say hi</UserMessage>
       </>
     );
@@ -76,8 +84,12 @@ describe("Function", () => {
 
 describe("All kinds of messages", () => {
   function TestAllMessages(props: PromptProps): PromptElement {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     return (
       <>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <Function
           name={"echo"}
           description={"Echo a message to the user."}
@@ -92,14 +104,22 @@ describe("All kinds of messages", () => {
             required: ["message"],
           }}
         />
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <SystemMessage>System message</SystemMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <UserMessage>User message</UserMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <AssistantMessage
           functionCall={{
             name: "echo",
             arguments: `{"message": "this is a test echo"}`,
           }}
         ></AssistantMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <FunctionMessage name={"echo"}>this is a test echo</FunctionMessage>
       </>
     );
