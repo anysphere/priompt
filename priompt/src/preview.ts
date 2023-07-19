@@ -4,12 +4,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { StreamChatCompletionResponse } from './openai';
-import { CreateChatCompletionResponse } from 'openai';
+import { ChatCompletionResponseMessage, CreateChatCompletionResponse } from 'openai';
+import { NewOutputCatcher, OutputCatcher } from './outputCatcher.ai';
 
 export type PreviewManagerGetPromptQuery = {
   promptId: string;
   propsId: string;
   tokenLimit: number;
+};
+
+export type PreviewManagerGetPromptOutputQuery = {
+  promptId: string;
+  propsId: string;
+  tokenLimit: number;
+  completion: ChatCompletionResponseMessage;
 };
 
 export type PreviewManagerLiveModeQuery = {
@@ -106,7 +114,25 @@ class PreviewManagerImpl implements IPreviewManager {
     return rendered;
   }
 
-  private getElement(promptId: string, propsId: string): PromptElement {
+  async getPromptOutput(query: PreviewManagerGetPromptOutputQuery): Promise<unknown> {
+    const outputCatcher = NewOutputCatcher<unknown>();
+
+    const element = PreviewManager.getElement(query.promptId, query.propsId, outputCatcher);
+
+    const rendered = render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
+
+    // call all of them and wait all of them in parallel
+    await Promise.all(
+      rendered.outputHandlers.map((handler) => handler(query.completion))
+    );
+
+    // now return the first output
+    const firstOutput = outputCatcher.getOutput();
+
+    return firstOutput;
+  }
+
+  private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement {
     if (promptId === 'liveModePromptId') {
       if (this.lastLiveModeData === null) {
         throw new Error('live mode prompt not found');
@@ -117,7 +143,23 @@ class PreviewManagerImpl implements IPreviewManager {
       throw new Error(`preview promptId ${promptId} not registered`);
     }
     const config = this.previews[promptId];
-    return config.prompt(this.hydrate(config, this.getDump(promptId, propsId)));
+
+    const baseProps = this.hydrate(config, this.getDump(promptId, propsId));
+
+    let realProps: unknown = baseProps;
+    if (outputCatcher !== undefined) {
+      const captureProps: unknown = {
+        onOutput: (x: unknown) => outputCatcher.onOutput(x),
+      };
+      realProps = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(baseProps as any),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(captureProps as any),
+      };
+    }
+
+    return config.prompt(realProps);
   }
 
   registerConfig<T>(config: PreviewConfig<T>) {

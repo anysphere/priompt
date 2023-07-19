@@ -57,9 +57,13 @@ const App = () => {
       }
     >
   >({});
+  const [output, setOutput] = useState<string | undefined>(undefined);
 
   const textAreaRefs = useRef<Array<HTMLTextAreaElement | undefined>>(
     Array.from({ length: 1 }).map(() => undefined)
+  );
+  const completionTextAreaRef = useRef<HTMLTextAreaElement | undefined>(
+    undefined
   );
   const [errorMessage, setErrorMessage] = useState<string>("");
 
@@ -244,15 +248,24 @@ const App = () => {
           setPrompt(data.prompt);
           setErrorMessage("");
           setCompletion(undefined);
+          setOutput(undefined);
         })
         .catch((error) => {
           setErrorMessage(error.message);
           setPrompt(undefined);
           setCompletion(undefined);
+          setOutput(undefined);
         });
     },
     []
   );
+
+  useEffect(() => {
+    if (completionTextAreaRef.current) {
+      completionTextAreaRef.current.value = completion?.content ?? "";
+      fixTextareaHeight(completionTextAreaRef.current);
+    }
+  }, [completion]);
 
   useEffect(() => {
     if (selectedPrompt) {
@@ -809,7 +822,23 @@ const App = () => {
             }}
           >
             {loadingCompletion && <>loading...</>}
-            <>{completion ? completion.content : ""}</>
+            {completion ? (
+              <TextAreaWithSetting
+                key={`completion-${forceRerender}`}
+                setFullText={(newText: string) => {
+                  setCompletion({
+                    ...completion,
+                    content: newText,
+                  });
+                }}
+                setTextArea={(value: HTMLTextAreaElement | undefined) => {
+                  completionTextAreaRef.current = value;
+                }}
+                currentTextArea={completionTextAreaRef.current}
+              />
+            ) : (
+              ""
+            )}
           </div>
           {completion?.role === "assistant" && completion?.function_call && (
             <div
@@ -851,6 +880,52 @@ const App = () => {
                 Time to remaining tokens:{" "}
                 {timeToRemainingTokens ?? "loading..."}
               </div>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              // submit to the server!
+              const query = {
+                tokenLimit: tokenCount.toString(),
+                promptId: selectedPrompt,
+                propsId: selectedPropsId,
+                completion: JSON.stringify(completion),
+              };
+
+              fetch(
+                `http://localhost:3000/priompt/getPromptOutput?${new URLSearchParams(
+                  query
+                )}`
+              )
+                .then((response) => {
+                  if (!response.ok) {
+                    throw new Error(
+                      "Error getting output: " + response.statusText
+                    );
+                  }
+                  return response.json();
+                })
+                .then((r) => {
+                  console.log("got output", r);
+                  setOutput(JSON.stringify(r, null, 2));
+                })
+                .catch((error) => {
+                  setErrorMessage(error.message);
+                  setOutput(undefined);
+                });
+            }}
+          >
+            get parsed output
+          </button>
+          {output && (
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                border: "solid 1px",
+              }}
+            >
+              <b>Output (also console.logged):</b>
+              <pre>{output}</pre>
             </div>
           )}
         </div>
