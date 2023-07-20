@@ -29,6 +29,9 @@ function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   ) as T;
 }
 
+const ALL_MODELS_STR = "gpt-3.5-turbo,gpt-4,gpt-4-32k";
+const ALL_MODELS = ALL_MODELS_STR.split(",");
+
 // Usage example:
 const App = () => {
   console.log("RENDERING APP");
@@ -777,24 +780,11 @@ const App = () => {
           ))}
       </div>
       <div>
-        <button onClick={() => streamCompletion("gpt-3.5-turbo")}>
-          Submit to gpt-3.5
-        </button>
-        <button onClick={() => streamCompletion("gpt-3.5-turbo-0613")}>
-          Submit to gpt-3.5-0613
-        </button>
-        <button onClick={() => streamCompletion("gpt-4")}>
-          Submit to gpt-4
-        </button>
-        <button onClick={() => streamCompletion("gpt-4-0613")}>
-          Submit to gpt-4-0613
-        </button>
-        <button onClick={() => streamCompletion("gpt-4-32k")}>
-          Submit to gpt-4-32k
-        </button>
-        <button onClick={() => streamCompletion("gpt-4-32k-0613")}>
-          Submit to gpt-4-32k-0613
-        </button>
+        {ALL_MODELS.map((model) => (
+          <button key={model} onClick={() => streamCompletion(model)}>
+            Submit to {model}
+          </button>
+        ))}
         {abortController !== undefined && (
           <>
             <button

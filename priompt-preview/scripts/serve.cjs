@@ -46,6 +46,11 @@ const requestListener = (req, res) => {
 			if (data.toString().includes('localhost:3000')) {
 				data = data.toString().replace(/localhost:3000/g, `localhost:${server_port}`);
 			}
+			if (process.env.PRIOMPT_PREVIEW_MODELS) {
+				const models = process.env.PRIOMPT_PREVIEW_MODELS.split(',');
+				data = data.toString().replace(/gpt-3.5-turbo,gpt-4,gpt-4-32k/, models);
+			}
+
 			if ((extname === '.html' || extname === '.js') && data.toString().includes('PRIOMPT_PREVIEW_OPENAI_KEY')) {
 				data = data.toString().replace(/PRIOMPT_PREVIEW_OPENAI_KEY/g, `${process.env.PRIOMPT_PREVIEW_OPENAI_KEY}`);
 			}
