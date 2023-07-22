@@ -145,7 +145,7 @@ export function SimpleFunction(
             .describe("The entire line of the import statement to add."),
         })}
         onCall={async (args) => {
-          return await props.onOutput({
+          return await props.onReturn({
             type: "newImport",
             newImport: args.import,
           });
@@ -180,7 +180,7 @@ export function SimpleFunction(
       <capture
         onOutput={async (msg) => {
           if (msg.content !== undefined) {
-            return await props.onOutput({
+            return await props.onReturn({
               type: "newCode",
               newCode: msg.content,
             });

@@ -17,7 +17,8 @@ export type PreviewManagerGetPromptOutputQuery = {
   promptId: string;
   propsId: string;
   tokenLimit: number;
-  completion: ChatCompletionResponseMessage;
+  completion: ChatCompletionResponseMessage | ChatCompletionResponseMessage[];
+  stream: boolean;
 };
 
 export type PreviewManagerLiveModeQuery = {
@@ -121,15 +122,38 @@ class PreviewManagerImpl implements IPreviewManager {
 
     const rendered = render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
 
-    // call all of them and wait all of them in parallel
-    await Promise.all(
-      rendered.outputHandlers.map((handler) => handler(query.completion))
-    );
+    if (!query.stream) {
+      // call all of them and wait all of them in parallel
+      await Promise.all(
+        rendered.outputHandlers.map((handler) => handler(Array.isArray(query.completion) ? query.completion[0] : query.completion))
+      );
 
-    // now return the first output
-    const firstOutput = outputCatcher.getOutput();
+      // now return the first output
+      const firstOutput = outputCatcher.getOutput();
 
-    return firstOutput;
+      return firstOutput;
+    } else {
+      await Promise.all(
+        rendered.streamHandlers.map((handler) => handler((async function* () {
+          for (const completion of Array.isArray(query.completion) ? query.completion : [query.completion]) {
+            yield completion;
+          }
+        })())
+        ));
+
+      // now return the first output
+      const firstOutput = outputCatcher.getOutput();
+
+      // let's just put it in an array
+      const a = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for await (const x of (firstOutput as any)) {
+        a.push(x);
+      }
+
+      return a;
+    }
+
   }
 
   private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement {
@@ -149,7 +173,7 @@ class PreviewManagerImpl implements IPreviewManager {
     let realProps: unknown = baseProps;
     if (outputCatcher !== undefined) {
       const captureProps: unknown = {
-        onOutput: (x: unknown) => outputCatcher.onOutput(x),
+        onReturn: (x: unknown) => outputCatcher.onOutput(x),
       };
       realProps = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

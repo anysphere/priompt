@@ -63,12 +63,42 @@ export function SimplePrompt(
       <capture
         onOutput={async (output) => {
           if (output.content?.toLowerCase().includes("yes") === true) {
-            return await props.onOutput(true);
+            return await props.onReturn(true);
           } else if (output.content?.toLowerCase().includes("no") === true) {
-            return await props.onOutput(false);
+            return await props.onReturn(false);
           }
           // bad
           throw new Error(`Invalid output: ${output.content}`);
+        }}
+      />
+    </>
+  );
+}
+
+PreviewManager.register(ArvidStory);
+export function ArvidStory(
+  props: PromptProps<undefined, AsyncIterable<string>>
+): PromptElement {
+  return (
+    <>
+      <SystemMessage>
+        Please write a short story about a young boy named Arvid. Only a
+        paragraph please.
+      </SystemMessage>
+      <empty tokens={1000} />
+      <capture
+        onStream={async (stream) => {
+          // we want to replace every R with a J
+          await props.onReturn(
+            (async function* () {
+              for await (const chunk of stream) {
+                if (chunk.content === undefined) {
+                  continue;
+                }
+                yield chunk.content.replace(/r/g, "j");
+              }
+            })()
+          );
         }}
       />
     </>

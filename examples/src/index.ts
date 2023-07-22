@@ -1,10 +1,11 @@
 import { promptToOpenAIChatMessages, promptToOpenAIChatRequest, render, renderun } from '@anysphere/priompt';
 import { handlePriomptPreview } from './priompt-preview-handlers';
-import { ExamplePrompt, SimplePrompt } from './prompt';
+import { ArvidStory, ExamplePrompt, SimplePrompt } from './prompt';
 import fastifyCors from "@fastify/cors";
 import Fastify, { FastifyError, FastifyLoggerOptions, FastifyReply, FastifyRequest, RawServerDefault, RouteGenericInterface } from "fastify";
-import { Configuration, CreateChatCompletionRequest, OpenAIApi } from 'openai';
+import { OpenAI as OpenAIV4 } from 'openai-v4';
 import { FunctionCallingPrompt, SimpleFunction } from './function-calling-prompt';
+import { ChatCompletionResponseMessage, Configuration, CreateChatCompletionRequest, OpenAIApi } from 'openai';
 
 const portString = process.env.SERVER_PORT;
 if (portString === undefined || Number.isNaN(parseInt(portString))) {
@@ -18,11 +19,23 @@ if (process.env.OPENAI_API_KEY === undefined || process.env.OPENAI_API_KEY === "
 	throw new Error("OPENAI_API_KEY is undefined. Please run the ./init.sh script to create a .env file, and then insert your API key in the .env file.");
 }
 
+const openaiV4 = new OpenAIV4({
+	apiKey: process.env.OPENAI_API_KEY,
+});
 const configuration = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
 
+function messageAdapter(old: ChatCompletionResponseMessage[]): OpenAIV4.Chat.CompletionCreateParams.CreateChatCompletionRequestNonStreaming.Message[] {
+	return old as OpenAIV4.Chat.CompletionCreateParams.CreateChatCompletionRequestNonStreaming.Message[];
+}
+function messageAdapterReverse(n: OpenAIV4.Chat.CompletionCreateParams.CreateChatCompletionRequestNonStreaming.Message): ChatCompletionResponseMessage {
+	return n as ChatCompletionResponseMessage;
+}
+function requestAdapter(old: CreateChatCompletionRequest): OpenAIV4.Chat.CompletionCreateParams.CreateChatCompletionRequestNonStreaming {
+	return old as OpenAIV4.Chat.CompletionCreateParams.CreateChatCompletionRequestNonStreaming;
+}
 
 async function main() {
 
@@ -115,9 +128,42 @@ async function main() {
 				renderOptions: {
 					model: "gpt-3.5-turbo",
 				},
-				modelCall: async (x) => (await openai.createChatCompletion({ ...x, model: "gpt-3.5-turbo" })).data
+				modelCall: async (x) => { return { type: "output", value: (await openai.createChatCompletion({ ...x, model: "gpt-3.5-turbo" })).data } }
 			});
 			return reply.type("text/plain").send(JSON.stringify({ answer }));
+		} catch (error) {
+			console.error(error);
+			return reply.status(500).send("Internal server error.");
+		}
+	});
+
+	S.get("/arvidstory", async (request, reply) => {
+		try {
+			const answer = await renderun({
+				prompt: ArvidStory,
+				props: {},
+				renderOptions: {
+					model: "gpt-3.5-turbo",
+				},
+				modelCall: async (x) => {
+					const y = await openaiV4.chat.completions.create({ ...requestAdapter({ ...x, model: "gpt-3.5-turbo" }), stream: true });
+					return {
+						type: "stream",
+						value: (async function* () {
+							for await (const message of y) {
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
+								yield messageAdapterReverse(message.choices[0].delta as any);
+							}
+						})()
+					}
+				}
+			});
+			let s = "";
+			for await (const part of answer) {
+				s += part;
+				console.log(part);
+			}
+			return reply.type("text/plain").send(JSON.stringify({ answer: s }));
 		} catch (error) {
 			console.error(error);
 			return reply.status(500).send("Internal server error.");
@@ -141,7 +187,7 @@ async function main() {
 				renderOptions: {
 					model: "gpt-4",
 				},
-				modelCall: async (x) => (await openai.createChatCompletion({ ...x, model: "gpt-4" })).data
+				modelCall: async (x) => { return { type: 'output', value: (await openai.createChatCompletion({ ...x, model: "gpt-4" })).data } }
 			});
 			return reply.type("text/plain").send(JSON.stringify(action));
 		} catch (error) {

@@ -23,7 +23,12 @@ export type Empty = {
 
 export type Capture = {
 	type: 'capture';
-	onOutput: OutputHandler;
+} & CaptureProps;
+
+// TODO: make the Capture work for other kinds of completions that aren't chat and aren't openai
+export type CaptureProps = {
+	onOutput?: OutputHandler<ChatCompletionResponseMessage>;
+	onStream?: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>;
 }
 
 // the scope will exist iff the final priority is lower than the priority here
@@ -87,13 +92,12 @@ export type BaseProps = {
 	children?: PromptElement[] | PromptElement;
 };
 
-export type CaptureProps<T> = {
-	onOutput: OutputHandler<T>;
-	// TODO: add streaming support here
+export type ReturnProps<T> = {
+	onReturn: OutputHandler<T>;
 }
 
 type BasePromptProps<T = Record<never, never>> = (keyof T extends never ? BaseProps : BaseProps & T);
-export type PromptProps<T = Record<never, never>, OutputT = never> = ([OutputT] extends [never] ? BasePromptProps<T> : BasePromptProps<T> & CaptureProps<OutputT>);
+export type PromptProps<T = Record<never, never>, ReturnT = never> = ([ReturnT] extends [never] ? BasePromptProps<T> : BasePromptProps<T> & ReturnProps<ReturnT>);
 
 export namespace JSX {
 	interface IntrinsicElements {
@@ -103,8 +107,7 @@ export namespace JSX {
 		// automatically use a certain number of tokens (useful for leaving space for the model to give its answer)
 		empty: BaseProps & { tokens: number; };
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
-		// TODO: make the onOutput work for other kinds of completions that aren't chat
-		capture: Omit<BaseProps, 'children'> & CaptureProps<ChatCompletionResponseMessage>;
+		capture: Omit<BaseProps, 'children'> & CaptureProps;
 	}
 	type Element = PromptElement;
 	interface ElementAttributesProperty {
@@ -156,6 +159,6 @@ export type FunctionPrompt = {
 
 // the p is used to specify the priority of the handler
 // higher priority handler will be called first in case there are multiple
-export type OutputHandler<T = ChatCompletionResponseMessage> = (output: T, options?: { p?: number }) => Promise<void>;
+export type OutputHandler<T> = (output: T, options?: { p?: number }) => Promise<void>;
 
 export type Prompt = string | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);

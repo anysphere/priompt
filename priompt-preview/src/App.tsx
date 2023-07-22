@@ -89,6 +89,41 @@ const App = () => {
   >(undefined);
   const [forceRerender, setForceRerender] = useState<number>(0);
 
+  const getPromptOutput = useCallback(
+    (stream: boolean) => {
+      // submit to the server!
+      const query = {
+        tokenLimit: tokenCount,
+        promptId: selectedPrompt,
+        propsId: selectedPropsId,
+        completion: stream ? streamify(completion) : completion,
+        stream,
+      };
+
+      fetch(
+        `http://localhost:3000/priompt/getPromptOutput?${new URLSearchParams({
+          v: JSON.stringify(query),
+        })}`
+      )
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Error getting output: " + response.statusText);
+          }
+          return response.json();
+        })
+        .then((r) => {
+          console.log("got output", r);
+          setOutput(JSON.stringify(r, null, 2));
+          setErrorMessage("");
+        })
+        .catch((error) => {
+          setErrorMessage(error.message);
+          setOutput(undefined);
+        });
+    },
+    [completion, selectedPrompt, selectedPropsId, tokenCount]
+  );
+
   useEffect(() => {
     const storedSelectedPrompt = localStorage.getItem("selectedPrompt");
     const storedSelectedPropsId = localStorage.getItem("selectedPropsId");
@@ -872,40 +907,11 @@ const App = () => {
               </div>
             </div>
           )}
-          <button
-            onClick={() => {
-              // submit to the server!
-              const query = {
-                tokenLimit: tokenCount.toString(),
-                promptId: selectedPrompt,
-                propsId: selectedPropsId,
-                completion: JSON.stringify(completion),
-              };
-
-              fetch(
-                `http://localhost:3000/priompt/getPromptOutput?${new URLSearchParams(
-                  query
-                )}`
-              )
-                .then((response) => {
-                  if (!response.ok) {
-                    throw new Error(
-                      "Error getting output: " + response.statusText
-                    );
-                  }
-                  return response.json();
-                })
-                .then((r) => {
-                  console.log("got output", r);
-                  setOutput(JSON.stringify(r, null, 2));
-                })
-                .catch((error) => {
-                  setErrorMessage(error.message);
-                  setOutput(undefined);
-                });
-            }}
-          >
+          <button onClick={() => getPromptOutput(false)}>
             get parsed output
+          </button>
+          <button onClick={() => getPromptOutput(true)}>
+            get parsed stream
           </button>
           {output && (
             <div
@@ -1280,4 +1286,25 @@ function FullPromptFunction({
       </div>
     </div>
   );
+}
+
+function streamify(
+  m: ChatCompletionResponseMessage | undefined
+): ChatCompletionResponseMessage[] {
+  if (m === undefined) {
+    return [];
+  }
+  const content = m.content ?? "";
+  const chunks = [];
+
+  let chunkSize = Math.floor(Math.random() * 8) + 1;
+  for (let i = 0; i < content.length; i += chunkSize) {
+    chunkSize = Math.floor(Math.random() * 8) + 1; // Choose a different length for each yield
+    chunks.push({
+      ...m,
+      content: content.slice(i, i + chunkSize),
+    });
+  }
+
+  return chunks;
 }
