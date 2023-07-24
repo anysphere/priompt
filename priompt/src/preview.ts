@@ -1,5 +1,5 @@
 import { render, RenderOutput } from './lib';
-import { Prompt, PromptElement } from './types';
+import { Prompt, PromptElement, PromptProps } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -52,7 +52,14 @@ function getProjectRoot(): string {
   return process.cwd();
 }
 
-export function dumpProps<T>(config: PreviewConfig<T>, props: T) {
+export function configFromPrompt<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement): PreviewConfig<T> {
+  return {
+    id: prompt.name,
+    prompt,
+  };
+}
+
+export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>, props: Omit<T, "onReturn">) {
   const dump = config.dump
     ? config.dump(props)
     : yaml.dump(props, {
@@ -62,11 +69,11 @@ export function dumpProps<T>(config: PreviewConfig<T>, props: T) {
   return dump;
 }
 
-export type PreviewConfig<PropsT> = {
+export type PreviewConfig<PropsT, ReturnT = never> = {
   id: string;
-  prompt: (props: PropsT) => PromptElement;
+  prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
   // defaults to yaml but can be overridden
-  dump?: (props: PropsT) => string;
+  dump?: (props: Omit<PropsT, "onReturn">) => string;
   hydrate?: (dump: string) => PropsT;
 }
 
@@ -183,20 +190,17 @@ class PreviewManagerImpl implements IPreviewManager {
       };
     }
 
-    return config.prompt(realProps);
+    return config.prompt(realProps as PromptProps<unknown>);
   }
 
-  registerConfig<T>(config: PreviewConfig<T>) {
+  registerConfig<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>) {
     if (Object.keys(this.previews).includes(config.id)) {
       throw new Error(`preview id ${config.id} already registered`);
     }
     this.previews[config.id] = config;
   }
-  register<T>(prompt: (props: T) => PromptElement) {
-    const config = {
-      id: prompt.name,
-      prompt,
-    }
+  register<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement) {
+    const config = configFromPrompt(prompt);
     this.registerConfig(config);
   }
 
@@ -210,14 +214,11 @@ class PreviewManagerImpl implements IPreviewManager {
     return props;
   }
 
-  maybeDump<T>(prompt: (props: T) => PromptElement, props: T) {
+  maybeDump<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement, props: Omit<T, "onReturn">) {
     if (!this.shouldDump) {
       return;
     }
-    const config = {
-      id: prompt.name,
-      prompt,
-    }
+    const config = configFromPrompt(prompt);
     this.dump(config, props);
   }
 

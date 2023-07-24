@@ -235,6 +235,7 @@ export async function renderun<
 	props,
 	renderOptions,
 	modelCall,
+	loggingOptions,
 }: {
 	prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
 	props: Omit<PropsT, "onReturn">;
@@ -242,6 +243,10 @@ export async function renderun<
 	modelCall: (
 		args: ReturnType<typeof promptToOpenAIChatRequest>
 	) => Promise<{ type: "output", value: CreateChatCompletionResponse } | { type: "stream", value: AsyncIterable<ChatCompletionResponseMessage> }>;
+	loggingOptions?: {
+		promptElementRef?: { current: PromptElement | undefined };
+		renderOutputRef?: { current: RenderOutput | undefined };
+	}
 }): Promise<ReturnT> {
 	// create an output catcher
 	const outputCatcher = NewOutputCatcher<ReturnT>();
@@ -258,10 +263,17 @@ export async function renderun<
 		...returnProps,
 	} as PromptProps<PropsT, ReturnT>;
 
-	PreviewManager.maybeDump(prompt, baseProps);
+	PreviewManager.maybeDump<PropsT, ReturnT>(prompt, props);
 
 	// first render
-	const rendered = render(prompt(realProps), renderOptions);
+	const promptElement = prompt(realProps);
+	if (loggingOptions?.promptElementRef !== undefined) {
+		loggingOptions.promptElementRef.current = promptElement;
+	}
+	const rendered = render(promptElement, renderOptions);
+	if (loggingOptions?.renderOutputRef !== undefined) {
+		loggingOptions.renderOutputRef.current = rendered;
+	}
 
 	const modelRequest = promptToOpenAIChatRequest(rendered.prompt);
 

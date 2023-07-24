@@ -42,6 +42,7 @@ const App = () => {
   const [selectedPrompt, setSelectedPrompt] = useState("");
   const [selectedPropsId, setSelectedPropsId] = useState("");
   const [tokenCount, setTokenCount] = useState(8192);
+  const [temperature, setTemperature] = useState(0);
   const [derivedTokenCount, setDerivedTokenCount] = useState(8192);
   const [tokenCountUsed, setTokenCountUsed] = useState(0);
   const [tokenCountReserved, setTokenCountReserved] = useState(0);
@@ -507,7 +508,7 @@ const App = () => {
                 };
               }
             }),
-            temperature: 0,
+            temperature,
             functions: functions.length > 0 ? functions : undefined,
           },
           undefined,
@@ -559,7 +560,7 @@ const App = () => {
         setLoadingCompletion(false);
       }
     },
-    [prompt, fullPrompts]
+    [prompt, fullPrompts, temperature]
   );
 
   useEffect(() => {
@@ -832,6 +833,26 @@ const App = () => {
             </button>
           </>
         )}
+        <div>
+          <label htmlFor="temperature-slider">
+            Temperature: <span>{temperature}</span>
+          </label>
+          <button onClick={() => setTemperature(0)}>0</button>
+          <button onClick={() => setTemperature(1)}>1</button>
+          <button onClick={() => setTemperature(2)}>2</button>
+          <input
+            type="range"
+            id="temperature-slider"
+            min="0"
+            max="2"
+            step="0.1"
+            value={temperature}
+            onChange={(event) => setTemperature(parseFloat(event.target.value))}
+            style={{
+              width: "100px",
+            }}
+          />
+        </div>
       </div>
       {(completion !== undefined || loadingCompletion) && (
         <div
