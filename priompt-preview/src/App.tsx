@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  FocusEventHandler,
+} from "react";
 import { Prompt } from "@anysphere/priompt";
 import { streamChat } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
@@ -1108,6 +1114,20 @@ function TextAreaWithSetting(props: {
   setFullText: (value: string) => void;
   style?: React.CSSProperties;
 }) {
+  const handleFocus: React.FocusEventHandler<HTMLTextAreaElement> = (event) => {
+    const preventScroll = (scrollEvent: Event) => scrollEvent.preventDefault();
+    window.addEventListener("scroll", preventScroll, { passive: false });
+
+    // Remove the event handler after the first focus event
+    setTimeout(() => {
+      window.removeEventListener("scroll", preventScroll);
+    }, 0);
+  };
+
+  const handleBlur: FocusEventHandler<HTMLTextAreaElement> = (event) => {
+    event.target.onwheel = null;
+  };
+
   return (
     <textarea
       ref={(el) => props.setTextArea(el ?? undefined)}
@@ -1141,6 +1161,8 @@ function TextAreaWithSetting(props: {
         props.setFullText(e.target.value ?? "");
       }}
       spellCheck={false}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
     />
   );
 }
