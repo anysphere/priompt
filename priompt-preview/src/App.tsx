@@ -1,15 +1,10 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  FocusEventHandler,
-} from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Prompt } from "@anysphere/priompt";
 import { streamChat } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
 import { ChatCompletionResponseMessage } from "./openai_interfaces";
+import { Textarea } from "@/components/ui/textarea";
 
 function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   callback: T,
@@ -1114,22 +1109,62 @@ function TextAreaWithSetting(props: {
   setFullText: (value: string) => void;
   style?: React.CSSProperties;
 }) {
-  const handleFocus: React.FocusEventHandler<HTMLTextAreaElement> = () => {
-    const preventScroll = (scrollEvent: Event) => scrollEvent.preventDefault();
-    window.addEventListener("scroll", preventScroll, { passive: false });
+  const [prevScrollPos, setPrevScrollPos] = useState(0);
+  const [scrollCorrection, setScrollCorrection] = useState(false);
 
-    // Remove the event handler after the first focus event
-    setTimeout(() => {
-      window.removeEventListener("scroll", preventScroll);
-    }, 0);
+  const handleScroll: React.UIEventHandler<HTMLTextAreaElement> = (event) => {
+    if (scrollCorrection) {
+      setScrollCorrection(false);
+      event.currentTarget.scrollTop = prevScrollPos;
+    }
+    setPrevScrollPos(event.currentTarget.scrollTop);
   };
 
-  const handleBlur: FocusEventHandler<HTMLTextAreaElement> = (event) => {
-    event.target.onwheel = null;
+  const handleInput: React.ChangeEventHandler<HTMLTextAreaElement> = (e) => {
+    setScrollCorrection(true);
+    setPrevScrollPos(e.target.scrollTop);
+
+    props.setFullText(e.target.value ?? "");
+    if (props.currentTextArea !== undefined) {
+      props.currentTextArea.value = e.target.value ?? "";
+
+      // Create a hidden clone of the textarea
+      const clone = props.currentTextArea.cloneNode() as HTMLTextAreaElement;
+      clone.style.visibility = "hidden";
+      clone.style.position = "absolute";
+      clone.style.height = "auto";
+      document.body.appendChild(clone);
+
+      // Copy the content to the clone
+      clone.value = e.target.value ?? "";
+
+      // Measure the scrollHeight of the clone
+      const scrollHeight = clone.scrollHeight;
+
+      // Remove the clone
+      document.body.removeChild(clone);
+
+      // Adjust the height of the original textarea
+      props.currentTextArea.style.height = `${scrollHeight}px`;
+
+      // Store the current scroll position
+      // const scrollTop = props.currentTextArea.scrollTop;
+      // const h = props.currentTextArea.scrollHeight;
+
+      // resize the textarea to fit the content
+      // props.currentTextArea.style.height = `${props.currentTextArea.scrollHeight}px`;
+
+      // Restore the scroll position
+      // props.currentTextArea.scrollTop = scrollTop;
+    }
+    // update the scroll!
+    if (props.currentTextArea !== undefined) {
+      props.currentTextArea.scrollTop = prevScrollPos;
+    }
   };
 
   return (
-    <textarea
+    <Textarea
       ref={(el) => props.setTextArea(el ?? undefined)}
       id={`prompt-textarea-${props.key}`}
       style={{
@@ -1149,20 +1184,9 @@ function TextAreaWithSetting(props: {
         // Capture all keydown events
         e.stopPropagation();
       }}
-      onChange={(e) => {
-        // Get the scroll height and adjust the height accordingly
-        fixTextareaHeight(e.target);
-        // console.log("CHANGING!", e);
-
-        // const currentTextArea = textAreaRefs.current[i];
-        if (props.currentTextArea !== undefined) {
-          props.currentTextArea.value = e.target.value ?? "";
-        }
-        props.setFullText(e.target.value ?? "");
-      }}
+      onChange={handleInput}
       spellCheck={false}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
+      onScroll={handleScroll}
     />
   );
 }
