@@ -1114,7 +1114,7 @@ function TextAreaWithSetting(props: {
   setFullText: (value: string) => void;
   style?: React.CSSProperties;
 }) {
-  const handleFocus: React.FocusEventHandler<HTMLTextAreaElement> = (event) => {
+  const handleFocus: React.FocusEventHandler<HTMLTextAreaElement> = () => {
     const preventScroll = (scrollEvent: Event) => scrollEvent.preventDefault();
     window.addEventListener("scroll", preventScroll, { passive: false });
 
