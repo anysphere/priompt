@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Priompt from "./lib";
-import { isChatPrompt, promptHasFunctions, render } from "./lib";
+import { isChatPrompt, isPlainPrompt, promptHasFunctions, render } from "./lib";
 import {
   AssistantMessage,
   Function,

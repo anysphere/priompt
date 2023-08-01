@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Prompt } from "@anysphere/priompt";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { RenderedPrompt } from "@anysphere/priompt";
 import { streamChat } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
@@ -53,6 +53,9 @@ const App = () => {
   const [selectedPropsId, setSelectedPropsId] = useState("");
   const [tokenCount, setTokenCount] = useState(8192);
   const [temperature, setTemperature] = useState(0);
+  const [forceFunctionCall, setForceFunctionCall] = useState<
+    string | undefined
+  >(undefined);
   const [derivedTokenCount, setDerivedTokenCount] = useState(8192);
   const [tokenCountUsed, setTokenCountUsed] = useState(0);
   const [tokenCountReserved, setTokenCountReserved] = useState(0);
@@ -61,7 +64,7 @@ const App = () => {
     undefined
   );
   const [promptsls, setPromptsls] = useState<string[]>([]);
-  const [prompt, setPrompt] = useState<Prompt | undefined>(undefined);
+  const [prompt, setPrompt] = useState<RenderedPrompt | undefined>(undefined);
   const [prompts, setPrompts] = useState<
     Record<
       string,
@@ -83,7 +86,7 @@ const App = () => {
 
   const [fullPrompts, setFullPrompts] = useState<
     | {
-        prompt: Prompt;
+        prompt: RenderedPrompt;
         texts: string[];
         functions: ChatAndFunctionPromptFunction[];
       }
@@ -520,6 +523,12 @@ const App = () => {
             }),
             temperature,
             functions: functions.length > 0 ? functions : undefined,
+            function_call:
+              functions.length > 0 &&
+              forceFunctionCall &&
+              functions.some((f) => f.name === forceFunctionCall)
+                ? { name: forceFunctionCall }
+                : undefined,
           },
           undefined,
           abort.signal
@@ -570,7 +579,7 @@ const App = () => {
         setLoadingCompletion(false);
       }
     },
-    [prompt, fullPrompts, temperature]
+    [prompt, fullPrompts, temperature, forceFunctionCall]
   );
 
   useEffect(() => {
@@ -620,7 +629,10 @@ const App = () => {
           <b>r</b> to reload, <b>left</b> and <b>right</b> arrows to adjust
           token count, <b>shift-left</b> and <b>shift-right</b> arrows to adjust
           token count by 128.
-          <div className='text-blue-800'>new feature: cmd+k to open the command menu and quickly switch prompts.</div>
+          <div className="text-blue-800">
+            new feature: cmd+k to open the command menu and quickly switch
+            prompts.
+          </div>
         </div>
         <br />
         <div
@@ -683,48 +695,42 @@ const App = () => {
           //   document.body.style.overflowY = "auto";
           // }}
         >
-          {
-            prompts[selectedPrompt]?.saved.map((saved) => (
-              <div key={saved}>
+          {prompts[selectedPrompt]?.saved.map((saved) => (
+            <div key={saved}>
+              <button
+                style={{
+                  backgroundColor: saved === selectedPropsId ? "red" : "white",
+                }}
+                onClick={() => {
+                  console.log("saved", saved);
+                  setSelectedPropsId(saved);
+
+                  // Store the selected props id in localStorage
+                  localStorage.setItem("selectedPropsId", saved);
+                }}
+              >
+                {saved}
+              </button>
+            </div>
+          ))}
+          {prompts[selectedPrompt]?.dumps
+            .sort((a, b) => b.localeCompare(a))
+            .map((dump) => (
+              <div key={dump}>
                 <button
                   style={{
-                    backgroundColor:
-                      saved === selectedPropsId ? "red" : "white",
+                    backgroundColor: dump === selectedPropsId ? "red" : "white",
                   }}
                   onClick={() => {
-                    console.log("saved", saved);
-                    setSelectedPropsId(saved);
+                    setSelectedPropsId(dump);
 
-                    // Store the selected props id in localStorage
-                    localStorage.setItem("selectedPropsId", saved);
+                    localStorage.setItem("selectedPropsId", dump);
                   }}
                 >
-                  {saved}
+                  {memoizedMakeDateNicer(dump)}
                 </button>
               </div>
-            ))
-          }
-          {
-            prompts[selectedPrompt]?.dumps
-              .sort((a, b) => b.localeCompare(a))
-              .map((dump) => (
-                <div key={dump}>
-                  <button
-                    style={{
-                      backgroundColor:
-                        dump === selectedPropsId ? "red" : "white",
-                    }}
-                    onClick={() => {
-                      setSelectedPropsId(dump);
-
-                      localStorage.setItem("selectedPropsId", dump);
-                    }}
-                  >
-                    {memoizedMakeDateNicer(dump)}
-                  </button>
-                </div>
-              ))
-          }
+            ))}
         </div>
         <div>
           <label htmlFor="token-count-slider">
@@ -744,6 +750,33 @@ const App = () => {
               width: "100%",
             }}
           />
+          {prompt &&
+            typeof prompt === "object" &&
+            prompt.type === "chat" &&
+            "functions" in prompt &&
+            prompt.functions.length > 0 && (
+              <>
+                <label htmlFor="force-function">Force function:</label>
+                <select
+                  id="force-function"
+                  value={forceFunctionCall || "auto"}
+                  onChange={(event) =>
+                    setForceFunctionCall(
+                      event.target.value === "auto"
+                        ? undefined
+                        : event.target.value
+                    )
+                  }
+                >
+                  <option value="auto">auto</option>
+                  {prompt.functions.map((func, index) => (
+                    <option key={index} value={func.name}>
+                      {func.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
         </div>
         <div>
           Used tokens: {tokenCountUsed} ({tokenCountReserved} reserved for
@@ -1247,7 +1280,7 @@ function FullPromptFunction({
     index: number,
     newData: ChatAndFunctionPromptFunction
   ) => void;
-  prompt: Prompt | undefined;
+  prompt: RenderedPrompt | undefined;
   setForceRerender: (fn: (oldValue: number) => number) => void;
 }) {
   const functionNameRef = useRef<HTMLTextAreaElement>();
@@ -1440,7 +1473,10 @@ export function CommandMenu(props: {
   return (
     // <div className="inset-0 top-1/2 left-1/2">
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search for a prompt..." className="h-8 p-0 outline-none border-none" />
+      <CommandInput
+        placeholder="Search for a prompt..."
+        className="h-8 p-0 outline-none border-none"
+      />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Suggestions">
@@ -1448,10 +1484,14 @@ export function CommandMenu(props: {
           <CommandItem>Search Emoji</CommandItem>
           <CommandItem>Calculator</CommandItem> */}
           {props.items.map((item) => (
-            <CommandItem onSelect={() => {
-              item.onClick();
-              setOpen(false);
-            }}>{item.label}</CommandItem>
+            <CommandItem
+              onSelect={() => {
+                item.onClick();
+                setOpen(false);
+              }}
+            >
+              {item.label}
+            </CommandItem>
           ))}
         </CommandGroup>
       </CommandList>

@@ -6,25 +6,25 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
 import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerFromName, getTokenizerName } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, Prompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 
 
 
-export function isChatPrompt(prompt: Prompt | undefined): prompt is ChatPrompt {
+export function isChatPrompt(prompt: RenderedPrompt | undefined): prompt is ChatPrompt {
 	return typeof prompt === 'object' && prompt.type === 'chat';
 }
-export function isPlainPrompt(prompt: Prompt | undefined): prompt is string {
+export function isPlainPrompt(prompt: RenderedPrompt | undefined): prompt is string {
 	return typeof prompt === 'string';
 }
-function isTextPromptPotentiallyWithFunctions(prompt: Prompt | undefined): prompt is ((TextPrompt & FunctionPrompt) | string) {
+function isTextPromptPotentiallyWithFunctions(prompt: RenderedPrompt | undefined): prompt is ((TextPrompt & FunctionPrompt) | string) {
 	return (typeof prompt === 'object' && 'text' in prompt) || typeof prompt === 'string';
 }
-export function promptHasFunctions(prompt: Prompt | undefined): prompt is ((ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt)) {
+export function promptHasFunctions(prompt: RenderedPrompt | undefined): prompt is ((ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt)) {
 	return typeof prompt === 'object' && 'functions' in prompt && prompt.functions !== undefined;
 }
-function promptGetText(prompt: Prompt | undefined): string | undefined {
+function promptGetText(prompt: RenderedPrompt | undefined): string | undefined {
 	if (!isTextPromptPotentiallyWithFunctions(prompt)) {
 		return undefined;
 	}
@@ -34,7 +34,7 @@ function promptGetText(prompt: Prompt | undefined): string | undefined {
 	return prompt.text;
 }
 
-function sumPrompts(a: Prompt | undefined, b: Prompt | undefined): Prompt | undefined {
+function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined): RenderedPrompt | undefined {
 	if (a === undefined) {
 		return b;
 	}
@@ -151,6 +151,25 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
 				};
 			}
+		case 'isolate':
+			{
+				// must have tokenLimit
+				if (!props || typeof props.tokenLimit !== 'number') {
+					throw new Error(`isolate tag must have a tokenLimit prop, got ${props}`);
+				}
+
+				return {
+					type: 'scope',
+					children: [{
+						type: 'isolate',
+						tokenLimit: props.tokenLimit,
+						cachedRenderOutput: undefined,
+						children: children.flat(),
+					}],
+					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
+					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
+				};
+			}
 		case 'capture':
 			{
 				if (children.length > 0) {
@@ -160,7 +179,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					throw new Error(`capture tag must have an onOutput prop that's a function, got ${props}`);
 				}
 				if ('onStream' in props && typeof props.onStream !== 'function') {
-					throw new Error(`capture tag must have an onStream prop, got ${props}`);
+					throw new Error(`capture tag must have an onStream prop and it must be a function, got ${props}`);
 				}
 
 
@@ -185,24 +204,6 @@ export function Fragment({ children }: { children: PromptElement[]; }): PromptEl
 	return children.flat();
 }
 
-// TODO: should the components have access to the token limit?
-// argument against: no, it should all be responsive to the token limit and we shouldn't need this
-// argument for: CSS has media queries because it is very hard to have something that's fully responsive without changing any of the layout
-// decision: wait for now, see if it is needed
-export type RenderOptions = {
-	model?: UsableLanguageModel;
-	tokenLimit?: number;
-	tokenizer?: UsableTokenizer;
-};
-export type RenderOutput = {
-	prompt: Prompt;
-	tokenCount: number;
-	tokensReserved: number;
-	priorityCutoff: number;
-	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
-	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-	durationMs?: number;
-};
 
 
 // priority level if it is not set becomes 1e9, i.e. it is always rendered
@@ -409,7 +410,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 		startExactTokenCount = performance.now();
 	}
 
-	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound]);
+	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer);
 	const tokenCount = countTokensExact(tokenizer, prompt.prompt ?? "");
 
 	if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
@@ -528,7 +529,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 
 	// naive version: just render the whole thing for every priority level, and pick the first one that is below the limit
 	let prevPrompt: {
-		prompt: Prompt | undefined;
+		prompt: RenderedPrompt | undefined;
 		tokenCount: number;
 		emptyTokenCount: number;
 		outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
@@ -536,7 +537,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 	} | undefined = undefined;
 	let prevLevel: number | undefined = undefined;
 	let thisPrompt: {
-		prompt: Prompt | undefined;
+		prompt: RenderedPrompt | undefined;
 		tokenCount: number;
 		emptyTokenCount: number;
 		outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
@@ -634,7 +635,7 @@ type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAss
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
-type NormalizedNode = NormalizedFirst | NormalizedScope | Empty | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
+type NormalizedNode = NormalizedFirst | NormalizedScope | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
 type NormalizedPromptElement = NormalizedNode[];
 function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	// we want to merge all the strings together
@@ -664,6 +665,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 			let newNode: NormalizedNode;
 			switch (node.type) {
 				case 'capture':
+				case 'isolate':
 				case 'empty': {
 					newNode = node;
 					break;
@@ -708,7 +710,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 
 // if chat prompt, the token count will be missing the constant factor
 function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: UsableTokenizer): {
-	prompt: Prompt | undefined;
+	prompt: RenderedPrompt | undefined;
 	tokenCount: number;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
@@ -789,6 +791,22 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: []
+			}
+		}
+		case 'isolate': {
+			// check if we have a cached prompt
+			if (elem.cachedRenderOutput === undefined) {
+				elem.cachedRenderOutput = render(elem.children, {
+					tokenizer,
+					tokenLimit: elem.tokenLimit,
+				})
+			}
+			return {
+				prompt: elem.cachedRenderOutput.prompt,
+				tokenCount: elem.cachedRenderOutput.tokenCount,
+				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
+				outputHandlers: elem.cachedRenderOutput.outputHandlers,
+				streamHandlers: elem.cachedRenderOutput.streamHandlers
 			}
 		}
 		case 'chat': {
@@ -872,7 +890,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 }
 
 function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: UsableTokenizer, tokenLimit: number): {
-	prompt: Prompt | undefined;
+	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 } {
 	if (elem === undefined || elem === null || elem === false) {
@@ -955,6 +973,19 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				emptyTokenCount: 0
 			}
 		}
+		case 'isolate': {
+			// check if we have a cached prompt
+			if (elem.cachedRenderOutput === undefined) {
+				elem.cachedRenderOutput = render(elem.children, {
+					tokenizer,
+					tokenLimit: elem.tokenLimit,
+				})
+			}
+			return {
+				prompt: elem.cachedRenderOutput.prompt,
+				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
+			}
+		}
 		case 'chat': {
 			const p = renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
 			if (isChatPrompt(p.prompt)) {
@@ -1014,8 +1045,8 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 	}
 }
 
-function renderWithLevel(elem: PromptElement, level: number): {
-	prompt: Prompt | undefined;
+function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer): {
+	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
@@ -1029,7 +1060,7 @@ function renderWithLevel(elem: PromptElement, level: number): {
 		};
 	}
 	if (Array.isArray(elem)) {
-		return elem.map(e => renderWithLevel(e, level)).reduce((a, b) => {
+		return elem.map(e => renderWithLevel(e, level, tokenizer)).reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
@@ -1066,7 +1097,7 @@ function renderWithLevel(elem: PromptElement, level: number): {
 					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
 				}
 				if (child.absolutePriority >= level) {
-					return renderWithLevel(child, level);
+					return renderWithLevel(child, level, tokenizer);
 				}
 			}
 			// nothing returned from first, which is ok
@@ -1116,8 +1147,23 @@ function renderWithLevel(elem: PromptElement, level: number): {
 				streamHandlers: []
 			}
 		}
+		case 'isolate': {
+			// check if we have a cached prompt
+			if (elem.cachedRenderOutput === undefined) {
+				elem.cachedRenderOutput = render(elem.children, {
+					tokenizer,
+					tokenLimit: elem.tokenLimit,
+				})
+			}
+			return {
+				prompt: elem.cachedRenderOutput.prompt,
+				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
+				outputHandlers: elem.cachedRenderOutput.outputHandlers,
+				streamHandlers: elem.cachedRenderOutput.streamHandlers
+			}
+		}
 		case 'chat': {
-			const p = renderWithLevel(elem.children, level);
+			const p = renderWithLevel(elem.children, level, tokenizer);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
@@ -1167,7 +1213,7 @@ function renderWithLevel(elem: PromptElement, level: number): {
 				throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
 			}
 			if (elem.absolutePriority >= level) {
-				return renderWithLevel(elem.children, level);
+				return renderWithLevel(elem.children, level, tokenizer);
 			}
 			return {
 				prompt: undefined,
@@ -1209,6 +1255,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 
 	switch (elem.type) {
 		case 'chat':
+		case 'isolate':
 		case 'first': {
 			for (const child of elem.children) {
 				validateNotBothAbsoluteAndRelativePriority(child);
@@ -1257,6 +1304,11 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 			for (const child of elem.children) {
 				validateNoChildrenHigherPriorityThanParent(child, parentPriority);
 			}
+			return;
+		}
+		case 'isolate': {
+			// we explicitly do not send in the parent priority because the isolate is isolated!!
+			validateNoChildrenHigherPriorityThanParent(elem.children);
 			return;
 		}
 		case 'capture':
@@ -1318,6 +1370,10 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 			// nothing happens
 			return;
 		}
+		case 'isolate': {
+			// nothing happens because we fully re-render
+			return;
+		}
 		case 'scope': {
 			// compute the priority of this scope
 			// the absolutePriority takes precedence over the relativePriority
@@ -1343,7 +1399,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 }
 
 
-function countTokensExact(tokenizer: UsableTokenizer, prompt: Prompt): number {
+function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedPrompt): number {
 	const tokenizerObj = getTokenizerFromName(tokenizer);
 	let tokens = 0;
 	if (isPlainPrompt(prompt)) {
@@ -1362,7 +1418,7 @@ function countTokensExact(tokenizer: UsableTokenizer, prompt: Prompt): number {
 	return tokens;
 }
 
-export function promptToOpenAIChatRequest(prompt: Prompt): { messages: Array<ChatCompletionRequestMessage>; functions: ChatCompletionFunctions[] | undefined } {
+export function promptToOpenAIChatRequest(prompt: RenderedPrompt): { messages: Array<ChatCompletionRequestMessage>; functions: ChatCompletionFunctions[] | undefined } {
 	const functions = promptHasFunctions(prompt) ? prompt.functions : undefined;
 	const messages = promptToOpenAIChatMessages(prompt);
 	return {
@@ -1371,7 +1427,7 @@ export function promptToOpenAIChatRequest(prompt: Prompt): { messages: Array<Cha
 	};
 }
 
-export function promptToOpenAIChatMessages(prompt: Prompt): Array<ChatCompletionRequestMessage> {
+export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCompletionRequestMessage> {
 	if (isPlainPrompt(prompt)) {
 		return [
 			{
@@ -1446,7 +1502,7 @@ function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctio
 	return [Math.ceil(raw[0] * 0.5), Math.ceil(raw[1] * 1.5) + 10];
 }
 
-function estimateLowerBoundTokensForPrompt(prompt: Prompt | undefined, tokenizer: UsableTokenizer): number {
+function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, tokenizer: UsableTokenizer): number {
 	if (prompt === undefined) {
 		return 0;
 	}

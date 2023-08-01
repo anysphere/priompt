@@ -3,6 +3,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import { ChatCompletionResponseMessage } from 'openai';
+import { UsableLanguageModel, UsableTokenizer } from './openai';
 
 export type FunctionBody = {
 	name: string;
@@ -25,10 +26,20 @@ export type Capture = {
 	type: 'capture';
 } & CaptureProps;
 
+export type Isolate = {
+	type: 'isolate';
+	children: Node[];
+	cachedRenderOutput?: RenderOutput;
+} & IsolateProps;
+
 // TODO: make the Capture work for other kinds of completions that aren't chat and aren't openai
 export type CaptureProps = {
 	onOutput?: OutputHandler<ChatCompletionResponseMessage>;
 	onStream?: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>;
+}
+
+export type IsolateProps = {
+	tokenLimit: number;
 }
 
 // the scope will exist iff the final priority is lower than the priority here
@@ -77,7 +88,7 @@ export type FunctionDefinition = {
 	parameters: JSONSchema7;
 }
 
-export type Node = FunctionDefinition | First | Capture | Scope | Empty | ChatMessage | string | null | undefined | number | false;
+export type Node = FunctionDefinition | First | Isolate | Capture | Scope | Empty | ChatMessage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -108,6 +119,7 @@ export namespace JSX {
 		empty: BaseProps & { tokens: number; };
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
 		capture: Omit<BaseProps, 'children'> & CaptureProps;
+		isolate: BaseProps & IsolateProps;
 	}
 	type Element = PromptElement;
 	interface ElementAttributesProperty {
@@ -161,4 +173,25 @@ export type FunctionPrompt = {
 // higher priority handler will be called first in case there are multiple
 export type OutputHandler<T> = (output: T, options?: { p?: number }) => Promise<void>;
 
-export type Prompt = string | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);
+export type RenderedPrompt = string | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);
+
+export type Prompt<PropsT, ReturnT = never> = (props: PromptProps<PropsT, ReturnT>) => PromptElement;
+
+// TODO: should the components have access to the token limit?
+// argument against: no, it should all be responsive to the token limit and we shouldn't need this
+// argument for: CSS has media queries because it is very hard to have something that's fully responsive without changing any of the layout
+// decision: wait for now, see if it is needed
+export type RenderOptions = {
+	model?: UsableLanguageModel;
+	tokenLimit?: number;
+	tokenizer?: UsableTokenizer;
+};
+export type RenderOutput = {
+	prompt: RenderedPrompt;
+	tokenCount: number;
+	tokensReserved: number;
+	priorityCutoff: number;
+	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
+	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
+	durationMs?: number;
+};

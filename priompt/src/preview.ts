@@ -1,5 +1,5 @@
-import { render, RenderOutput } from './lib';
-import { Prompt, PromptElement, PromptProps } from './types';
+import { render } from './lib';
+import { Prompt, PromptElement, PromptProps, RenderOutput } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -199,7 +199,7 @@ class PreviewManagerImpl implements IPreviewManager {
     }
     this.previews[config.id] = config;
   }
-  register<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement) {
+  register<T, ReturnT = never>(prompt: Prompt<T, ReturnT>) {
     const config = configFromPrompt(prompt);
     this.registerConfig(config);
   }
