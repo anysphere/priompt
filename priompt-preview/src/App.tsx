@@ -1,10 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Prompt } from "@anysphere/priompt";
 import { streamChat } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
 import { ChatCompletionResponseMessage } from "./openai_interfaces";
-import { Textarea } from "@/components/ui/textarea";
+// import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   callback: T,
@@ -598,429 +607,408 @@ const App = () => {
   }, [prompt]);
 
   return (
-    <div>
-      <h1>Welcome to Priompt</h1>
+    <>
+      <CommandMenu
+        items={promptsls.map((prompt) => ({
+          label: prompt,
+          onClick: () => handleSelectPrompt(prompt),
+        }))}
+      />
       <div>
-        <b>r</b> to reload, <b>left</b> and <b>right</b> arrows to adjust token
-        count, <b>shift-left</b> and <b>shift-right</b> arrows to adjust token
-        count by 128
-      </div>
-      <br />
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          flexDirection: "row",
-          gap: "10px",
-          maxWidth: "100%",
-          overflowX: "auto",
-        }}
-      >
+        <h1>Welcome to Priompt</h1>
+        <div>
+          <b>r</b> to reload, <b>left</b> and <b>right</b> arrows to adjust
+          token count, <b>shift-left</b> and <b>shift-right</b> arrows to adjust
+          token count by 128.
+          <div className='text-blue-800'>new feature: cmd+k to open the command menu and quickly switch prompts.</div>
+        </div>
+        <br />
         <div
-          className="tab"
-          onClick={() => handleSelectPrompt("liveModePromptId")}
           style={{
-            border:
-              "liveModePromptId" === selectedPrompt
-                ? "1px solid black"
-                : "none",
-            cursor: "pointer",
+            display: "flex",
+            flexWrap: "wrap",
+            flexDirection: "row",
+            gap: "6px",
+            maxWidth: "100%",
+            overflowX: "auto",
           }}
         >
-          live mode
-        </div>
-        {promptsls.map((prompt) => (
-          <div
-            key={prompt}
-            className="tab"
-            onClick={() => handleSelectPrompt(prompt)}
+          <Button
+            className="tab border-none h-8"
+            onClick={() => handleSelectPrompt("liveModePromptId")}
+            variant={
+              "liveModePromptId" === selectedPrompt ? "ghost" : "outline"
+            }
             style={{
-              border: prompt === selectedPrompt ? "1px solid black" : "none",
+              border:
+                "liveModePromptId" === selectedPrompt
+                  ? "1px solid black"
+                  : "none",
               cursor: "pointer",
             }}
           >
-            {prompt}
-          </div>
-        ))}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          maxWidth: "100%",
-          overflowX: "auto",
-        }}
-        // onWheel={(e) => {
-        //   e.stopPropagation();
-        //   e.preventDefault();
-        //   e.currentTarget.scrollLeft += e.deltaY;
-        // }}
-        // onMouseEnter={() => {
-        //   document.body.style.overflowY = "hidden";
-        // }}
-        // onMouseLeave={() => {
-        //   document.body.style.overflowY = "auto";
-        // }}
-      >
-        {prompts[selectedPrompt]?.saved.map((saved) => (
-          <div key={saved}>
-            <button
+            live mode
+          </Button>
+          {promptsls.map((prompt) => (
+            <Button
+              variant={prompt === selectedPrompt ? "ghost" : "outline"}
+              key={prompt}
+              className="tab border-none outline-none shadow-none h-8"
+              onClick={() => handleSelectPrompt(prompt)}
               style={{
-                backgroundColor: saved === selectedPropsId ? "red" : "white",
-              }}
-              onClick={() => {
-                console.log("saved", saved);
-                setSelectedPropsId(saved);
-
-                // Store the selected props id in localStorage
-                localStorage.setItem("selectedPropsId", saved);
+                border: prompt === selectedPrompt ? "1px solid black" : "none",
+                cursor: "pointer",
               }}
             >
-              {saved}
-            </button>
-          </div>
-        ))}
-        {prompts[selectedPrompt]?.dumps
-          .sort((a, b) => b.localeCompare(a))
-          .map((dump) => (
-            <div key={dump}>
-              <button
-                style={{
-                  backgroundColor: dump === selectedPropsId ? "red" : "white",
-                }}
-                onClick={() => {
-                  setSelectedPropsId(dump);
-
-                  localStorage.setItem("selectedPropsId", dump);
-                }}
-              >
-                {memoizedMakeDateNicer(dump)}
-              </button>
-            </div>
+              {prompt}
+            </Button>
           ))}
-      </div>
-      <div>
-        <label htmlFor="token-count-slider">
-          Token count: <span>{tokenCount}</span>
-        </label>
-        <button onClick={() => setTokenCount(4096)}>4096 (press 4)</button>
-        <button onClick={() => setTokenCount(8192)}>8192 (press 8)</button>
-        <br />
-        <input
-          type="range"
-          id="token-count-slider"
-          min="1"
-          max="32768"
-          value={tokenCount}
-          onChange={handleTokenCountChange}
+        </div>
+        <div
           style={{
-            width: "100%",
+            display: "flex",
+            flexDirection: "row",
+            maxWidth: "100%",
+            overflowX: "auto",
           }}
-        />
-      </div>
-      <div>
-        Used tokens: {tokenCountUsed} ({tokenCountReserved} reserved for
-        generation, {priorityCutoff} cutoff)
-      </div>
-      <div>
-        Render time: {durationMs}ms (don't trust too much because caching)
-      </div>
-      {errorMessage.length > 0 && (
-        <>
-          <div
-            style={{
-              backgroundColor: "rgba(255, 0, 0, 0.2)",
-            }}
-          >
-            <b>Error:</b> {errorMessage}
-          </div>
-          <hr />
-        </>
-      )}
-      <hr />
-      <div id="prompt-display">
-        {fullPrompts &&
-          fullPrompts.functions.map((f, index) => (
-            <FullPromptFunction
-              fn={f}
-              functionIndex={index}
-              setForceRerender={setForceRerender}
-              debouncedSetFnData={debouncedSetFunctionData}
-              prompt={prompt}
-            />
-          ))}
-        {prompt &&
-          (typeof prompt === "string" || prompt.type === "text" ? (
-            <>{typeof prompt === "string" ? prompt : prompt.text}</>
-          ) : (
-            <>
-              {prompt.messages.map((msg, i) => {
-                return (
-                  <div
+          // onWheel={(e) => {
+          //   e.stopPropagation();
+          //   e.preventDefault();
+          //   e.currentTarget.scrollLeft += e.deltaY;
+          // }}
+          // onMouseEnter={() => {
+          //   document.body.style.overflowY = "hidden";
+          // }}
+          // onMouseLeave={() => {
+          //   document.body.style.overflowY = "auto";
+          // }}
+        >
+          {
+            prompts[selectedPrompt]?.saved.map((saved) => (
+              <div key={saved}>
+                <button
+                  style={{
+                    backgroundColor:
+                      saved === selectedPropsId ? "red" : "white",
+                  }}
+                  onClick={() => {
+                    console.log("saved", saved);
+                    setSelectedPropsId(saved);
+
+                    // Store the selected props id in localStorage
+                    localStorage.setItem("selectedPropsId", saved);
+                  }}
+                >
+                  {saved}
+                </button>
+              </div>
+            ))
+          }
+          {
+            prompts[selectedPrompt]?.dumps
+              .sort((a, b) => b.localeCompare(a))
+              .map((dump) => (
+                <div key={dump}>
+                  <button
                     style={{
                       backgroundColor:
-                        msg.role === "user"
-                          ? "rgba(0, 0, 255, 0.2)"
-                          : msg.role === "assistant"
-                          ? "rgba(0, 128, 0, 0.2)"
-                          : msg.role === "system"
-                          ? "rgba(100, 100, 100, 0.1)"
-                          : "rgba(180,100,0,0.5)",
-                      width: "100%",
-                      // height: "fit-content",
+                        dump === selectedPropsId ? "red" : "white",
+                    }}
+                    onClick={() => {
+                      setSelectedPropsId(dump);
+
+                      localStorage.setItem("selectedPropsId", dump);
                     }}
                   >
-                    <b>{msg.role}</b>
-                    {msg.role === "function" && <i>: {msg.name}</i>}
-                    <br />
-                    <TextAreaWithSetting
-                      key={`${i}-${forceRerender}`}
-                      setFullText={(newText: string) => {
-                        debouncedSetFullPrompts(i, newText);
-                      }}
-                      setTextArea={(value: HTMLTextAreaElement | undefined) => {
-                        textAreaRefs.current[i] = value;
-                      }}
-                      currentTextArea={textAreaRefs.current[i]}
-                    />
-                    {msg.role === "assistant" && msg.functionCall && (
-                      <div
-                        style={{
-                          border: "solid 1px",
-                          borderTop: "none",
-                        }}
-                      >
-                        <i>calling function name:</i>
-                        <div
-                          style={{
-                            whiteSpace: "pre-wrap",
-                            border: "solid 1px rgba(0,0,0,0.1)",
-                          }}
-                        >
-                          {msg.functionCall.name}
-                        </div>
-                        <i>arguments:</i>
-                        <div
-                          style={{
-                            whiteSpace: "pre-wrap",
-                            border: "solid 1px rgba(0,0,0,0.1)",
-                          }}
-                        >
-                          {msg.functionCall.arguments}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </>
-          ))}
-      </div>
-      <div>
-        {ALL_MODELS.map((model) => (
-          <button key={model} onClick={() => streamCompletion(model)}>
-            Submit to {model}
-          </button>
-        ))}
-        {abortController !== undefined && (
-          <>
-            <button
-              onClick={() => {
-                abortController.abort();
-                setAbortController(undefined);
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        )}
+                    {memoizedMakeDateNicer(dump)}
+                  </button>
+                </div>
+              ))
+          }
+        </div>
         <div>
-          <label htmlFor="temperature-slider">
-            Temperature: <span>{temperature}</span>
+          <label htmlFor="token-count-slider">
+            Token count: <span>{tokenCount}</span>
           </label>
-          <button onClick={() => setTemperature(0)}>0</button>
-          <button onClick={() => setTemperature(1)}>1</button>
-          <button onClick={() => setTemperature(2)}>2</button>
+          <button onClick={() => setTokenCount(4096)}>4096 (press 4)</button>
+          <button onClick={() => setTokenCount(8192)}>8192 (press 8)</button>
+          <br />
           <input
             type="range"
-            id="temperature-slider"
-            min="0"
-            max="2"
-            step="0.1"
-            value={temperature}
-            onChange={(event) => setTemperature(parseFloat(event.target.value))}
+            id="token-count-slider"
+            min="1"
+            max="32768"
+            value={tokenCount}
+            onChange={handleTokenCountChange}
             style={{
-              width: "100px",
+              width: "100%",
             }}
           />
         </div>
-      </div>
-      {(completion !== undefined || loadingCompletion) && (
-        <div
-          style={{
-            backgroundColor: "rgba(0,228,0,0.3)",
-          }}
-        >
-          <b>assistant completion:</b>
+        <div>
+          Used tokens: {tokenCountUsed} ({tokenCountReserved} reserved for
+          generation, {priorityCutoff} cutoff)
+        </div>
+        <div>
+          Render time: {durationMs}ms (don't trust too much because caching)
+        </div>
+        {errorMessage.length > 0 && (
+          <>
+            <div
+              style={{
+                backgroundColor: "rgba(255, 0, 0, 0.2)",
+              }}
+            >
+              <b>Error:</b> {errorMessage}
+            </div>
+            <hr />
+          </>
+        )}
+        <hr />
+        <div id="prompt-display">
+          {fullPrompts &&
+            fullPrompts.functions.map((f, index) => (
+              <FullPromptFunction
+                fn={f}
+                functionIndex={index}
+                setForceRerender={setForceRerender}
+                debouncedSetFnData={debouncedSetFunctionData}
+                prompt={prompt}
+              />
+            ))}
+          {prompt &&
+            (typeof prompt === "string" || prompt.type === "text" ? (
+              <>{typeof prompt === "string" ? prompt : prompt.text}</>
+            ) : (
+              <>
+                {prompt.messages.map((msg, i) => {
+                  return (
+                    <div
+                      style={{
+                        backgroundColor:
+                          msg.role === "user"
+                            ? "rgba(0, 0, 255, 0.2)"
+                            : msg.role === "assistant"
+                            ? "rgba(0, 128, 0, 0.2)"
+                            : msg.role === "system"
+                            ? "rgba(100, 100, 100, 0.1)"
+                            : "rgba(180,100,0,0.5)",
+                        width: "100%",
+                        // height: "fit-content",
+                      }}
+                    >
+                      <b>{msg.role}</b>
+                      {msg.role === "function" && <i>: {msg.name}</i>}
+                      <br />
+                      <TextAreaWithSetting
+                        key={`${i}-${forceRerender}`}
+                        setFullText={(newText: string) => {
+                          debouncedSetFullPrompts(i, newText);
+                        }}
+                        setTextArea={(
+                          value: HTMLTextAreaElement | undefined
+                        ) => {
+                          textAreaRefs.current[i] = value;
+                        }}
+                        currentTextArea={textAreaRefs.current[i]}
+                      />
+                      {msg.role === "assistant" && msg.functionCall && (
+                        <div
+                          style={{
+                            border: "solid 1px",
+                            borderTop: "none",
+                          }}
+                        >
+                          <i>calling function name:</i>
+                          <div
+                            style={{
+                              whiteSpace: "pre-wrap",
+                              border: "solid 1px rgba(0,0,0,0.1)",
+                            }}
+                          >
+                            {msg.functionCall.name}
+                          </div>
+                          <i>arguments:</i>
+                          <div
+                            style={{
+                              whiteSpace: "pre-wrap",
+                              border: "solid 1px rgba(0,0,0,0.1)",
+                            }}
+                          >
+                            {msg.functionCall.arguments}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            ))}
+        </div>
+        <div>
+          {ALL_MODELS.map((model) => (
+            <button key={model} onClick={() => streamCompletion(model)}>
+              Submit to {model}
+            </button>
+          ))}
+          {abortController !== undefined && (
+            <>
+              <button
+                onClick={() => {
+                  abortController.abort();
+                  setAbortController(undefined);
+                }}
+              >
+                Cancel
+              </button>
+            </>
+          )}
+          <div>
+            <label htmlFor="temperature-slider">
+              Temperature: <span>{temperature}</span>
+            </label>
+            <button onClick={() => setTemperature(0)}>0</button>
+            <button onClick={() => setTemperature(1)}>1</button>
+            <button onClick={() => setTemperature(2)}>2</button>
+            <input
+              type="range"
+              id="temperature-slider"
+              min="0"
+              max="2"
+              step="0.1"
+              value={temperature}
+              onChange={(event) =>
+                setTemperature(parseFloat(event.target.value))
+              }
+              style={{
+                width: "100px",
+              }}
+            />
+          </div>
+        </div>
+        {(completion !== undefined || loadingCompletion) && (
           <div
             style={{
-              whiteSpace: "pre-wrap",
-              border: "solid 1px",
+              backgroundColor: "rgba(0,228,0,0.3)",
             }}
           >
-            {loadingCompletion && <>loading...</>}
-            {completion ? (
-              <TextAreaWithSetting
-                key={`completion-${forceRerender}`}
-                setFullText={(newText: string) => {
-                  setCompletion({
-                    ...completion,
-                    content: newText,
-                  });
+            <b>assistant completion:</b>
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                border: "solid 1px",
+              }}
+            >
+              {loadingCompletion && <>loading...</>}
+              {completion ? (
+                <TextAreaWithSetting
+                  key={`completion-${forceRerender}`}
+                  setFullText={(newText: string) => {
+                    setCompletion({
+                      ...completion,
+                      content: newText,
+                    });
+                  }}
+                  setTextArea={(value: HTMLTextAreaElement | undefined) => {
+                    completionTextAreaRef.current = value;
+                  }}
+                  currentTextArea={completionTextAreaRef.current}
+                />
+              ) : (
+                ""
+              )}
+            </div>
+            {completion?.role === "assistant" && completion?.function_call && (
+              <div
+                style={{
+                  border: "solid 1px",
+                  borderTop: "none",
                 }}
-                setTextArea={(value: HTMLTextAreaElement | undefined) => {
-                  completionTextAreaRef.current = value;
+              >
+                <i>calling function name:</i>
+                <div
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    border: "solid 1px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {completion.function_call.name}
+                </div>
+                <i>arguments:</i>
+                <div
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    border: "solid 1px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {completion.function_call.arguments}
+                </div>
+              </div>
+            )}
+            {(timeToFirstToken !== undefined ||
+              timeToRemainingTokens !== undefined) && (
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  border: "solid 1px",
                 }}
-                currentTextArea={completionTextAreaRef.current}
-              />
-            ) : (
-              ""
+              >
+                <div>
+                  Time to first token: {timeToFirstToken ?? "loading..."}
+                </div>
+                <div>
+                  Time to remaining tokens:{" "}
+                  {timeToRemainingTokens ?? "loading..."}
+                </div>
+              </div>
+            )}
+            <button onClick={() => getPromptOutput(false)}>
+              get parsed output
+            </button>
+            <button onClick={() => getPromptOutput(true)}>
+              get parsed stream
+            </button>
+            {output && (
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  border: "solid 1px",
+                }}
+              >
+                <b>Output (also console.logged):</b>
+                <pre>{output}</pre>
+              </div>
             )}
           </div>
-          {completion?.role === "assistant" && completion?.function_call && (
-            <div
-              style={{
-                border: "solid 1px",
-                borderTop: "none",
-              }}
-            >
-              <i>calling function name:</i>
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  border: "solid 1px rgba(0,0,0,0.1)",
-                }}
-              >
-                {completion.function_call.name}
-              </div>
-              <i>arguments:</i>
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  border: "solid 1px rgba(0,0,0,0.1)",
-                }}
-              >
-                {completion.function_call.arguments}
-              </div>
-            </div>
-          )}
-          {(timeToFirstToken !== undefined ||
-            timeToRemainingTokens !== undefined) && (
-            <div
-              style={{
-                whiteSpace: "pre-wrap",
-                border: "solid 1px",
-              }}
-            >
-              <div>Time to first token: {timeToFirstToken ?? "loading..."}</div>
-              <div>
-                Time to remaining tokens:{" "}
-                {timeToRemainingTokens ?? "loading..."}
-              </div>
-            </div>
-          )}
-          <button onClick={() => getPromptOutput(false)}>
-            get parsed output
-          </button>
-          <button onClick={() => getPromptOutput(true)}>
-            get parsed stream
-          </button>
-          {output && (
-            <div
-              style={{
-                whiteSpace: "pre-wrap",
-                border: "solid 1px",
-              }}
-            >
-              <b>Output (also console.logged):</b>
-              <pre>{output}</pre>
-            </div>
-          )}
-        </div>
-      )}
-      {selectedPrompt === "liveModePromptId" && selectedPropsId !== "" && (
-        <div>
-          you are the LLM. the following is your response:
+        )}
+        {selectedPrompt === "liveModePromptId" && selectedPropsId !== "" && (
           <div>
-            <textarea
-              style={{
-                whiteSpace: "pre-wrap",
-                width: "100%",
-                height: "300px",
-                outline: "none",
-                // remove the border from the textarea
-                border: "solid 1px",
-                // background completely transparent
-                backgroundColor: "rgba(0,0,0,0)",
-                boxSizing: "border-box",
-              }}
-              ref={liveModeTextareaRef}
-              onKeyDown={(e) => {
-                // Capture all keydown events
-                e.stopPropagation();
-              }}
-            ></textarea>
-          </div>
-          <button
-            onClick={() => {
-              // submit to the server!
-              const query = {
-                output: liveModeTextareaRef.current?.value ?? "",
-              };
-
-              fetch(
-                `http://localhost:3000/priompt/liveModeResult?${new URLSearchParams(
-                  query
-                )}`
-              )
-                .then((response) => {
-                  if (!response.ok) {
-                    throw new Error(
-                      "Error submitting live mode result: " +
-                        response.statusText
-                    );
-                  }
-                  return response.json();
-                })
-                .then(() => {
-                  setSelectedPropsId("");
-                  setCompletion(undefined);
-                  setPrompt(undefined);
-                  setErrorMessage("waiting for live mode prompt...");
-                })
-                .catch((error) => {
-                  setErrorMessage(error.message);
-                  setPrompt(undefined);
-                  setCompletion(undefined);
-                });
-            }}
-          >
-            send
-          </button>
-          {completion && (
+            you are the LLM. the following is your response:
+            <div>
+              <textarea
+                style={{
+                  whiteSpace: "pre-wrap",
+                  width: "100%",
+                  height: "300px",
+                  outline: "none",
+                  // remove the border from the textarea
+                  border: "solid 1px",
+                  // background completely transparent
+                  backgroundColor: "rgba(0,0,0,0)",
+                  boxSizing: "border-box",
+                }}
+                ref={liveModeTextareaRef}
+                onKeyDown={(e) => {
+                  // Capture all keydown events
+                  e.stopPropagation();
+                }}
+              ></textarea>
+            </div>
             <button
               onClick={() => {
-                // if completion is a function call, not supported yet
-                if (completion.role === "function") {
-                  alert(
-                    "function calls not supported in priompt live mode yet"
-                  );
-                  return;
-                }
-
                 // submit to the server!
                 const query = {
-                  output: completion.content ?? "",
+                  output: liveModeTextareaRef.current?.value ?? "",
                 };
 
                 fetch(
@@ -1050,20 +1038,67 @@ const App = () => {
                   });
               }}
             >
-              send LLM response
+              send
             </button>
-          )}
+            ;
+            {completion && (
+              <button
+                onClick={() => {
+                  // if completion is a function call, not supported yet
+                  if (completion.role === "function") {
+                    alert(
+                      "function calls not supported in priompt live mode yet"
+                    );
+                    return;
+                  }
+
+                  // submit to the server!
+                  const query = {
+                    output: completion.content ?? "",
+                  };
+
+                  fetch(
+                    `http://localhost:3000/priompt/liveModeResult?${new URLSearchParams(
+                      query
+                    )}`
+                  )
+                    .then((response) => {
+                      if (!response.ok) {
+                        throw new Error(
+                          "Error submitting live mode result: " +
+                            response.statusText
+                        );
+                      }
+                      return response.json();
+                    })
+                    .then(() => {
+                      setSelectedPropsId("");
+                      setCompletion(undefined);
+                      setPrompt(undefined);
+                      setErrorMessage("waiting for live mode prompt...");
+                    })
+                    .catch((error) => {
+                      setErrorMessage(error.message);
+                      setPrompt(undefined);
+                      setCompletion(undefined);
+                    });
+                }}
+              >
+                send LLM response
+              </button>
+            )}
+          </div>
+        )}
+        <div
+          style={{
+            height: "400px",
+            opacity: 0,
+          }}
+        >
+          {forceRerender}
         </div>
-      )}
-      <div
-        style={{
-          height: "400px",
-          opacity: 0,
-        }}
-      >
-        {forceRerender}
       </div>
-    </div>
+    </>
   );
 };
 
@@ -1121,8 +1156,8 @@ function TextAreaWithSetting(props: {
   };
 
   const handleInput: React.ChangeEventHandler<HTMLTextAreaElement> = (e) => {
-    setScrollCorrection(true);
     setPrevScrollPos(e.target.scrollTop);
+    setScrollCorrection(true);
 
     props.setFullText(e.target.value ?? "");
     if (props.currentTextArea !== undefined) {
@@ -1163,8 +1198,14 @@ function TextAreaWithSetting(props: {
     }
   };
 
+  const onFocus = () => {
+    if (props.currentTextArea !== undefined) {
+      setPrevScrollPos(props.currentTextArea.scrollTop);
+    }
+  };
+
   return (
-    <Textarea
+    <textarea
       ref={(el) => props.setTextArea(el ?? undefined)}
       id={`prompt-textarea-${props.key}`}
       style={{
@@ -1187,6 +1228,8 @@ function TextAreaWithSetting(props: {
       onChange={handleInput}
       spellCheck={false}
       onScroll={handleScroll}
+      onFocus={onFocus}
+      onClick={onFocus}
     />
   );
 }
@@ -1374,4 +1417,45 @@ function streamify(
   }
 
   return chunks;
+}
+
+export function CommandMenu(props: {
+  items: {
+    label: string;
+    onClick: () => void;
+  }[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && e.metaKey) {
+        setOpen((open) => !open);
+      }
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
+
+  return (
+    // <div className="inset-0 top-1/2 left-1/2">
+    <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandInput placeholder="Search for a prompt..." className="h-8 p-0 outline-none border-none" />
+      <CommandList>
+        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandGroup heading="Suggestions">
+          {/* <CommandItem>Calendar</CommandItem>
+          <CommandItem>Search Emoji</CommandItem>
+          <CommandItem>Calculator</CommandItem> */}
+          {props.items.map((item) => (
+            <CommandItem onSelect={() => {
+              item.onClick();
+              setOpen(false);
+            }}>{item.label}</CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
+    // </div>
+  );
 }
