@@ -154,6 +154,7 @@ const App = () => {
         console.log("GOT RESPONSE", data);
         setPrompts(data);
         const x = Object.keys(data);
+        x.sort();
         setPromptsls(x);
 
         if (storedSelectedPrompt === "liveModePromptId") {
@@ -615,6 +616,8 @@ const App = () => {
     }
   }, [prompt]);
 
+  const [filterText, setFilterText] = useState("");
+
   return (
     <>
       <CommandMenu
@@ -635,6 +638,12 @@ const App = () => {
           </div>
         </div>
         <br />
+        <input
+          type="text"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+          placeholder="Filter prompts"
+        />
         <div
           style={{
             display: "flex",
@@ -643,10 +652,11 @@ const App = () => {
             gap: "6px",
             maxWidth: "100%",
             overflowX: "auto",
+            padding: "1rem 0",
           }}
         >
           <Button
-            className="tab border-none h-8"
+            className="tab border-none h-8 whitespace-nowrap"
             onClick={() => handleSelectPrompt("liveModePromptId")}
             variant={
               "liveModePromptId" === selectedPrompt ? "ghost" : "outline"
@@ -661,20 +671,25 @@ const App = () => {
           >
             live mode
           </Button>
-          {promptsls.map((prompt) => (
-            <Button
-              variant={prompt === selectedPrompt ? "ghost" : "outline"}
-              key={prompt}
-              className="tab border-none outline-none shadow-none h-8"
-              onClick={() => handleSelectPrompt(prompt)}
-              style={{
-                border: prompt === selectedPrompt ? "1px solid black" : "none",
-                cursor: "pointer",
-              }}
-            >
-              {prompt}
-            </Button>
-          ))}
+          {promptsls
+            .filter((prompt) =>
+              prompt.toLowerCase().includes(filterText.toLowerCase())
+            )
+            .map((prompt) => (
+              <Button
+                variant={prompt === selectedPrompt ? "ghost" : "outline"}
+                key={prompt}
+                className="tab border-none outline-none shadow-none h-8"
+                onClick={() => handleSelectPrompt(prompt)}
+                style={{
+                  border:
+                    prompt === selectedPrompt ? "1px solid black" : "none",
+                  cursor: "pointer",
+                }}
+              >
+                {prompt}
+              </Button>
+            ))}
         </div>
         <div
           style={{
