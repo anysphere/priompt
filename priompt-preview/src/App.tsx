@@ -750,33 +750,6 @@ const App = () => {
               width: "100%",
             }}
           />
-          {prompt &&
-            typeof prompt === "object" &&
-            prompt.type === "chat" &&
-            "functions" in prompt &&
-            prompt.functions.length > 0 && (
-              <>
-                <label htmlFor="force-function">Force function:</label>
-                <select
-                  id="force-function"
-                  value={forceFunctionCall || "auto"}
-                  onChange={(event) =>
-                    setForceFunctionCall(
-                      event.target.value === "auto"
-                        ? undefined
-                        : event.target.value
-                    )
-                  }
-                >
-                  <option value="auto">auto</option>
-                  {prompt.functions.map((func, index) => (
-                    <option key={index} value={func.name}>
-                      {func.name}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
         </div>
         <div>
           Used tokens: {tokenCountUsed} ({tokenCountReserved} reserved for
@@ -917,6 +890,33 @@ const App = () => {
                 width: "100px",
               }}
             />
+            {prompt &&
+              typeof prompt === "object" &&
+              prompt.type === "chat" &&
+              "functions" in prompt &&
+              prompt.functions.length > 0 && (
+                <>
+                  <label htmlFor="force-function">Force function:</label>
+                  <select
+                    id="force-function"
+                    value={forceFunctionCall || "auto"}
+                    onChange={(event) =>
+                      setForceFunctionCall(
+                        event.target.value === "auto"
+                          ? undefined
+                          : event.target.value
+                      )
+                    }
+                  >
+                    <option value="auto">auto</option>
+                    {prompt.functions.map((func, index) => (
+                      <option key={index} value={func.name}>
+                        {func.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
           </div>
         </div>
         {(completion !== undefined || loadingCompletion) && (
