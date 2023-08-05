@@ -691,62 +691,11 @@ const App = () => {
               </Button>
             ))}
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            maxWidth: "100%",
-            overflowX: "auto",
-          }}
-          // onWheel={(e) => {
-          //   e.stopPropagation();
-          //   e.preventDefault();
-          //   e.currentTarget.scrollLeft += e.deltaY;
-          // }}
-          // onMouseEnter={() => {
-          //   document.body.style.overflowY = "hidden";
-          // }}
-          // onMouseLeave={() => {
-          //   document.body.style.overflowY = "auto";
-          // }}
-        >
-          {prompts[selectedPrompt]?.saved.map((saved) => (
-            <div key={saved}>
-              <button
-                style={{
-                  backgroundColor: saved === selectedPropsId ? "red" : "white",
-                }}
-                onClick={() => {
-                  console.log("saved", saved);
-                  setSelectedPropsId(saved);
-
-                  // Store the selected props id in localStorage
-                  localStorage.setItem("selectedPropsId", saved);
-                }}
-              >
-                {saved}
-              </button>
-            </div>
-          ))}
-          {prompts[selectedPrompt]?.dumps
-            .sort((a, b) => b.localeCompare(a))
-            .map((dump) => (
-              <div key={dump}>
-                <button
-                  style={{
-                    backgroundColor: dump === selectedPropsId ? "red" : "white",
-                  }}
-                  onClick={() => {
-                    setSelectedPropsId(dump);
-
-                    localStorage.setItem("selectedPropsId", dump);
-                  }}
-                >
-                  {memoizedMakeDateNicer(dump)}
-                </button>
-              </div>
-            ))}
-        </div>
+        <PropsSelector
+          prompt={prompts[selectedPrompt]}
+          selectedPropsId={selectedPropsId}
+          setSelectedPropsId={setSelectedPropsId}
+        />
         <div>
           <label htmlFor="token-count-slider">
             Token count: <span>{tokenCount}</span>
@@ -1145,6 +1094,11 @@ const App = () => {
         >
           {forceRerender}
         </div>
+        <PropsSelector
+          prompt={prompts[selectedPrompt]}
+          selectedPropsId={selectedPropsId}
+          setSelectedPropsId={setSelectedPropsId}
+        />
       </div>
     </>
   );
@@ -1512,5 +1466,68 @@ export function CommandMenu(props: {
       </CommandList>
     </CommandDialog>
     // </div>
+  );
+}
+
+function PropsSelector({
+  prompt,
+  selectedPropsId,
+  setSelectedPropsId,
+}: {
+  prompt:
+    | {
+        saved: string[];
+        dumps: string[];
+      }
+    | undefined;
+  selectedPropsId: string;
+  setSelectedPropsId: (id: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        maxWidth: "100%",
+        overflowX: "auto",
+      }}
+    >
+      {prompt?.saved.map((saved) => (
+        <div key={saved}>
+          <button
+            style={{
+              backgroundColor: saved === selectedPropsId ? "red" : "white",
+            }}
+            onClick={() => {
+              console.log("saved", saved);
+              setSelectedPropsId(saved);
+
+              // Store the selected props id in localStorage
+              localStorage.setItem("selectedPropsId", saved);
+            }}
+          >
+            {saved}
+          </button>
+        </div>
+      ))}
+      {prompt?.dumps
+        .sort((a, b) => b.localeCompare(a))
+        .map((dump) => (
+          <div key={dump}>
+            <button
+              style={{
+                backgroundColor: dump === selectedPropsId ? "red" : "white",
+              }}
+              onClick={() => {
+                setSelectedPropsId(dump);
+
+                localStorage.setItem("selectedPropsId", dump);
+              }}
+            >
+              {memoizedMakeDateNicer(dump)}
+            </button>
+          </div>
+        ))}
+    </div>
   );
 }
