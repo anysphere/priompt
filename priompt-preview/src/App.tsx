@@ -1473,6 +1473,7 @@ function PropsSelector({
   prompt,
   selectedPropsId,
   setSelectedPropsId,
+  isAtBottom,
 }: {
   prompt:
     | {
@@ -1482,6 +1483,7 @@ function PropsSelector({
     | undefined;
   selectedPropsId: string;
   setSelectedPropsId: (id: string) => void;
+  isAtBottom?: boolean;
 }) {
   return (
     <div
@@ -1522,6 +1524,16 @@ function PropsSelector({
                 setSelectedPropsId(dump);
 
                 localStorage.setItem("selectedPropsId", dump);
+
+                if (isAtBottom) {
+                  // 10 ms timeout to scroll to the bottom of the page
+                  setTimeout(() => {
+                    window.scrollTo(0, document.body.scrollHeight);
+                    setTimeout(() => {
+                      window.scrollTo(0, document.body.scrollHeight);
+                    }, 50);
+                  }, 100);
+                }
               }}
             >
               {memoizedMakeDateNicer(dump)}
