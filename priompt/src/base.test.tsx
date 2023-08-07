@@ -38,6 +38,8 @@ describe("isolate", () => {
     return (
       <>
         This is the start of the prompt.
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <Isolate tokenLimit={100} isolate={props.isolate}>
           {Array.from({ length: 1000 }, (_, i) => (
             <>
@@ -59,6 +61,8 @@ describe("isolate", () => {
             <scope prel={-i - 1000}>This is user message number {i}</scope>
           </>
         ))}
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <Isolate tokenLimit={100} isolate={props.isolate}>
           {Array.from({ length: 1000 }, (_, i) => (
             <>
