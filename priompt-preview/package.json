@@ -27,12 +27,14 @@
     "cmdk": "^0.2.0",
     "lucide-react": "^0.263.1",
     "tailwind-merge": "^1.14.0",
-    "tailwindcss-animate": "^1.0.6"
+    "tailwindcss-animate": "^1.0.6",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@anysphere/priompt": "workspace:*",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
+    "@types/uuid": "^9.0.1",
     "@typescript-eslint/eslint-plugin": "^5.57.1",
     "@typescript-eslint/parser": "^5.57.1",
     "@vitejs/plugin-react": "^4.0.0",

@@ -14,6 +14,9 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { v4 as uuidv4 } from "uuid";
+
+const userId = uuidv4();
 
 function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   callback: T,
@@ -530,6 +533,7 @@ const App = () => {
               functions.some((f) => f.name === forceFunctionCall)
                 ? { name: forceFunctionCall }
                 : undefined,
+            user: userId,
           },
           undefined,
           abort.signal
