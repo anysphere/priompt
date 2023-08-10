@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { RenderedPrompt } from "@anysphere/priompt";
 import { streamChat } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
@@ -15,6 +15,11 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { v4 as uuidv4 } from "uuid";
+import {
+  ChatPrompt,
+  ChatPromptAssistantMessage,
+  FunctionPrompt,
+} from "@anysphere/priompt/dist/types";
 
 const userId = uuidv4();
 
@@ -67,7 +72,9 @@ const App = () => {
     undefined
   );
   const [promptsls, setPromptsls] = useState<string[]>([]);
-  const [prompt, setPrompt] = useState<RenderedPrompt | undefined>(undefined);
+  const [prompt, setPrompt] = useState<
+    ChatPrompt | (ChatPrompt & FunctionPrompt) | undefined
+  >(undefined);
   const [prompts, setPrompts] = useState<
     Record<
       string,
@@ -82,24 +89,11 @@ const App = () => {
   const textAreaRefs = useRef<Array<HTMLTextAreaElement | undefined>>(
     Array.from({ length: 1 }).map(() => undefined)
   );
-  const completionTextAreaRef = useRef<HTMLTextAreaElement | undefined>(
-    undefined
-  );
   const [errorMessage, setErrorMessage] = useState<string>("");
-
-  const [fullPrompts, setFullPrompts] = useState<
-    | {
-        prompt: RenderedPrompt;
-        texts: string[];
-        functions: ChatAndFunctionPromptFunction[];
-      }
-    | undefined
-  >(undefined);
 
   const [completion, setCompletion] = useState<
     ChatCompletionResponseMessage | undefined
   >(undefined);
-  const [loadingCompletion, setLoadingCompletion] = useState<boolean>(false);
 
   const [abortController, setAbortController] = useState<
     AbortController | undefined
@@ -107,13 +101,30 @@ const App = () => {
   const [forceRerender, setForceRerender] = useState<number>(0);
 
   const getPromptOutput = useCallback(
-    (stream: boolean) => {
+    (stream: boolean, i: number) => {
+      if (
+        !(
+          typeof prompt !== "string" &&
+          prompt !== undefined &&
+          prompt.type === "chat"
+        )
+      ) {
+        alert("please select a prompt");
+        return;
+      }
       // submit to the server!
+      const m = prompt.messages[i];
+      const x: ChatCompletionResponseMessage = {
+        role: "assistant",
+        content: m.content,
+        function_call: (m as ChatPromptAssistantMessage).functionCall,
+      };
+
       const query = {
         tokenLimit: tokenCount,
         promptId: selectedPrompt,
         propsId: selectedPropsId,
-        completion: stream ? streamify(completion) : completion,
+        completion: stream ? streamify(x) : x,
         stream,
       };
 
@@ -138,7 +149,7 @@ const App = () => {
           setOutput(undefined);
         });
     },
-    [completion, selectedPrompt, selectedPropsId, tokenCount]
+    [prompt, selectedPrompt, selectedPropsId, tokenCount]
   );
 
   useEffect(() => {
@@ -193,77 +204,42 @@ const App = () => {
       });
   }, []);
 
-  useEffect(() => {
-    if (prompt === undefined) {
-      return;
-    } else {
-      if (typeof prompt === "string") {
-        setFullPrompts({
-          prompt: prompt,
-          texts: [prompt],
-          functions: [],
-        });
-      } else if (prompt.type === "text") {
-        setFullPrompts({
-          prompt: prompt,
-          texts: [prompt.text],
-          functions: prompt.functions,
-        });
-      } else {
-        setFullPrompts({
-          prompt: prompt,
-          texts: prompt.messages.map((message) => message.content ?? ""),
-          functions: "functions" in prompt ? prompt.functions : [],
-        });
+  const debouncedSetFullPrompts = useCallback((i: number, value: string) => {
+    setPrompt((prev) => {
+      if (prev === undefined) {
+        return undefined;
       }
-    }
-  }, [prompt]);
 
-  const debouncedSetFullPrompts = useDebouncedCallback2(
-    (i: number, value: string) => {
-      setFullPrompts((prev) => {
-        if (prev === undefined) {
-          return undefined;
-        }
-        const newTexts = [...prev.texts];
-        newTexts[i] = value;
-
-        return {
-          prompt: prev.prompt,
-          texts: newTexts,
-          functions: prev.functions,
-        };
-      });
-    },
-    100 // debounce delay in milliseconds
-  );
+      return {
+        ...prev,
+        messages: prev.messages.map((m, j) => {
+          if (j === i) {
+            return {
+              ...m,
+              content: value,
+            };
+          } else {
+            return m;
+          }
+        }),
+      };
+    });
+  }, []);
 
   // Set a particular chat's data
   const debouncedSetFunctionData = useDebouncedCallback2(
     (functionIndex: number, data: ChatAndFunctionPromptFunction) => {
-      setFullPrompts((prev) => {
+      setPrompt((prev) => {
         if (prev === undefined) {
           return undefined;
         }
-        const newFunctions = [...prev.functions];
+        const newFunctions = [...("functions" in prev ? prev.functions : [])];
         newFunctions[functionIndex] = data;
 
-        if (typeof prev.prompt !== "string" && "functions" in prev.prompt) {
-          return {
-            prompt: {
-              ...prev.prompt,
-              functions: newFunctions,
-            },
-            texts: prev.texts,
-            functions: newFunctions,
-          };
-        } else {
-          return {
-            prompt: prev.prompt,
-            texts: prev.texts,
-            functions: newFunctions,
-          };
-        }
+        return {
+          ...prev,
+          functions: newFunctions,
+        };
       });
     },
     100
@@ -315,13 +291,6 @@ const App = () => {
     },
     []
   );
-
-  useEffect(() => {
-    if (completionTextAreaRef.current) {
-      completionTextAreaRef.current.value = completion?.content ?? "";
-      fixTextareaHeight(completionTextAreaRef.current);
-    }
-  }, [completion]);
 
   useEffect(() => {
     if (selectedPrompt) {
@@ -474,7 +443,7 @@ const App = () => {
   const liveModeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const streamCompletion = useCallback(
-    async (model: string) => {
+    async (model: string, i: number) => {
       if (!prompt) {
         alert("please select a prompt");
         return;
@@ -485,43 +454,69 @@ const App = () => {
         return;
       }
       setCompletion(undefined);
-      setLoadingCompletion(true);
+      setPrompt((prev) => {
+        if (prev === undefined) return undefined;
+        if (prev.messages[i]?.role !== "assistant") {
+          // add a new assistant message
+          return {
+            ...prev,
+            messages: [
+              ...prev.messages.slice(0, i),
+              {
+                role: "assistant",
+                content: "",
+                functionCall: undefined,
+              },
+              ...prev.messages.slice(i),
+            ],
+          };
+        } else {
+          return {
+            ...prev,
+            messages: prev.messages.map((c, j) => {
+              if (j === i) {
+                c = c as ChatPromptAssistantMessage;
+                return {
+                  ...c,
+                  role: "assistant",
+                  content: "",
+                  function_call: undefined,
+                };
+              }
+              return c;
+            }),
+          };
+        }
+      });
 
       const abort = new AbortController();
       setAbortController(abort);
 
       try {
-        const functions = fullPrompts?.functions ?? [];
+        const functions = "functions" in prompt ? prompt.functions : [];
         let start = performance.now();
         setTimeToFirstToken(undefined);
         setTimeToRemainingTokens(undefined);
         const stream = streamChat(
           {
             model,
-            messages: prompt.messages.map((m, i) => {
-              let content: string;
-              if (fullPrompts?.texts[i] !== undefined) {
-                content = fullPrompts.texts[i];
-              } else {
-                content = m.content ?? "";
-              }
-
+            messages: prompt.messages.slice(0, i).map((m, _) => {
               if (m.role === "function") {
                 return {
                   role: m.role,
                   name: m.name,
-                  content,
+                  content: m.content,
                 };
               } else if (m.role === "assistant" && m.functionCall) {
                 return {
                   role: m.role,
                   function_call: m.functionCall,
-                  content,
+                  content: m.content,
                 };
               } else {
                 return {
                   role: m.role,
-                  content: content,
+                  content: m.content,
                 };
               }
             }),
@@ -546,30 +541,65 @@ const App = () => {
             first = false;
             start = performance.now();
           }
-          setLoadingCompletion(false);
           console.log(message);
           const text = message.choices[0].delta?.content;
           const function_call = message.choices[0].delta?.function_call;
-          setCompletion((c) => {
-            return {
-              ...c,
-              role: "assistant",
-              content:
-                text !== undefined || c?.content !== undefined
-                  ? (c?.content ?? "") + (text ?? "")
-                  : undefined,
-              function_call:
-                c?.function_call !== undefined || function_call !== undefined
-                  ? {
-                      name:
-                        (c?.function_call?.name ?? "") +
-                        (function_call?.name ?? ""),
-                      arguments:
-                        (c?.function_call?.arguments ?? "") +
-                        (function_call?.arguments ?? ""),
-                    }
-                  : undefined,
-            };
+
+          setPrompt((prev) => {
+            if (prev === undefined) return undefined;
+            // check if i is an asssistant message
+            if (prev.messages[i]?.role !== "assistant") {
+              // add a new assistant message
+              return {
+                ...prev,
+                messages: [
+                  ...prev.messages.slice(0, i),
+                  {
+                    role: "assistant",
+                    content: text,
+                    functionCall:
+                      function_call !== undefined
+                        ? {
+                            name: function_call.name ?? "",
+                            arguments: function_call.arguments ?? "",
+                          }
+                        : undefined,
+                  },
+                  ...prev.messages.slice(i),
+                ],
+              };
+            } else {
+              // want to modify the existing message
+              return {
+                ...prev,
+                messages: prev.messages.map((c, j) => {
+                  if (j === i) {
+                    c = c as ChatPromptAssistantMessage;
+                    return {
+                      ...c,
+                      role: "assistant",
+                      content:
+                        text !== undefined || c?.content !== undefined
+                          ? (c?.content ?? "") + (text ?? "")
+                          : undefined,
+                      function_call:
+                        c?.functionCall !== undefined ||
+                        function_call !== undefined
+                          ? {
+                              name:
+                                (c?.functionCall?.name ?? "") +
+                                (function_call?.name ?? ""),
+                              arguments:
+                                (c?.functionCall?.arguments ?? "") +
+                                (function_call?.arguments ?? ""),
+                            }
+                          : undefined,
+                    };
+                  }
+                  return c;
+                }),
+              };
+            }
           });
         }
         setTimeToRemainingTokens(performance.now() - start);
@@ -581,10 +611,9 @@ const App = () => {
         }
       } finally {
         setAbortController(undefined);
-        setLoadingCompletion(false);
       }
     },
-    [prompt, fullPrompts, temperature, forceFunctionCall]
+    [prompt, temperature, forceFunctionCall]
   );
 
   useEffect(() => {
@@ -592,8 +621,10 @@ const App = () => {
       if (
         typeof prompt !== "string" &&
         prompt !== undefined &&
-        prompt.type === "chat"
+        prompt.type === "chat" &&
+        prompt.messages.length > textAreaRefs.current.length
       ) {
+        console.log("fixing textAreaRefs");
         if (prompt.messages.length > textAreaRefs.current.length) {
           console.log("resizing textAreaRefs");
           textAreaRefs.current = Array.from({
@@ -610,11 +641,12 @@ const App = () => {
           if (
             typeof prompt !== "string" &&
             prompt !== undefined &&
-            prompt.type === "chat"
+            prompt.type === "chat" &&
+            r.value !== prompt.messages[i].content
           ) {
             r.value = prompt.messages[i].content ?? "";
+            fixTextareaHeight(r);
           }
-          fixTextareaHeight(r);
         }
       });
     }
@@ -740,8 +772,9 @@ const App = () => {
         )}
         <hr />
         <div id="prompt-display">
-          {fullPrompts &&
-            fullPrompts.functions.map((f, index) => (
+          {prompt &&
+            "functions" in prompt &&
+            prompt.functions.map((f, index) => (
               <FullPromptFunction
                 fn={f}
                 functionIndex={index}
@@ -751,237 +784,169 @@ const App = () => {
               />
             ))}
           {prompt &&
-            (typeof prompt === "string" || prompt.type === "text" ? (
-              <>{typeof prompt === "string" ? prompt : prompt.text}</>
+            (typeof prompt === "string" || false ? (
+              <>{typeof prompt === "string" ? prompt : "hi"}</>
             ) : (
               <>
                 {prompt.messages.map((msg, i) => {
+                  const key = `${i}-${forceRerender}`;
+                  console.log("rendering message", key);
                   return (
-                    <div
-                      style={{
-                        backgroundColor:
-                          msg.role === "user"
-                            ? "rgba(0, 0, 255, 0.2)"
-                            : msg.role === "assistant"
-                            ? "rgba(0, 128, 0, 0.2)"
-                            : msg.role === "system"
-                            ? "rgba(100, 100, 100, 0.1)"
-                            : "rgba(180,100,0,0.5)",
-                        width: "100%",
-                        // height: "fit-content",
-                      }}
-                    >
-                      <b>{msg.role}</b>
-                      {msg.role === "function" && <i>: {msg.name}</i>}
-                      <br />
-                      <TextAreaWithSetting
-                        key={`${i}-${forceRerender}`}
-                        setFullText={(newText: string) => {
-                          debouncedSetFullPrompts(i, newText);
-                        }}
-                        setTextArea={(
-                          value: HTMLTextAreaElement | undefined
-                        ) => {
-                          textAreaRefs.current[i] = value;
-                        }}
-                        currentTextArea={textAreaRefs.current[i]}
-                      />
-                      {msg.role === "assistant" && msg.functionCall && (
-                        <div
-                          style={{
-                            border: "solid 1px",
-                            borderTop: "none",
+                    <>
+                      {msg.role === "assistant" ? (
+                        <AssistantBox
+                          key={key}
+                          abortController={abortController}
+                          setAbortController={setAbortController}
+                          streamCompletion={(model) =>
+                            streamCompletion(model, i)
+                          }
+                          temperature={temperature}
+                          setTemperature={setTemperature}
+                          prompt={prompt}
+                          forceFunctionCall={forceFunctionCall}
+                          setForceFunctionCall={setForceFunctionCall}
+                          timeToFirstToken={timeToFirstToken}
+                          timeToRemainingTokens={timeToRemainingTokens}
+                          getPromptOutput={(value) => getPromptOutput(value, i)}
+                          message={msg}
+                          output={output}
+                          setTextArea={(
+                            value: HTMLTextAreaElement | undefined
+                          ) => {
+                            textAreaRefs.current[i] = value;
                           }}
-                        >
-                          <i>calling function name:</i>
+                          currentTextArea={textAreaRefs.current[i]}
+                          setFullText={(newText: string) => {
+                            debouncedSetFullPrompts(i, newText);
+                          }}
+                        />
+                      ) : (
+                        <>
                           <div
                             style={{
-                              whiteSpace: "pre-wrap",
-                              border: "solid 1px rgba(0,0,0,0.1)",
+                              backgroundColor:
+                                msg.role === "user"
+                                  ? "rgba(0, 0, 255, 0.2)"
+                                  : msg.role === "system"
+                                  ? "rgba(100, 100, 100, 0.1)"
+                                  : "rgba(180,100,0,0.5)",
+                              width: "100%",
+                              // height: "fit-content",
                             }}
+                            key={key}
                           >
-                            {msg.functionCall.name}
+                            <b>{msg.role}</b>
+                            {msg.role === "function" && <i>: {msg.name}</i>}
+                            <br />
+                            <TextAreaWithSetting
+                              key={key}
+                              realKey={key}
+                              setFullText={(newText: string) => {
+                                debouncedSetFullPrompts(i, newText);
+                              }}
+                              setTextArea={(
+                                value: HTMLTextAreaElement | undefined
+                              ) => {
+                                console.log("setting text area", i, value);
+                                textAreaRefs.current[i] = value;
+                              }}
+                              currentTextArea={textAreaRefs.current[i]}
+                            />
                           </div>
-                          <i>arguments:</i>
-                          <div
-                            style={{
-                              whiteSpace: "pre-wrap",
-                              border: "solid 1px rgba(0,0,0,0.1)",
-                            }}
-                          >
-                            {msg.functionCall.arguments}
-                          </div>
-                        </div>
+                          {i === prompt.messages.length - 1 && (
+                            <AssistantBox
+                              key={`completion-${key}`}
+                              abortController={abortController}
+                              setAbortController={setAbortController}
+                              streamCompletion={(model) =>
+                                streamCompletion(model, i + 1)
+                              }
+                              temperature={temperature}
+                              setTemperature={setTemperature}
+                              prompt={prompt}
+                              forceFunctionCall={forceFunctionCall}
+                              setForceFunctionCall={setForceFunctionCall}
+                              timeToFirstToken={timeToFirstToken}
+                              timeToRemainingTokens={timeToRemainingTokens}
+                              getPromptOutput={(value) =>
+                                getPromptOutput(value, i + 1)
+                              }
+                              message={undefined}
+                              output={output}
+                              setTextArea={(
+                                _: HTMLTextAreaElement | undefined
+                              ) => {}}
+                              currentTextArea={undefined}
+                              setFullText={(_: string) => {}}
+                            />
+                          )}
+                        </>
                       )}
-                    </div>
+                    </>
                   );
                 })}
               </>
             ))}
         </div>
-        <div>
-          {ALL_MODELS.map((model) => (
-            <button key={model} onClick={() => streamCompletion(model)}>
-              Submit to {model}
-            </button>
-          ))}
-          {abortController !== undefined && (
-            <>
-              <button
-                onClick={() => {
-                  abortController.abort();
-                  setAbortController(undefined);
-                }}
-              >
-                Cancel
-              </button>
-            </>
-          )}
-          <div>
-            <label htmlFor="temperature-slider">
-              Temperature: <span>{temperature}</span>
-            </label>
-            <button onClick={() => setTemperature(0)}>0</button>
-            <button onClick={() => setTemperature(1)}>1</button>
-            <button onClick={() => setTemperature(2)}>2</button>
-            <input
-              type="range"
-              id="temperature-slider"
-              min="0"
-              max="2"
-              step="0.1"
-              value={temperature}
-              onChange={(event) =>
-                setTemperature(parseFloat(event.target.value))
-              }
-              style={{
-                width: "100px",
-              }}
-            />
-            {prompt &&
-              typeof prompt === "object" &&
-              prompt.type === "chat" &&
-              "functions" in prompt &&
-              prompt.functions.length > 0 && (
-                <>
-                  <label htmlFor="force-function">Force function:</label>
-                  <select
-                    id="force-function"
-                    value={forceFunctionCall || "auto"}
-                    onChange={(event) =>
-                      setForceFunctionCall(
-                        event.target.value === "auto"
-                          ? undefined
-                          : event.target.value
-                      )
-                    }
-                  >
-                    <option value="auto">auto</option>
-                    {prompt.functions.map((func, index) => (
-                      <option key={index} value={func.name}>
-                        {func.name}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-          </div>
-        </div>
-        {(completion !== undefined || loadingCompletion) && (
-          <div
-            style={{
-              backgroundColor: "rgba(0,228,0,0.3)",
-            }}
-          >
-            <b>assistant completion:</b>
-            <div
-              style={{
-                whiteSpace: "pre-wrap",
-                border: "solid 1px",
-              }}
-            >
-              {loadingCompletion && <>loading...</>}
-              {completion ? (
-                <TextAreaWithSetting
-                  key={`completion-${forceRerender}`}
-                  setFullText={(newText: string) => {
-                    setCompletion({
-                      ...completion,
-                      content: newText,
-                    });
-                  }}
-                  setTextArea={(value: HTMLTextAreaElement | undefined) => {
-                    completionTextAreaRef.current = value;
-                  }}
-                  currentTextArea={completionTextAreaRef.current}
-                />
-              ) : (
-                ""
-              )}
-            </div>
-            {completion?.role === "assistant" && completion?.function_call && (
-              <div
-                style={{
-                  border: "solid 1px",
-                  borderTop: "none",
-                }}
-              >
-                <i>calling function name:</i>
-                <div
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    border: "solid 1px rgba(0,0,0,0.1)",
-                  }}
-                >
-                  {completion.function_call.name}
-                </div>
-                <i>arguments:</i>
-                <div
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    border: "solid 1px rgba(0,0,0,0.1)",
-                  }}
-                >
-                  {completion.function_call.arguments}
-                </div>
-              </div>
-            )}
-            {(timeToFirstToken !== undefined ||
-              timeToRemainingTokens !== undefined) && (
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  border: "solid 1px",
-                }}
-              >
-                <div>
-                  Time to first token: {timeToFirstToken ?? "loading..."}
-                </div>
-                <div>
-                  Time to remaining tokens:{" "}
-                  {timeToRemainingTokens ?? "loading..."}
-                </div>
-              </div>
-            )}
-            <button onClick={() => getPromptOutput(false)}>
-              get parsed output
-            </button>
-            <button onClick={() => getPromptOutput(true)}>
-              get parsed stream
-            </button>
-            {output && (
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  border: "solid 1px",
-                }}
-              >
-                <b>Output (also console.logged):</b>
-                <pre>{output}</pre>
-              </div>
-            )}
-          </div>
-        )}
+        <button
+          onClick={() => {
+            setPrompt((prev) => {
+              if (prev === undefined) return undefined;
+              return {
+                ...prev,
+                messages: [
+                  ...prev.messages,
+                  {
+                    role: "user",
+                    content: "New user message",
+                  },
+                ],
+              };
+            });
+          }}
+        >
+          Add User Message
+        </button>
+        <button
+          onClick={() => {
+            setPrompt((prev) => {
+              if (prev === undefined) return undefined;
+              return {
+                ...prev,
+                messages: [
+                  ...prev.messages,
+                  {
+                    role: "system",
+                    content: "New system message",
+                  },
+                ],
+              };
+            });
+          }}
+        >
+          Add System Message
+        </button>
+        <button
+          onClick={() => {
+            setPrompt((prev) => {
+              if (prev === undefined) return undefined;
+              return {
+                ...prev,
+                messages: [
+                  ...prev.messages,
+                  {
+                    role: "assistant",
+                    content: "New assistant message",
+                  },
+                ],
+              };
+            });
+          }}
+        >
+          Add Assistant Message
+        </button>
+
         {selectedPrompt === "liveModePromptId" && selectedPropsId !== "" && (
           <div>
             you are the LLM. the following is your response:
@@ -1142,103 +1107,116 @@ const memoizedMakeDateNicer = (() => {
     return formattedDate;
   };
 })();
+const TextAreaWithSetting = memo(
+  (props: {
+    setTextArea: (value: HTMLTextAreaElement | undefined) => void;
+    currentTextArea: HTMLTextAreaElement | undefined;
+    key: string;
+    realKey: string;
+    setFullText: (value: string) => void;
+    style?: React.CSSProperties;
+  }) => {
+    const [prevScrollPos, setPrevScrollPos] = useState(0);
+    const [scrollCorrection, setScrollCorrection] = useState(false);
 
-function TextAreaWithSetting(props: {
-  setTextArea: (value: HTMLTextAreaElement | undefined) => void;
-  currentTextArea: HTMLTextAreaElement | undefined;
-  key: string;
-  setFullText: (value: string) => void;
-  style?: React.CSSProperties;
-}) {
-  const [prevScrollPos, setPrevScrollPos] = useState(0);
-  const [scrollCorrection, setScrollCorrection] = useState(false);
+    const internalRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleScroll: React.UIEventHandler<HTMLTextAreaElement> = (event) => {
-    if (scrollCorrection) {
-      setScrollCorrection(false);
-      event.currentTarget.scrollTop = prevScrollPos;
-    }
-    setPrevScrollPos(event.currentTarget.scrollTop);
-  };
+    useEffect(() => {
+      if (internalRef.current !== null) {
+        props.setTextArea(internalRef.current);
+      }
+    }, [internalRef.current]);
 
-  const handleInput: React.ChangeEventHandler<HTMLTextAreaElement> = (e) => {
-    setPrevScrollPos(e.target.scrollTop);
-    setScrollCorrection(true);
+    const handleScroll: React.UIEventHandler<HTMLTextAreaElement> = (event) => {
+      if (scrollCorrection) {
+        setScrollCorrection(false);
+        event.currentTarget.scrollTop = prevScrollPos;
+      }
+      setPrevScrollPos(event.currentTarget.scrollTop);
+    };
 
-    props.setFullText(e.target.value ?? "");
-    if (props.currentTextArea !== undefined) {
-      props.currentTextArea.value = e.target.value ?? "";
+    const handleInput: React.ChangeEventHandler<HTMLTextAreaElement> = (e) => {
+      setPrevScrollPos(e.target.scrollTop);
+      setScrollCorrection(true);
 
-      // Create a hidden clone of the textarea
-      const clone = props.currentTextArea.cloneNode() as HTMLTextAreaElement;
-      clone.style.visibility = "hidden";
-      clone.style.position = "absolute";
-      clone.style.height = "auto";
-      document.body.appendChild(clone);
+      props.setFullText(e.target.value ?? "");
+      if (internalRef.current !== null) {
+        internalRef.current.value = e.target.value ?? "";
 
-      // Copy the content to the clone
-      clone.value = e.target.value ?? "";
+        // Create a hidden clone of the textarea
+        const clone = internalRef.current.cloneNode() as HTMLTextAreaElement;
+        clone.style.visibility = "hidden";
+        clone.style.position = "absolute";
+        clone.style.height = "auto";
+        document.body.appendChild(clone);
 
-      // Measure the scrollHeight of the clone
-      const scrollHeight = clone.scrollHeight;
+        // Copy the content to the clone
+        clone.value = e.target.value ?? "";
 
-      // Remove the clone
-      document.body.removeChild(clone);
+        // Measure the scrollHeight of the clone
+        const scrollHeight = clone.scrollHeight;
 
-      // Adjust the height of the original textarea
-      props.currentTextArea.style.height = `${scrollHeight}px`;
+        // Remove the clone
+        document.body.removeChild(clone);
 
-      // Store the current scroll position
-      // const scrollTop = props.currentTextArea.scrollTop;
-      // const h = props.currentTextArea.scrollHeight;
+        // Adjust the height of the original textarea
+        internalRef.current.style.height = `${scrollHeight}px`;
 
-      // resize the textarea to fit the content
-      // props.currentTextArea.style.height = `${props.currentTextArea.scrollHeight}px`;
+        // Store the current scroll position
+        // const scrollTop = internalRef.current.scrollTop;
+        // const h = internalRef.current.scrollHeight;
 
-      // Restore the scroll position
-      // props.currentTextArea.scrollTop = scrollTop;
-    }
-    // update the scroll!
-    if (props.currentTextArea !== undefined) {
-      props.currentTextArea.scrollTop = prevScrollPos;
-    }
-  };
+        // resize the textarea to fit the content
+        // internalRef.current.style.height = `${internalRef.current.scrollHeight}px`;
 
-  const onFocus = () => {
-    if (props.currentTextArea !== undefined) {
-      setPrevScrollPos(props.currentTextArea.scrollTop);
-    }
-  };
+        // Restore the scroll position
+        // internalRef.current.scrollTop = scrollTop;
+      }
+      // update the scroll!
+      if (internalRef.current !== null) {
+        internalRef.current.scrollTop = prevScrollPos;
+      }
+    };
 
-  return (
-    <textarea
-      ref={(el) => props.setTextArea(el ?? undefined)}
-      id={`prompt-textarea-${props.key}`}
-      style={{
-        whiteSpace: "pre-wrap",
-        width: "100%",
-        outline: "none",
-        resize: "none",
-        display: "block",
-        // remove the border from the textarea
-        border: "solid 1px",
-        // background completely transparent
-        backgroundColor: "rgba(0,0,0,0)",
-        boxSizing: "border-box",
-        ...props.style,
-      }}
-      onKeyDown={(e) => {
-        // Capture all keydown events
-        e.stopPropagation();
-      }}
-      onChange={handleInput}
-      spellCheck={false}
-      onScroll={handleScroll}
-      onFocus={onFocus}
-      onClick={onFocus}
-    />
-  );
-}
+    const onFocus = () => {
+      if (internalRef.current !== null) {
+        setPrevScrollPos(internalRef.current.scrollTop);
+      }
+    };
+
+    return (
+      <textarea
+        ref={internalRef}
+        id={`prompt-textarea-${props.realKey}`}
+        style={{
+          whiteSpace: "pre-wrap",
+          width: "100%",
+          outline: "none",
+          resize: "none",
+          display: "block",
+          // remove the border from the textarea
+          border: "solid 1px",
+          // background completely transparent
+          backgroundColor: "rgba(0,0,0,0)",
+          boxSizing: "border-box",
+          ...props.style,
+        }}
+        onKeyDown={(e) => {
+          // Capture all keydown events
+          e.stopPropagation();
+        }}
+        onChange={handleInput}
+        spellCheck={false}
+        onScroll={handleScroll}
+        onFocus={onFocus}
+        onClick={onFocus}
+      />
+    );
+  },
+  (prevProps, nextProps) => {
+    return prevProps.realKey === nextProps.realKey;
+  }
+);
 
 function FullPromptFunction({
   fn,
@@ -1362,6 +1340,7 @@ function FullPromptFunction({
             }}
             currentTextArea={functionNameRef.current}
             key=""
+            realKey={`function-name-${functionIndex}`}
             setFullText={setNewName}
             // key={`function-name-${functionIndex}`}
           />
@@ -1380,6 +1359,7 @@ function FullPromptFunction({
             currentTextArea={functionDescriptionRef.current}
             key=""
             setFullText={setNewDescription}
+            realKey={`function-description-${functionIndex}`}
           />
         </div>
         <div>
@@ -1395,6 +1375,7 @@ function FullPromptFunction({
             currentTextArea={functionParametersRef.current}
             key=""
             setFullText={setNewParameters}
+            realKey={`function-parameters-${functionIndex}`}
           />
           {/* {JSON.stringify(f.parameters, null, 2)}
           </div> */}
@@ -1544,6 +1525,192 @@ function PropsSelector({
             </button>
           </div>
         ))}
+    </div>
+  );
+}
+
+function AssistantBox(props: {
+  abortController: AbortController | undefined;
+  setAbortController: (abortController: AbortController | undefined) => void;
+  streamCompletion(model: string): void;
+  temperature: number;
+  setTemperature: (value: number) => void;
+  prompt: RenderedPrompt | undefined;
+  forceFunctionCall: string | undefined;
+  setForceFunctionCall: (value: string | undefined) => void;
+  timeToFirstToken: number | null | undefined;
+  timeToRemainingTokens: number | null | undefined;
+  getPromptOutput: (value: boolean) => void;
+  message: ChatPromptAssistantMessage | undefined;
+  output: string | undefined;
+  setTextArea: (value: HTMLTextAreaElement | undefined) => void;
+  currentTextArea: HTMLTextAreaElement | undefined;
+  key: string;
+  setFullText: (value: string) => void;
+}) {
+  return (
+    <div key={props.key}>
+      <div>
+        {ALL_MODELS.map((model) => (
+          <button key={model} onClick={() => props.streamCompletion(model)}>
+            Submit to {model}
+          </button>
+        ))}
+        {props.abortController !== undefined && (
+          <>
+            <button
+              onClick={() => {
+                props.abortController?.abort();
+                props.setAbortController(undefined);
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        )}
+        <div>
+          <label htmlFor="temperature-slider">
+            Temperature: <span>{props.temperature}</span>
+          </label>
+          <button onClick={() => props.setTemperature(0)}>0</button>
+          <button onClick={() => props.setTemperature(1)}>1</button>
+          <button onClick={() => props.setTemperature(2)}>2</button>
+          <input
+            type="range"
+            id="temperature-slider"
+            min="0"
+            max="2"
+            step="0.1"
+            value={props.temperature}
+            onChange={(event) =>
+              props.setTemperature(parseFloat(event.target.value))
+            }
+            style={{
+              width: "100px",
+            }}
+          />
+          {props.prompt &&
+            typeof props.prompt === "object" &&
+            props.prompt.type === "chat" &&
+            "functions" in props.prompt &&
+            props.prompt.functions.length > 0 && (
+              <>
+                <label htmlFor="force-function">Force function:</label>
+                <select
+                  id="force-function"
+                  value={props.forceFunctionCall || "auto"}
+                  onChange={(event) =>
+                    props.setForceFunctionCall(
+                      event.target.value === "auto"
+                        ? undefined
+                        : event.target.value
+                    )
+                  }
+                >
+                  <option value="auto">auto</option>
+                  {props.prompt.functions.map((func, index) => (
+                    <option key={index} value={func.name}>
+                      {func.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+        </div>
+      </div>
+      {(props.message !== undefined || props.abortController !== undefined) && (
+        <div
+          style={{
+            backgroundColor: "rgba(0,228,0,0.3)",
+          }}
+        >
+          <b>assistant completion:</b>
+          <div
+            style={{
+              whiteSpace: "pre-wrap",
+              border: "solid 1px",
+            }}
+          >
+            {props.abortController &&
+              (props.message === undefined ||
+                (props.message.content === "" &&
+                  props.message.functionCall === undefined)) && <>loading...</>}
+            {props.message !== undefined ? (
+              <TextAreaWithSetting
+                key={`assistant-${props.key}`}
+                realKey={`assistant-${props.key}`}
+                setFullText={props.setFullText}
+                setTextArea={props.setTextArea}
+                currentTextArea={props.currentTextArea}
+              />
+            ) : (
+              ""
+            )}
+          </div>
+          {props.message?.role === "assistant" &&
+            props.message?.functionCall && (
+              <div
+                style={{
+                  border: "solid 1px",
+                  borderTop: "none",
+                }}
+              >
+                <i>calling function name:</i>
+                <div
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    border: "solid 1px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {props.message.functionCall.name}
+                </div>
+                <i>arguments:</i>
+                <div
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    border: "solid 1px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {props.message.functionCall.arguments}
+                </div>
+              </div>
+            )}
+          {(props.timeToFirstToken !== undefined ||
+            props.timeToRemainingTokens !== undefined) && (
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                border: "solid 1px",
+              }}
+            >
+              <div>
+                Time to first token: {props.timeToFirstToken ?? "loading..."}
+              </div>
+              <div>
+                Time to remaining tokens:{" "}
+                {props.timeToRemainingTokens ?? "loading..."}
+              </div>
+            </div>
+          )}
+          <button onClick={() => props.getPromptOutput(false)}>
+            get parsed output
+          </button>
+          <button onClick={() => props.getPromptOutput(true)}>
+            get parsed stream
+          </button>
+          {props.output && (
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                border: "solid 1px",
+              }}
+            >
+              <b>Output (also console.logged):</b>
+              <pre>{props.output}</pre>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
