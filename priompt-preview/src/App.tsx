@@ -622,7 +622,7 @@ const App = () => {
         typeof prompt !== "string" &&
         prompt !== undefined &&
         prompt.type === "chat" &&
-        prompt.messages.length > textAreaRefs.current.length
+        prompt.messages.length !== textAreaRefs.current.length
       ) {
         console.log("fixing textAreaRefs");
         if (prompt.messages.length > textAreaRefs.current.length) {
@@ -633,6 +633,14 @@ const App = () => {
           // now we need to update the refs
           // force a re-render
           setForceRerender((x) => x + 1);
+          return;
+        }
+        if (prompt.messages.length < textAreaRefs.current.length) {
+          console.log("resizing textAreaRefs");
+          textAreaRefs.current = textAreaRefs.current.slice(
+            0,
+            prompt.messages.length
+          );
           return;
         }
       }
