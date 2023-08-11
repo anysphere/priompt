@@ -27,6 +27,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'gpt-3.5-turbo-0613':
 		case 'gpt-3.5-turbo-16k':
 		case 'azure-3.5-turbo':
+		case 'gpt-ft-cursor-0810':
 			return 'cl100k_base';
 		case 'text-davinci-003':
 			return 'p50k_base';

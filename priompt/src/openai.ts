@@ -7,6 +7,7 @@ import {
 export const GPT_3_5_TURBO = 'gpt-3.5-turbo';
 export const GPT_3_5_TURBO_NIGHTLY_0613 = 'gpt-3.5-turbo-0613';
 export const GPT_3_5_TURBO_16K = 'gpt-3.5-turbo-16k';
+export const GPT3_3_5_TURBO_DOTHISFORME = 'gpt-ft-cursor-0810';
 export const GPT_4 = 'gpt-4';
 export const GPT_4_NIGHTLY_0613 = 'gpt-4-0613';
 export const GPT_4_32K = 'gpt-4-32k';
@@ -22,6 +23,7 @@ export const GPT2_TOKENIZER = 'gpt2';
 export const usableModels = [
 	GPT_3_5_TURBO,
 	GPT_3_5_TURBO_NIGHTLY_0613,
+	GPT3_3_5_TURBO_DOTHISFORME,
 	GPT_4,
 	GPT_4_NIGHTLY_0613,
 	GPT_3_5_TURBO_16K,
@@ -36,6 +38,7 @@ export const usableLanguageModels = [
 	GPT_3_5_TURBO,
 	GPT_3_5_TURBO_NIGHTLY_0613,
 	GPT_3_5_TURBO_16K,
+	GPT3_3_5_TURBO_DOTHISFORME,
 	GPT_4,
 	GPT_4_NIGHTLY_0613,
 	GPT_4_32K,
@@ -63,6 +66,7 @@ export const MODEL_CONTEXTS: {
 	[GPT_3_5_TURBO]: 2_000,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 2_000,
 	[GPT_3_5_TURBO_16K]: 10_000,
+	[GPT3_3_5_TURBO_DOTHISFORME]: 4_000,
 	[AZURE_3_5_TURBO]: 2_000,
 	[GPT_4]: 4_000,
 	[GPT_4_32K]: 32_000,
@@ -76,6 +80,7 @@ export const MAX_TOKENS: {
 	[GPT_3_5_TURBO]: 4096,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 4096,
 	[GPT_3_5_TURBO_16K]: 16_384,
+	[GPT3_3_5_TURBO_DOTHISFORME]: 4_000,
 	[AZURE_3_5_TURBO]: 4096,
 	[GPT_4]: 8000,
 	[GPT_4_NIGHTLY_0613]: 8000,
