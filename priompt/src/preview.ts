@@ -73,8 +73,7 @@ export type PreviewConfig<PropsT, ReturnT = never> = {
   id: string;
   prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
   // defaults to yaml but can be overridden
-  dump?: (props: Omit<PropsT, "onReturn">) => string;
-  hydrate?: (dump: string) => PropsT;
+  dump?: (props: Omit<PropsT, "onReturn">) => string; hydrate?: (dump: string) => PropsT;
 }
 
 class PreviewManagerImpl implements IPreviewManager {
@@ -351,6 +350,27 @@ class PreviewManagerImpl implements IPreviewManager {
 
 // GLOBALS FTW. i love globals.
 export const PreviewManager = new PreviewManagerImpl();
+
+// Decorator
+export function register() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function registerPrompt<T, ReturnT = never>(target: any, propertyKey: string, descriptor: TypedPropertyDescriptor<Prompt<T, ReturnT>>) {
+    if (descriptor.value === undefined) {
+      throw new Error(`@registerPrompt can only be used on methods, not ${target.constructor.name}.${propertyKey}`);
+    } else {
+      PreviewManager.register(descriptor.value);
+    }
+  }
+  return registerPrompt;
+}
+
+// export function register<T, ReturnT = never>(prompt: Prompt<T, ReturnT>) {
+//   PreviewManager.register(prompt);
+// }
+
+
+
+
 
 function randomString() {
   let s = '';

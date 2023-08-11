@@ -237,10 +237,12 @@ export async function renderun<
 	renderOptions,
 	modelCall,
 	loggingOptions,
+	renderedMessagesCallback = (messages: ChatCompletionResponseMessage[]) => { },
 }: {
 	prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
 	props: Omit<PropsT, "onReturn">;
 	renderOptions: RenderOptions;
+	renderedMessagesCallback?: (messages: ChatCompletionResponseMessage[]) => void
 	modelCall: (
 		args: ReturnType<typeof promptToOpenAIChatRequest>
 	) => Promise<{ type: "output", value: CreateChatCompletionResponse } | { type: "stream", value: AsyncIterable<ChatCompletionResponseMessage> }>;
@@ -276,7 +278,9 @@ export async function renderun<
 		loggingOptions.renderOutputRef.current = rendered;
 	}
 
+
 	const modelRequest = promptToOpenAIChatRequest(rendered.prompt);
+	renderedMessagesCallback(modelRequest.messages);
 
 	// now do the model call
 	const modelOutput = await modelCall(modelRequest);
@@ -299,9 +303,20 @@ export async function renderun<
 			rendered.outputHandlers.map((handler) => handler(modelOutputMessage))
 		);
 	} else {
-		await Promise.all(
-			rendered.streamHandlers.map((handler) => handler(modelOutput.value))
-		);
+		// If no stream handlers, the default is to just return the first output
+		if (rendered.streamHandlers.length === 0) {
+			const awaitable = async function* (): AsyncIterable<ChatCompletionResponseMessage> {
+				for await (const message of modelOutput.value) {
+					yield message
+				}
+			}
+			await outputCatcher.onOutput(awaitable() as ReturnT);
+		} else {
+			await Promise.all(
+				rendered.streamHandlers.map((handler) => handler(modelOutput.value))
+			);
+
+		}
 	}
 
 	// now return the first output
