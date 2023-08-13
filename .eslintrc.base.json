@@ -25,6 +25,7 @@
     "no-eval": "error",
     "no-async-promise-executor": "error",
     "no-extra-semi": "error",
+    "sonarjs/no-ignored-return": "error",
     "no-new-wrappers": "error",
     "no-redeclare": "off",
     "no-sparse-arrays": "error",
@@ -65,5 +66,5 @@
     "project": "./tsconfig.json"
   },
   "ignorePatterns": ["node_modules/"],
-  "plugins": ["@typescript-eslint"]
+  "plugins": ["@typescript-eslint", "sonarjs"]
 }
