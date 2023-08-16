@@ -15,6 +15,7 @@
     "build": "tsc && vite build",
     "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
+    "fast-build-watch": "watchexec -w src pnpm build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
