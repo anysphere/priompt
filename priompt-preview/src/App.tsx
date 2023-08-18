@@ -52,6 +52,7 @@ const ALL_MODELS = ALL_MODELS_STR.split(",");
 
 // Usage example:
 const App = () => {
+  console.log("RENDERING APP");
   const [timeToFirstToken, setTimeToFirstToken] = useState<number | null>();
   const [timeToRemainingTokens, setTimeToRemainingTokens] = useState<
     number | null
