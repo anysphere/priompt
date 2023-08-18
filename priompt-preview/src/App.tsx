@@ -1083,8 +1083,17 @@ const App = () => {
 export default App;
 
 function fixTextareaHeight(t: HTMLTextAreaElement) {
-  t.style.height = "auto";
-  const scrollHeight = t.scrollHeight + 2;
+  const clone = t.cloneNode() as HTMLTextAreaElement;
+  clone.style.visibility = "hidden";
+  clone.style.position = "absolute";
+  clone.style.height = "auto";
+  document.body.appendChild(clone);
+
+  clone.value = t.value;
+  const scrollHeight = clone.scrollHeight + 2;
+
+  document.body.removeChild(clone);
+
   t.style.height = scrollHeight + "px";
 }
 
