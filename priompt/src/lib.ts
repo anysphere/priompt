@@ -251,6 +251,7 @@ export async function renderun<
 		renderOutputRef?: { current: RenderOutput | undefined };
 	}
 }): Promise<ReturnT> {
+	console.log('Running renderun')
 	// create an output catcher
 	const outputCatcher = NewOutputCatcher<ReturnT>();
 
