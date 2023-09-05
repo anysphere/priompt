@@ -15,6 +15,7 @@ export type FunctionBody = {
 export type First = {
 	type: 'first';
 	children: Scope[];
+	onEject?: () => void;
 };
 
 export type Empty = {
@@ -52,6 +53,7 @@ export type Scope = {
 	// relativePriority is relative to the parent of this scope
 	// it should always be negative (or else it will not be displayed)
 	relativePriority: number | undefined;
+	onEject?: () => void;
 };
 
 export type ChatUserSystemMessage = {
@@ -101,6 +103,7 @@ export type BaseProps = {
 	// first we optimize over the outest token count scope. if any max exceeds its token count, it is capped to the token count. once we have a global solution we seek the local solution
 	// this works, but leads to something that may be a little bit weird: something of priority 1000 in a maxed out scope is not included while something with a priority of 0 outside the maxed out scope is included. but that's fine. i guess the whole point of the max is to break the global opptimization
 	children?: PromptElement[] | PromptElement;
+	onEject?: () => void;
 };
 
 export type ReturnProps<T> = {

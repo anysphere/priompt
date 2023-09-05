@@ -87,7 +87,8 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					type: 'scope',
 					children: children.flat(),
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined,
-					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined
+					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
+					onEject: props && typeof props.onEject === 'function' ? props.onEject as () => void : undefined,
 				};
 			}
 		case 'br':
@@ -129,7 +130,8 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 				}
 				return {
 					type: 'first',
-					children: newChildren
+					children: newChildren,
+					onEject: props && typeof props.onEject === 'function' ? props.onEject as () => void : undefined,
 				};
 			}
 		case 'empty':
@@ -426,7 +428,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 		startExactTokenCount = performance.now();
 	}
 
-	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer);
+	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true);
 	const tokenCount = countTokensExact(tokenizer, prompt.prompt ?? "");
 
 	if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
@@ -1061,7 +1063,23 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 	}
 }
 
-function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer): {
+function recursivelyEject(elem: PromptElement) {
+	if (elem === undefined || elem === null || elem === false || typeof elem === 'string' || typeof elem === 'number') {
+		return;
+	}
+	if (Array.isArray(elem)) {
+		elem.forEach(e => recursivelyEject(e));
+	} else {
+		if ('onEject' in elem && elem.onEject !== undefined && typeof elem.onEject === 'function') {
+			elem.onEject();
+		}
+		if ('children' in elem && elem.children !== undefined && Array.isArray(elem.children)) {
+			elem.children.forEach(e => recursivelyEject(e));
+		}
+	}
+}
+
+function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): {
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
@@ -1076,7 +1094,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 		};
 	}
 	if (Array.isArray(elem)) {
-		return elem.map(e => renderWithLevel(e, level, tokenizer)).reduce((a, b) => {
+		return elem.map(e => renderWithLevel(e, level, tokenizer, callEjectedCallback)).reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
@@ -1113,7 +1131,9 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
 				}
 				if (child.absolutePriority >= level) {
-					return renderWithLevel(child, level, tokenizer);
+					return renderWithLevel(child, level, tokenizer, callEjectedCallback);
+				} else if (callEjectedCallback === true) {
+					recursivelyEject(child);
 				}
 			}
 			// nothing returned from first, which is ok
@@ -1179,7 +1199,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 			}
 		}
 		case 'chat': {
-			const p = renderWithLevel(elem.children, level, tokenizer);
+			const p = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
@@ -1229,8 +1249,11 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
 			}
 			if (elem.absolutePriority >= level) {
-				return renderWithLevel(elem.children, level, tokenizer);
+				return renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
+			} else if (callEjectedCallback === true) {
+				recursivelyEject(elem);
 			}
+
 			return {
 				prompt: undefined,
 				emptyTokenCount: 0,
