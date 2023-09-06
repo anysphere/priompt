@@ -89,6 +89,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined,
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					onEject: props && typeof props.onEject === 'function' ? props.onEject as () => void : undefined,
+					onInclude: props && typeof props.onInclude === 'function' ? props.onInclude as () => void : undefined,
 				};
 			}
 		case 'br':
@@ -132,6 +133,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					type: 'first',
 					children: newChildren,
 					onEject: props && typeof props.onEject === 'function' ? props.onEject as () => void : undefined,
+					onInclude: props && typeof props.onInclude === 'function' ? props.onInclude as () => void : undefined,
 				};
 			}
 		case 'empty':
@@ -1131,6 +1133,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
 				}
 				if (child.absolutePriority >= level) {
+					elem.onInclude?.();
 					return renderWithLevel(child, level, tokenizer, callEjectedCallback);
 				} else if (callEjectedCallback === true) {
 					recursivelyEject(child);
@@ -1249,6 +1252,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
 			}
 			if (elem.absolutePriority >= level) {
+				elem.onInclude?.();
 				return renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
 			} else if (callEjectedCallback === true) {
 				recursivelyEject(elem);

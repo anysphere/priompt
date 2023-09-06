@@ -16,6 +16,7 @@ export type First = {
 	type: 'first';
 	children: Scope[];
 	onEject?: () => void;
+	onInclude?: () => void;
 };
 
 export type Empty = {
@@ -54,6 +55,7 @@ export type Scope = {
 	// it should always be negative (or else it will not be displayed)
 	relativePriority: number | undefined;
 	onEject?: () => void;
+	onInclude?: () => void;
 };
 
 export type ChatUserSystemMessage = {
@@ -104,6 +106,7 @@ export type BaseProps = {
 	// this works, but leads to something that may be a little bit weird: something of priority 1000 in a maxed out scope is not included while something with a priority of 0 outside the maxed out scope is included. but that's fine. i guess the whole point of the max is to break the global opptimization
 	children?: PromptElement[] | PromptElement;
 	onEject?: () => void;
+	onInclude?: () => void;
 };
 
 export type ReturnProps<T> = {
