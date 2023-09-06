@@ -766,6 +766,13 @@ const App = () => {
         <div>
           Render time: {durationMs}ms (don't trust too much because caching)
         </div>
+        <div>
+          {/* we should ideally make this generic, but that's a tiny bit annoying */}
+          Prompt dump file name:{" "}
+          <code style={{ userSelect: "all" }}>
+            backend/server/priompt/{selectedPrompt}/dumps/{selectedPropsId}.yaml
+          </code>
+        </div>
         {errorMessage.length > 0 && (
           <>
             <div
