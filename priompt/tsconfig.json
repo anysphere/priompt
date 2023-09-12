@@ -13,6 +13,7 @@
     "jsxFactory": "Priompt.createElement",
     "jsxFragmentFactory": "Priompt.Fragment",
     "sourceMap": true,
+    "inlineSources": true,
     "strictPropertyInitialization": true,
     "declarationMap": true
   },

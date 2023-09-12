@@ -12,11 +12,43 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "wireit",
     "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "wireit",
     "preview": "vite preview"
+  },
+  "wireit": {
+    "build": {
+      "command": "vite build",
+      "files": [
+        "src/**/*", "tsconfig.json"
+      ],
+      "output": [
+        "dist/**/*"
+      ],
+      "clean": "if-file-deleted",
+      "dependencies": [
+        "tsc-build"
+      ]
+    },
+    "tsc-build": {
+      "command": "tsc --build --pretty",
+      "files": [
+        "src/**/*", "tsconfig.json"
+      ],
+      "output": [
+        "dist/**/*"
+      ],
+      "clean": "if-file-deleted"
+    },
+    "lint":{
+      "command": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+      "files": [
+        "src/**/*", "tsconfig.json"
+      ],
+      "clean": "if-file-deleted"
+    }
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.4",
@@ -44,6 +76,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.3.4",
     "nodemon": "^2.0.22",
+    "wireit": "^0.14.0",
     "postcss": "^8.4.27",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

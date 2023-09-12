@@ -5,7 +5,7 @@
     "npm": "please-use-pnpm",
     "yarn": "please-use-pnpm",
     "pnpm": ">= 8.3.0 < 9",
-    "node": ">= 18.15.0 < 19"
+    "node": ">= 18.15.0"
   },
   "scripts": {
     "watch": "npm-run-all -p watch-src watch-priompt watch-priompt-preview",
