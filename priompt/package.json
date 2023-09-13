@@ -47,7 +47,7 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.5",
     "@types/json-schema": "^7.0.12",
-    "@types/node": "^18.15.11",
+    "@types/node": "^20.6.0",
     "@typescript-eslint/eslint-plugin": "^5.59.0",
     "@typescript-eslint/parser": "^5.59.0",
     "@vitest/coverage-c8": "^0.30.1",
