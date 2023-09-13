@@ -40,7 +40,16 @@
       "output": [
         "dist/**/*"
       ],
+      "dependencies": [
+        "priompt:build"
+      ],
       "clean": "if-file-deleted"
+    },
+    "priompt:build": {
+      "command": "pnpm i",
+      "dependencies": [
+        "../priompt:build"
+      ]
     },
     "lint":{
       "command": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
