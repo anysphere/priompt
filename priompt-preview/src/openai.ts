@@ -1,4 +1,4 @@
-import { CreateChatCompletionRequest, StreamChatCompletionResponse } from './openai_interfaces';
+import { ChatCompletionRequestMessage, CreateChatCompletionRequest, CreateCompletionRequest, CreateCompletionResponse, StreamChatCompletionResponse } from './openai_interfaces';
 
 const API_KEY = 'PRIOMPT_PREVIEW_OPENAI_KEY';
 
@@ -59,6 +59,81 @@ export async function* streamChat(createChatCompletionRequest: CreateChatComplet
 	}
 }
 
+export async function* streamChatCompletion(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
+	const prompt = joinMessages(createChatCompletionRequest.messages, true);
+	const createCompletionRequest = {
+		max_tokens: 1000,
+		...createChatCompletionRequest,
+		messages: undefined,
+		prompt,
+		stop: ['<|im_end|>', '<|diff_marker|>']
+	} as CreateCompletionRequest;
+
+	let streamer: AsyncGenerator<CreateCompletionResponse> | undefined = undefined;
+
+	const newAbortSignal = new AbortController();
+	abortSignal?.addEventListener('abort', () => {
+		newAbortSignal.abort();
+	});
+
+	let timeout = setTimeout(() => {
+		console.error("OpenAI request timed out after 40 seconds..... Not good.")
+		newAbortSignal.abort();
+	}, 40_000);
+
+	try {
+		const requestOptions: RequestInit = {
+			...options,
+			method: 'POST',
+			headers: {
+				...options?.headers,
+				'Authorization': `Bearer ${API_KEY}`,
+				'Content-Type': 'application/json',
+			},
+			signal: newAbortSignal.signal,
+			body: JSON.stringify({
+				...createCompletionRequest,
+				stream: true
+			}),
+		};
+
+		const response = await fetch('https://api.openai.com/v1/completions', requestOptions);
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}. message: ${await response.text()}`);
+		}
+		streamer = streamSource<CreateCompletionResponse>(response.body!);
+		for await (const data of streamer) {
+			clearTimeout(timeout);
+
+			timeout = setTimeout(() => {
+				console.error("OpenAI request timed out after 10 seconds..... Not good.")
+				newAbortSignal.abort();
+			}, 10_000);
+
+			yield {
+				...data,
+				choices: data.choices.map((choice) => {
+					return {
+						delta: {
+							role: 'assistant',
+							content: choice.text?.replace(prompt, ''),
+						}
+					}
+				})
+			}
+
+			clearTimeout(timeout);
+		}
+	} finally {
+		clearTimeout(timeout);
+		if (streamer !== undefined) {
+			await streamer.return(undefined);
+		}
+		newAbortSignal.abort();
+	}
+}
+
+
 async function* streamSource<T>(stream: ReadableStream): AsyncGenerator<T> {
 	// Buffer exists for overflow when event stream doesn't end on a newline
 	let buffer = '';
@@ -106,4 +181,14 @@ async function* streamSource<T>(stream: ReadableStream): AsyncGenerator<T> {
 			throw e;
 		}
 	}
+}
+
+export function joinMessages(messages: ChatCompletionRequestMessage[], lastIsIncomplete: boolean = false) {
+	return messages.map((message, index) => {
+		let ret = `<|im_start|>${message.role}<|im_sep|>${message.content}`;
+		if (!lastIsIncomplete || index !== messages.length - 1) {
+			ret += `<|im_end|>`;
+		}
+		return ret;
+	}).join('');
 }

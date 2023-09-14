@@ -195,6 +195,7 @@ export type RenderOptions = {
 export type RenderOutput = {
 	prompt: RenderedPrompt;
 	tokenCount: number;
+	tokenLimit: number;
 	tokensReserved: number;
 	priorityCutoff: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];

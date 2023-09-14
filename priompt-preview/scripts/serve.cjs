@@ -50,6 +50,10 @@ const requestListener = (req, res) => {
 				const models = process.env.PRIOMPT_PREVIEW_MODELS.split(',');
 				data = data.toString().replace(/gpt-3.5-turbo,gpt-4,gpt-4-32k/, models);
 			}
+			if (process.env.PRIOMPT_PREVIEW_COMPLETION_MODELS) {
+				const completionModels = process.env.PRIOMPT_PREVIEW_COMPLETION_MODELS.split(',');
+				data = data.toString().replace(/text-davinci-003,code-davinci-002/, completionModels);
+			}
 
 			if ((extname === '.html' || extname === '.js') && data.toString().includes('PRIOMPT_PREVIEW_OPENAI_KEY')) {
 				data = data.toString().replace(/PRIOMPT_PREVIEW_OPENAI_KEY/g, `${process.env.PRIOMPT_PREVIEW_OPENAI_KEY}`);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { RenderedPrompt } from "@anysphere/priompt";
-import { streamChat } from "./openai";
+import { streamChat, streamChatCompletion } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
 import { ChatCompletionResponseMessage } from "./openai_interfaces";
@@ -49,6 +49,19 @@ function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
 
 const ALL_MODELS_STR = "gpt-3.5-turbo,gpt-4,gpt-4-32k";
 const ALL_MODELS = ALL_MODELS_STR.split(",");
+const COMPLETION_MODELS_STR = "text-davinci-003,code-davinci-002";
+const COMPLETION_MODELS = COMPLETION_MODELS_STR.split(",");
+
+const TOKEN_LIMIT: Record<string, number> = {
+  "gpt-3.5-turbo": 4096,
+  "azure-3.5-turbo": 4096,
+  "gpt-4": 8192,
+  "gpt-4-cursor-completions": 8192,
+  "gpt-4-0314": 8192,
+  "gpt-4-32k": 32000,
+  "text-davinci-003": 4096,
+  "code-davinci-002": 4096,
+};
 
 // Usage example:
 const App = () => {
@@ -443,7 +456,13 @@ const App = () => {
   const liveModeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const streamCompletion = useCallback(
-    async (model: string, i: number) => {
+    async (
+      model: string,
+      i: number,
+      options?: {
+        completionModel?: boolean;
+      }
+    ) => {
       if (!prompt) {
         alert("please select a prompt");
         return;
@@ -474,7 +493,7 @@ const App = () => {
           return {
             ...prev,
             messages: prev.messages.map((c, j) => {
-              if (j === i) {
+              if (j === i && options?.completionModel !== true) {
                 c = c as ChatPromptAssistantMessage;
                 return {
                   ...c,
@@ -497,30 +516,35 @@ const App = () => {
         let start = performance.now();
         setTimeToFirstToken(undefined);
         setTimeToRemainingTokens(undefined);
-        const stream = streamChat(
+        const f =
+          options?.completionModel === true ? streamChatCompletion : streamChat;
+        const stream = f(
           {
             model,
-            messages: prompt.messages.slice(0, i).map((m, _) => {
-              if (m.role === "function") {
-                return {
-                  role: m.role,
-                  name: m.name,
-                  content: m.content,
-                };
-              } else if (m.role === "assistant" && m.functionCall) {
-                return {
-                  role: m.role,
-                  function_call: m.functionCall,
-                  content: m.content,
-                };
-              } else {
-                return {
-                  role: m.role,
-                  content: m.content,
-                };
-              }
-            }),
+            messages: prompt.messages
+              .slice(0, options?.completionModel === true ? i + 1 : i)
+              .map((m, _) => {
+                if (m.role === "function") {
+                  return {
+                    role: m.role,
+                    name: m.name,
+                    content: m.content,
+                  };
+                } else if (m.role === "assistant" && m.functionCall) {
+                  return {
+                    role: m.role,
+                    function_call: m.functionCall,
+                    content: m.content,
+                  };
+                } else {
+                  return {
+                    role: m.role,
+                    content: m.content,
+                  };
+                }
+              }),
             temperature,
+            max_tokens: (TOKEN_LIMIT[model] ?? tokenCount) - tokenCountUsed,
             functions: functions.length > 0 ? functions : undefined,
             function_call:
               functions.length > 0 &&
@@ -613,7 +637,7 @@ const App = () => {
         setAbortController(undefined);
       }
     },
-    [prompt, temperature, forceFunctionCall]
+    [prompt, temperature, forceFunctionCall, tokenCountUsed, tokenCount]
   );
 
   useEffect(() => {
@@ -813,8 +837,8 @@ const App = () => {
                           key={key}
                           abortController={abortController}
                           setAbortController={setAbortController}
-                          streamCompletion={(model) =>
-                            streamCompletion(model, i)
+                          streamCompletion={(model, options) =>
+                            streamCompletion(model, i, options)
                           }
                           temperature={temperature}
                           setTemperature={setTemperature}
@@ -1556,7 +1580,12 @@ function PropsSelector({
 function AssistantBox(props: {
   abortController: AbortController | undefined;
   setAbortController: (abortController: AbortController | undefined) => void;
-  streamCompletion(model: string): void;
+  streamCompletion(
+    model: string,
+    options?: {
+      completionModel?: boolean;
+    }
+  ): void;
   temperature: number;
   setTemperature: (value: number) => void;
   prompt: RenderedPrompt | undefined;
@@ -1722,6 +1751,31 @@ function AssistantBox(props: {
           <button onClick={() => props.getPromptOutput(true)}>
             get parsed stream
           </button>
+          Submit to completion model:
+          {COMPLETION_MODELS.map((model) => (
+            <button
+              key={model}
+              onClick={() =>
+                props.streamCompletion(model, {
+                  completionModel: true,
+                })
+              }
+            >
+              Submit to {model}
+            </button>
+          ))}
+          {props.abortController !== undefined && (
+            <>
+              <button
+                onClick={() => {
+                  props.abortController?.abort();
+                  props.setAbortController(undefined);
+                }}
+              >
+                Cancel
+              </button>
+            </>
+          )}
           {props.output && (
             <div
               style={{
