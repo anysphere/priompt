@@ -52,17 +52,6 @@ const ALL_MODELS = ALL_MODELS_STR.split(",");
 const COMPLETION_MODELS_STR = "text-davinci-003,code-davinci-002";
 const COMPLETION_MODELS = COMPLETION_MODELS_STR.split(",");
 
-const TOKEN_LIMIT: Record<string, number> = {
-  "gpt-3.5-turbo": 4096,
-  "azure-3.5-turbo": 4096,
-  "gpt-4": 8192,
-  "gpt-4-cursor-completions": 8192,
-  "gpt-4-0314": 8192,
-  "gpt-4-32k": 32000,
-  "text-davinci-003": 4096,
-  "code-davinci-002": 4096,
-};
-
 // Usage example:
 const App = () => {
   console.log("RENDERING APP");
@@ -544,7 +533,6 @@ const App = () => {
                 }
               }),
             temperature,
-            max_tokens: (TOKEN_LIMIT[model] ?? tokenCount) - tokenCountUsed,
             functions: functions.length > 0 ? functions : undefined,
             function_call:
               functions.length > 0 &&

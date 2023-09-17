@@ -22,7 +22,8 @@
     "build": {
       "command": "vite build",
       "files": [
-        "src/**/*", "tsconfig.json"
+        "src/**/*",
+        "tsconfig.json"
       ],
       "output": [
         "dist/**/*"
@@ -35,7 +36,8 @@
     "tsc-build": {
       "command": "tsc --build --pretty",
       "files": [
-        "src/**/*", "tsconfig.json"
+        "src/**/*",
+        "tsconfig.json"
       ],
       "output": [
         "dist/**/*"
@@ -51,10 +53,11 @@
         "../priompt:build"
       ]
     },
-    "lint":{
+    "lint": {
       "command": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
       "files": [
-        "src/**/*", "tsconfig.json"
+        "src/**/*",
+        "tsconfig.json"
       ],
       "clean": "if-file-deleted"
     }
@@ -66,6 +69,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "cmdk": "^0.2.0",
+    "js-tiktoken": "^1.0.7",
     "lucide-react": "^0.263.1",
     "tailwind-merge": "^1.14.0",
     "tailwindcss-animate": "^1.0.6",
@@ -85,14 +89,14 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.3.4",
     "nodemon": "^2.0.22",
-    "wireit": "^0.14.0",
     "postcss": "^8.4.27",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.0.2",
     "use-debounce": "^9.0.4",
-    "vite": "^4.3.2"
+    "vite": "^4.3.2",
+    "wireit": "^0.14.0"
   },
   "bin": {
     "serve": "./scripts/serve.cjs"

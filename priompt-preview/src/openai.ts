@@ -1,4 +1,6 @@
 import { ChatCompletionRequestMessage, CreateChatCompletionRequest, CreateCompletionRequest, CreateCompletionResponse, StreamChatCompletionResponse } from './openai_interfaces';
+import { encodingForModel } from "js-tiktoken";
+
 
 const API_KEY = 'PRIOMPT_PREVIEW_OPENAI_KEY';
 
@@ -59,10 +61,28 @@ export async function* streamChat(createChatCompletionRequest: CreateChatComplet
 	}
 }
 
+const TOKEN_LIMIT: Record<string, number> = {
+	"gpt-3.5-turbo": 4096,
+	"azure-3.5-turbo": 4096,
+	"gpt-4": 8192,
+	"gpt-4-cursor-completions": 8192,
+	"gpt-4-0314": 8192,
+	"gpt-4-32k": 32000,
+	"text-davinci-003": 4096,
+	"code-davinci-002": 4096,
+};
+const enc = encodingForModel("gpt-4");
+const enc_old = encodingForModel("text-davinci-003");
+
+
 export async function* streamChatCompletion(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
 	const prompt = joinMessages(createChatCompletionRequest.messages, true);
+	let tokens = enc.encode(prompt).length;
+	if (createChatCompletionRequest.model.includes('00')) {
+		tokens = enc_old.encode(prompt).length;
+	}
 	const createCompletionRequest = {
-		max_tokens: 1000,
+		max_tokens: (TOKEN_LIMIT[createChatCompletionRequest.model] ?? 4096) - tokens,
 		...createChatCompletionRequest,
 		messages: undefined,
 		prompt,
