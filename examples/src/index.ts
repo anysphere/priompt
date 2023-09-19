@@ -61,7 +61,7 @@ async function main() {
 		const message = query.message as string;
 		const name = query.name as string;
 		const prompt = ExamplePrompt({ message, name }, { dump: process.env.NODE_ENV === "development" });
-		const output = render(prompt, {
+		const output = await render(prompt, {
 			model: "gpt-3.5-turbo"
 		});
 
@@ -88,7 +88,7 @@ async function main() {
 		}
 		const message = query.message as string;
 		const prompt = FunctionCallingPrompt({ message, includeFunctions: ["insert_sql_row", "update_sql_row"], causeConfusion: query.confuse === "true" }, { dump: process.env.NODE_ENV === "development" });
-		const output = render(prompt, {
+		const output = await render(prompt, {
 			model: "gpt-3.5-turbo"
 		});
 

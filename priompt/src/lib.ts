@@ -5,7 +5,7 @@
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
-import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerFromName, getTokenizerName } from './tokenizer';
+import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens } from './tokenizer';
 import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
@@ -213,7 +213,7 @@ export function Fragment({ children }: { children: PromptElement[]; }): PromptEl
 // priority level if it is not set becomes 1e9, i.e. it is always rendered
 const BASE_PRIORITY = 1e9;
 
-export function render(elem: PromptElement, options: RenderOptions): RenderOutput {
+export async function render(elem: PromptElement, options: RenderOptions): Promise<RenderOutput> {
 
 	// TODO: we need to performance optimize this.
 	// the problem is if there are a lot of scopes.
@@ -227,7 +227,7 @@ export function render(elem: PromptElement, options: RenderOptions): RenderOutpu
 
 	// return renderBackwardsLinearSearch(elem, options);
 
-	return renderBinarySearch(elem, options);
+	return await renderBinarySearch(elem, options);
 }
 
 // returns the highest-priority onOutput call
@@ -278,7 +278,7 @@ export async function renderun<
 	if (loggingOptions?.promptElementRef !== undefined) {
 		loggingOptions.promptElementRef.current = promptElement;
 	}
-	const rendered = render(promptElement, renderOptions);
+	const rendered = await render(promptElement, renderOptions);
 	if (loggingOptions?.renderOutputRef !== undefined) {
 		loggingOptions.renderOutputRef.current = rendered;
 	}
@@ -337,7 +337,7 @@ export async function renderun<
 	}
 }
 
-export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): RenderOutput {
+export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -402,9 +402,9 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 		// console.log(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
 		try {
 			const start = performance.now();
-			const prompt = renderWithLevelAndEarlyExitWithTokenEstimation(elem, candidateLevel, tokenizer, tokenLimit);
+			const prompt = await renderWithLevelAndEarlyExitWithTokenEstimation(elem, candidateLevel, tokenizer, tokenLimit);
 			// const prompt = renderWithLevel(elem, candidateLevel);
-			const tokenCount = countTokensExact(tokenizer, prompt.prompt ?? "");
+			const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "");
 			const end = performance.now();
 			// console.log(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - start} ms and has ${tokenCount} tokens`);
 			if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
@@ -430,8 +430,8 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 		startExactTokenCount = performance.now();
 	}
 
-	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true);
-	const tokenCount = countTokensExact(tokenizer, prompt.prompt ?? "");
+	const prompt = await renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true);
+	const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "");
 
 	if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
 		// this means that the base level prompt is too big
@@ -467,7 +467,7 @@ export function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tok
 
 }
 
-export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): RenderOutput {
+export async function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -565,7 +565,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 		streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
 	} | undefined = undefined;
 	for (const level of sortedPriorityLevels) {
-		thisPrompt = renderWithLevelAndCountTokens(normalizedElem, level, tokenizer);
+		thisPrompt = await renderWithLevelAndCountTokens(normalizedElem, level, tokenizer);
 		if (isChatPrompt(thisPrompt.prompt)) {
 			thisPrompt.tokenCount += CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
 		}
@@ -602,7 +602,7 @@ export function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenL
 	// because you always have a gap to fill anyways
 	// consider adding a mode that if this happens, backtracks
 	if (prevPrompt.prompt !== undefined) {
-		const exactTokenCount = countTokensExact(tokenizer, prevPrompt.prompt);
+		const exactTokenCount = await countTokensExact(tokenizer, prevPrompt.prompt);
 		console.log(`Discrepancy: (estimated token count) - (actual token count) = ${prevPrompt.tokenCount} - ${exactTokenCount} = ${prevPrompt.tokenCount - exactTokenCount}`);
 		prevPrompt.tokenCount = exactTokenCount;
 		if (exactTokenCount + prevPrompt.emptyTokenCount > tokenLimit) {
@@ -731,15 +731,15 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 }
 
 // if chat prompt, the token count will be missing the constant factor
-function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: UsableTokenizer): {
+async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: UsableTokenizer): Promise<{
 	prompt: RenderedPrompt | undefined;
 	tokenCount: number;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-} {
+}> {
 	if (Array.isArray(elem)) {
-		return elem.map(e => renderWithLevelAndCountTokens(e, level, tokenizer)).reduce((a, b) => {
+		return (await Promise.all(elem.map(e => renderWithLevelAndCountTokens(e, level, tokenizer)))).reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
 				tokenCount: a.tokenCount + b.tokenCount,
@@ -794,7 +794,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 		}
 		case 'functionDefinition': {
 			if (elem.cachedCount === undefined) {
-				elem.cachedCount = countFunctionTokens(elem, tokenizer);
+				elem.cachedCount = await countFunctionTokens(elem, tokenizer);
 			}
 			const prompt: (TextPrompt & FunctionPrompt) = {
 				type: 'text',
@@ -818,7 +818,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
-				elem.cachedRenderOutput = render(elem.children, {
+				elem.cachedRenderOutput = await render(elem.children, {
 					tokenizer,
 					tokenLimit: elem.tokenLimit,
 				})
@@ -832,7 +832,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 			}
 		}
 		case 'chat': {
-			const p = renderWithLevelAndCountTokens(elem.children, level, tokenizer);
+			const p = await renderWithLevelAndCountTokens(elem.children, level, tokenizer);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
@@ -851,7 +851,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
 						functionCall: elem.functionCall,
 					}
-					extraTokenCount += countFunctionCallMessageTokens(elem.functionCall, tokenizer);
+					extraTokenCount += await countFunctionCallMessageTokens(elem.functionCall, tokenizer);
 				} else {
 					message = {
 						role: elem.role,
@@ -864,7 +864,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				}
-				extraTokenCount += getTokenizerFromName(tokenizer).encode(elem.name).length;
+				extraTokenCount += await numTokens(elem.name, { tokenizer });
 			} else {
 				throw new Error(`BUG!! Invalid role ${elem.role}`);
 			}
@@ -898,7 +898,7 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 		}
 		case 'normalizedString': {
 			if (elem.cachedCount === undefined) {
-				elem.cachedCount = getTokenizerFromName(tokenizer).encode(elem.s).length;
+				elem.cachedCount = await numTokens(elem.s, { tokenizer });
 			}
 			return {
 				prompt: elem.s,
@@ -911,10 +911,10 @@ function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, 
 	}
 }
 
-function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: UsableTokenizer, tokenLimit: number): {
+async function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: UsableTokenizer, tokenLimit: number): Promise<{
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
-} {
+}> {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
@@ -922,7 +922,8 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 		};
 	}
 	if (Array.isArray(elem)) {
-		return elem.map(e => renderWithLevelAndEarlyExitWithTokenEstimation(e, level, tokenizer, tokenLimit)).reduce((a, b) => {
+		const results = await Promise.all(elem.map(e => renderWithLevelAndEarlyExitWithTokenEstimation(e, level, tokenizer, tokenLimit)));
+		return results.reduce((a, b) => {
 			const sum = sumPrompts(a.prompt, b.prompt);
 			const lowerBound = estimateLowerBoundTokensForPrompt(sum, tokenizer);
 			if (lowerBound > tokenLimit) {
@@ -998,7 +999,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
-				elem.cachedRenderOutput = render(elem.children, {
+				elem.cachedRenderOutput = await render(elem.children, {
 					tokenizer,
 					tokenLimit: elem.tokenLimit,
 				})
@@ -1009,7 +1010,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 			}
 		}
 		case 'chat': {
-			const p = renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
+			const p = await renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
@@ -1083,12 +1084,12 @@ function recursivelyEject(elem: PromptElement) {
 	}
 }
 
-function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): {
+async function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): Promise<{
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-} {
+}> {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
@@ -1098,7 +1099,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 		};
 	}
 	if (Array.isArray(elem)) {
-		return elem.map(e => renderWithLevel(e, level, tokenizer, callEjectedCallback)).reduce((a, b) => {
+		const results = await Promise.all(elem.map(e => renderWithLevel(e, level, tokenizer, callEjectedCallback)));
+		return results.reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
@@ -1191,7 +1193,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
-				elem.cachedRenderOutput = render(elem.children, {
+				elem.cachedRenderOutput = await render(elem.children, {
 					tokenizer,
 					tokenLimit: elem.tokenLimit,
 				})
@@ -1204,7 +1206,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 			}
 		}
 		case 'chat': {
-			const p = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
+			const p = await renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
@@ -1444,21 +1446,23 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 }
 
 
-function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedPrompt): number {
-	const tokenizerObj = getTokenizerFromName(tokenizer);
+async function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedPrompt): Promise<number> {
 	let tokens = 0;
 	if (isPlainPrompt(prompt)) {
-		tokens += tokenizerObj.encode(prompt).length;
+		tokens += await numTokens(prompt, { tokenizer });
 	} else if (isChatPrompt(prompt)) {
-		const msgTokens = prompt.messages.map(msg => countMessageTokens(msg, tokenizer));
+		const msgTokens = await Promise.all(prompt.messages.map(msg => countMessageTokens(msg, tokenizer)));
 		// docs here: https://platform.openai.com/docs/guides/chat/introduction
 		tokens += msgTokens.reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
 	} else {
-		tokens += tokenizerObj.encode(prompt.text).length;
+		tokens += await numTokens(prompt.text, { tokenizer });
 	}
 	if (promptHasFunctions(prompt)) {
 		// we assume an extra 2 tokens per function
-		tokens += prompt.functions.reduce((a, b) => a + countFunctionTokens(b, tokenizer) + 2, 0);
+		const functionTokens = await Promise.all(prompt.functions.map(async (func) => {
+			return await countFunctionTokens(func, tokenizer) + 2;
+		}));
+		tokens += functionTokens.reduce((a, b) => a + b, 0);
 	}
 	return tokens;
 }
@@ -1505,25 +1509,23 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 	throw new Error(`BUG!! promptToOpenAIChatMessagesgot an invalid prompt`);
 }
 
-function countMessageTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): number {
-	const tokenizerObj = getTokenizerFromName(tokenizer);
+async function countMessageTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): Promise<number> {
 	if (message.role === 'function') {
 		// add an extra 2 tokens for good measure
-		return tokenizerObj.encode(message.name).length + tokenizerObj.encode(message.content).length + 2;
+		return (await numTokens(message.name, { tokenizer })) + (await numTokens(message.content, { tokenizer })) + 2;
 	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
-		return countFunctionCallMessageTokens(message.functionCall, tokenizer) + (message.content !== undefined ? tokenizerObj.encode(message.content).length : 0);
+		return (await countFunctionCallMessageTokens(message.functionCall, tokenizer)) + (message.content !== undefined ? (await numTokens(message.content, { tokenizer })) : 0);
 	} else {
-		return tokenizerObj.encode(message.content ?? "").length;
+		return await numTokens(message.content ?? "", { tokenizer });
 	}
 }
 
-function countFunctionCallMessageTokens(functionCall: { name: string; arguments: string; }, tokenizer: UsableTokenizer): number {
-	const tokenizerObj = getTokenizerFromName(tokenizer);
+async function countFunctionCallMessageTokens(functionCall: { name: string; arguments: string; }, tokenizer: UsableTokenizer): Promise<number> {
 	// add some constant factor here because who knows what's actually going on with functions
-	return tokenizerObj.encode(functionCall.name).length + tokenizerObj.encode(functionCall.arguments).length + 5;
+	return (await numTokens(functionCall.name, { tokenizer })) + (await numTokens(functionCall.arguments, { tokenizer })) + 5;
 }
 
-function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): number {
+async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): Promise<number> {
 	// hmmmm how do we count these tokens? openai has been quite unclear
 	// for now we JSON stringify and count tokens, and hope that that is reasonably close
 	const stringifiedFunction = JSON.stringify({
@@ -1532,7 +1534,7 @@ function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, 
 		parameters: functionDefinition.parameters,
 	}, null, 2);
 	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
-	const raw = getTokenizerFromName(tokenizer).encode(stringifiedFunction).length;
+	const raw = await numTokens(stringifiedFunction, { tokenizer });
 	return Math.ceil(raw * 1.5) + 10;
 }
 

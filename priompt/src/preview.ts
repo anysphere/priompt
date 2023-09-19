@@ -35,7 +35,7 @@ export interface IPreviewManager {
 
   // these two methods need to be implemented on the server for priompt to work
   getPreviews(): Record<string, { dumps: string[], saved: string[] }>;
-  getPrompt(query: PreviewManagerGetPromptQuery): RenderOutput;
+  getPrompt(query: PreviewManagerGetPromptQuery): Promise<RenderOutput>;
 }
 
 type LiveModeOutput = {
@@ -113,10 +113,10 @@ class PreviewManagerImpl implements IPreviewManager {
     }, {});
   }
 
-  getPrompt(query: PreviewManagerGetPromptQuery): RenderOutput {
+  async getPrompt(query: PreviewManagerGetPromptQuery): Promise<RenderOutput> {
     const element = PreviewManager.getElement(query.promptId, query.propsId);
 
-    const rendered = render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
 
     return rendered;
   }
@@ -126,7 +126,7 @@ class PreviewManagerImpl implements IPreviewManager {
 
     const element = PreviewManager.getElement(query.promptId, query.propsId, outputCatcher);
 
-    const rendered = render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
 
     if (!query.stream) {
       // call all of them and wait all of them in parallel

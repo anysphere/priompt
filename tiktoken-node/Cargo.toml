@@ -1,0 +1,24 @@
+[package]
+edition = "2021"
+name = "anysphere_tiktoken-node"
+version = "0.0.1"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
+napi = { version = "2.12.2", default-features = false, features = [
+  "napi4",
+  "async",
+] }
+napi-derive = "2.12.2"
+tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "84fa46712fe82e067cf15b10fa2447404d37a8a8" }
+rayon = "1.7.0"
+anyhow = "1.0.69"
+
+[build-dependencies]
+napi-build = "2.0.1"
+
+[profile.release]
+lto = true

@@ -8,9 +8,9 @@ export async function handlePriomptPreview(S: FastifyInstance) {
 		return reply.type("text/json").send(JSON.stringify(PreviewManager.getPreviews()));
 	});
 
-	S.get('/priompt/getPrompt', (request, reply) => {
+	S.get('/priompt/getPrompt', async (request, reply) => {
 		const query = request.query as PreviewManagerGetPromptQuery;
-		return reply.type("text/json").send(JSON.stringify(PreviewManager.getPrompt(query)));
+		return reply.type("text/json").send(JSON.stringify(await PreviewManager.getPrompt(query)));
 	});
 
 	S.get('/priompt/getPromptOutput', async (request, reply) => {

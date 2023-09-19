@@ -81,8 +81,8 @@ describe("isolate", () => {
     );
   }
 
-  it("should have isolate work", () => {
-    const renderedIsolated = render(Test({ isolate: true }), {
+  it("should have isolate work", async () => {
+    const renderedIsolated = await render(Test({ isolate: true }), {
       tokenLimit: 1000,
       tokenizer: "cl100k_base",
     });
@@ -96,7 +96,7 @@ describe("isolate", () => {
       renderedIsolated.prompt.includes("SHOULDBEINCLUDEDONLYIFNOTISOLATED")
     ).toBe(false);
 
-    const renderedUnIsolated = render(Test({ isolate: false }), {
+    const renderedUnIsolated = await render(Test({ isolate: false }), {
       tokenLimit: 1000,
       tokenizer: "cl100k_base",
     });

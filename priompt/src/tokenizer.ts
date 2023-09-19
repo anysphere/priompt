@@ -5,16 +5,8 @@
 // it may be well worth forking tiktoken-node though, as it is not super well maintained
 // and we probably want to compile our own tiktoken because i'm slightly worried about
 // supply-chain attacks here
-import tiktoken from 'tiktoken-node';
+import tiktoken from '@anysphere/tiktoken-node';
 import { UsableModel, UsableTokenizer } from './openai';
-
-export const CLK_TOKENIZER = tiktoken.getEncoding('cl100k_base');
-export const P50_TOKENIZER = tiktoken.getEncoding('p50k_base');
-export const GPT2_TOKENIZER = tiktoken.getEncoding('gpt2');
-
-export function getTokenizer(model: UsableModel): tiktoken.Encoding {
-	return getTokenizerFromName(getTokenizerName(model));
-}
 
 export function getTokenizerName(model: UsableModel): UsableTokenizer {
 	switch (model) {
@@ -34,22 +26,18 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 	}
 }
 
-export function getTokenizerFromName(tokenizer: UsableTokenizer): tiktoken.Encoding {
-	switch (tokenizer) {
-		case 'gpt2':
-			return GPT2_TOKENIZER;
-		case 'p50k_base':
-			return P50_TOKENIZER;
-		case 'cl100k_base':
-			return CLK_TOKENIZER;
-		case 'r50k_base':
-			throw new Error('r50k_base not supported');
-	}
-}
+export async function numTokens(text: string, opts: {
+	model?: UsableModel;
+	tokenizer?: UsableTokenizer;
+}) {
+	const tokenizerName = opts.tokenizer ?? (opts.model !== undefined ? getTokenizerName(opts.model) : 'cl100k_base');
 
-export function numTokens(text: string, model?: UsableModel) {
-	const tokenizer = model ? getTokenizer(model) : CLK_TOKENIZER;
-	return tokenizer.encode(text).length;
+	switch (tokenizerName) {
+		case 'cl100k_base':
+			return await tiktoken.numTokensCl100KNoSpecialTokensNonBlocking(text);
+		default:
+			throw new Error(`Unknown tokenizer ${tokenizerName}`);
+	}
 }
 
 const encoder = new TextEncoder();

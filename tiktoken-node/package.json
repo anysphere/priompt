@@ -1,0 +1,33 @@
+{
+  "name": "@anysphere/tiktoken-node",
+  "version": "0.0.1",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "tiktoken-node",
+    "triples": {
+      "additional": [
+        "aarch64-apple-darwin",
+        "universal-apple-darwin"
+      ]
+    }
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.16.2",
+    "ava": "^5.1.1"
+  },
+  "engines": {
+    "npm": "please-use-pnpm",
+    "yarn": "please-use-pnpm",
+    "pnpm": "=8.6.0",
+    "node": ">= 18.15.0"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "universal": "napi universal",
+    "version": "napi version"
+  }
+}

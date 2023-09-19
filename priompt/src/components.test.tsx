@@ -17,8 +17,8 @@ describe("SystemMessage", () => {
     return <SystemMessage>hi this is a system message</SystemMessage>;
   }
 
-  it("should create a chat message", () => {
-    const rendered = render(TestSystemMessage({}), {
+  it("should create a chat message", async () => {
+    const rendered = await render(TestSystemMessage({}), {
       tokenLimit: 1000,
       tokenizer: "cl100k_base",
     });
@@ -55,8 +55,8 @@ describe("Function", () => {
     );
   }
 
-  it("should create a function message", () => {
-    const rendered = render(TestFunction({}), {
+  it("should create a function message", async () => {
+    const rendered = await render(TestFunction({}), {
       tokenLimit: 1000,
       tokenizer: "cl100k_base",
     });
@@ -115,7 +115,7 @@ describe("All kinds of messages", () => {
         <AssistantMessage
           functionCall={{
             name: "echo",
-            arguments: `{"message": "this is a test echo"}`,
+            arguments: '{"message": "this is a test echo"}',
           }}
         ></AssistantMessage>
         {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -125,8 +125,8 @@ describe("All kinds of messages", () => {
     );
   }
 
-  it("should create all kinds of messages", () => {
-    const rendered = render(TestAllMessages({}), {
+  it("should create all kinds of messages", async () => {
+    const rendered = await render(TestAllMessages({}), {
       tokenLimit: 1000,
       tokenizer: "cl100k_base",
     });
@@ -163,7 +163,7 @@ describe("All kinds of messages", () => {
         role: "assistant",
         functionCall: {
           name: "echo",
-          arguments: `{"message": "this is a test echo"}`,
+          arguments: '{"message": "this is a test echo"}',
         },
       },
       {
