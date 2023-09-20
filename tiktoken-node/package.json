@@ -19,7 +19,7 @@
   "engines": {
     "npm": "please-use-pnpm",
     "yarn": "please-use-pnpm",
-    "pnpm": "=8.6.0",
+    "pnpm": "^8.6.0",
     "node": ">= 18.15.0"
   },
   "scripts": {
