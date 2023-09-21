@@ -382,6 +382,18 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		console.log(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
 
+	// now we hydrate the isolates
+	let startTimeHydratingIsolates = undefined;
+	if (process.env.NODE_ENV === 'development') {
+		startTimeHydratingIsolates = performance.now();
+	}
+	await hydrateIsolates(elem, tokenizer);
+	if (process.env.NODE_ENV === 'development') {
+		const endTimeHydratingIsolates = performance.now();
+		console.log(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
+	}
+
+
 	// if the first one is higher than the base priority, then print a warning because it will not have any effect
 
 	let startTimeRendering = undefined;
@@ -399,14 +411,22 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 	while (exclusiveLowerBound < inclusiveUpperBound - 1) {
 		const candidateLevelIndex = Math.floor((exclusiveLowerBound + inclusiveUpperBound) / 2);
 		const candidateLevel = sortedPriorityLevels[candidateLevelIndex];
-		// console.log(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
+		if (process.env.NODE_ENV === 'development') {
+			console.log(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
+		}
+		let start: number | undefined;
+		if (process.env.NODE_ENV === 'development') {
+			start = performance.now();
+		}
+		let countStart: number | undefined;
+		let tokenCount = -1;
 		try {
-			const start = performance.now();
-			const prompt = await renderWithLevelAndEarlyExitWithTokenEstimation(elem, candidateLevel, tokenizer, tokenLimit);
+			const prompt = renderWithLevelAndEarlyExitWithTokenEstimation(elem, candidateLevel, tokenizer, tokenLimit);
+			if (process.env.NODE_ENV === 'development') {
+				countStart = performance.now();
+			}
 			// const prompt = renderWithLevel(elem, candidateLevel);
-			const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "");
-			const end = performance.now();
-			// console.log(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - start} ms and has ${tokenCount} tokens`);
+			tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "");
 			if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
 				// this means that the candidateLevel is too low
 				exclusiveLowerBound = candidateLevelIndex;
@@ -417,6 +437,11 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		} catch {
 			// this means the candidate level is too low
 			exclusiveLowerBound = candidateLevelIndex;
+		} finally {
+			if (process.env.NODE_ENV === 'development') {
+				const end = performance.now();
+				console.log(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - (start ?? 0)} ms and has ${tokenCount} tokens (-1 means early exit, counting took ${end - (countStart ?? 0)})`);
+			}
 		}
 	}
 
@@ -430,7 +455,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		startExactTokenCount = performance.now();
 	}
 
-	const prompt = await renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true);
+	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true);
 	const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "");
 
 	if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
@@ -490,9 +515,8 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 	let startTimeValidating: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTimeValidating = performance.now();
-	}
-	validateUnrenderedPrompt(elem);
-	if (process.env.NODE_ENV === 'development') {
+		// only validate in debug
+		validateUnrenderedPrompt(elem);
 		const endTimeValidating = performance.now();
 		console.log(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
 	}
@@ -911,10 +935,11 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 	}
 }
 
-async function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: UsableTokenizer, tokenLimit: number): Promise<{
+// WARNING: do not attempt to make this function async!!! it will make it a lot slower!
+function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: UsableTokenizer, tokenLimit: number): {
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
-}> {
+} {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
@@ -922,7 +947,7 @@ async function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElemen
 		};
 	}
 	if (Array.isArray(elem)) {
-		const results = await Promise.all(elem.map(e => renderWithLevelAndEarlyExitWithTokenEstimation(e, level, tokenizer, tokenLimit)));
+		const results = elem.map(e => renderWithLevelAndEarlyExitWithTokenEstimation(e, level, tokenizer, tokenLimit));
 		return results.reduce((a, b) => {
 			const sum = sumPrompts(a.prompt, b.prompt);
 			const lowerBound = estimateLowerBoundTokensForPrompt(sum, tokenizer);
@@ -999,10 +1024,8 @@ async function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElemen
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
-				elem.cachedRenderOutput = await render(elem.children, {
-					tokenizer,
-					tokenLimit: elem.tokenLimit,
-				})
+				// throw error! we need to hydrate the isolates first!
+				throw new Error(`BUG!! Isolates should have been hydrated before calling renderWithLevelAndEarlyExitWithTokenEstimation`);
 			}
 			return {
 				prompt: elem.cachedRenderOutput.prompt,
@@ -1010,7 +1033,7 @@ async function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElemen
 			}
 		}
 		case 'chat': {
-			const p = await renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
+			const p = renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
@@ -1084,12 +1107,66 @@ function recursivelyEject(elem: PromptElement) {
 	}
 }
 
-async function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): Promise<{
+function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promise<void> | undefined {
+	if (elem === undefined || elem === null || elem === false) {
+		return;
+	}
+	if (Array.isArray(elem)) {
+		const results = elem.map(e => hydrateIsolates(e, tokenizer));
+		if (results.some(r => r !== undefined)) {
+			return Promise.all(results.filter(r => r !== undefined)).then(() => { });
+		} else {
+			return undefined;
+		}
+	}
+	if (typeof elem === 'string') {
+		return;
+	}
+	if (typeof elem === 'number') {
+		return;
+	}
+	switch (elem.type) {
+		case 'first': {
+			return hydrateIsolates(elem.children, tokenizer);
+		}
+		case 'capture': {
+			return;
+		}
+		case 'empty': {
+			return;
+		}
+		case 'functionDefinition': {
+			return;
+		}
+		case 'isolate': {
+			// check if we have a cached prompt
+			if (elem.cachedRenderOutput === undefined) {
+				const promise = (async () => {
+					elem.cachedRenderOutput = await render(elem.children, {
+						tokenizer,
+						tokenLimit: elem.tokenLimit,
+					})
+				})();
+				return promise;
+			}
+			return;
+		}
+		case 'chat': {
+			return hydrateIsolates(elem.children, tokenizer);
+		}
+		case 'scope': {
+			return hydrateIsolates(elem.children, tokenizer);
+		}
+	}
+}
+
+// WARNING: do not attempt to make this function async!!! it will make it a lot slower!
+function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): {
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-}> {
+} {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
@@ -1099,7 +1176,7 @@ async function renderWithLevel(elem: PromptElement, level: number, tokenizer: Us
 		};
 	}
 	if (Array.isArray(elem)) {
-		const results = await Promise.all(elem.map(e => renderWithLevel(e, level, tokenizer, callEjectedCallback)));
+		const results = elem.map(e => renderWithLevel(e, level, tokenizer, callEjectedCallback));
 		return results.reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
@@ -1193,10 +1270,8 @@ async function renderWithLevel(elem: PromptElement, level: number, tokenizer: Us
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
-				elem.cachedRenderOutput = await render(elem.children, {
-					tokenizer,
-					tokenLimit: elem.tokenLimit,
-				})
+				// throw error! we need to hydrate the isolates first!
+				throw new Error(`BUG!! Isolates should have been hydrated before calling renderWithLevelAndEarlyExitWithTokenEstimation`);
 			}
 			return {
 				prompt: elem.cachedRenderOutput.prompt,
@@ -1206,7 +1281,7 @@ async function renderWithLevel(elem: PromptElement, level: number, tokenizer: Us
 			}
 		}
 		case 'chat': {
-			const p = await renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
+			const p = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}

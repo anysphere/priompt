@@ -13,9 +13,15 @@ napi = { version = "2.12.2", default-features = false, features = [
   "async",
 ] }
 napi-derive = "2.12.2"
-tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "84fa46712fe82e067cf15b10fa2447404d37a8a8" }
+tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "6b66cac8738428a4c695d7479d881aaddaf926dd" }
 rayon = "1.7.0"
 anyhow = "1.0.69"
+tokio = { version = "1.13.0", features = [
+  "rt-multi-thread",
+  "sync",
+  "rt",
+  "macros",
+] }
 
 [build-dependencies]
 napi-build = "2.0.1"

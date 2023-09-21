@@ -5,7 +5,7 @@
 // it may be well worth forking tiktoken-node though, as it is not super well maintained
 // and we probably want to compile our own tiktoken because i'm slightly worried about
 // supply-chain attacks here
-import tiktoken from '@anysphere/tiktoken-node';
+import tiktoken, { getTokenizer } from '@anysphere/tiktoken-node';
 import { UsableModel, UsableTokenizer } from './openai';
 
 export function getTokenizerName(model: UsableModel): UsableTokenizer {
@@ -26,6 +26,8 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 	}
 }
 
+const tokenizer = tiktoken.getTokenizer();
+
 export async function numTokens(text: string, opts: {
 	model?: UsableModel;
 	tokenizer?: UsableTokenizer;
@@ -34,7 +36,7 @@ export async function numTokens(text: string, opts: {
 
 	switch (tokenizerName) {
 		case 'cl100k_base':
-			return await tiktoken.numTokensCl100KNoSpecialTokensNonBlocking(text);
+			return await tokenizer.exactNumTokensCl100KNoSpecialTokens(text);
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}

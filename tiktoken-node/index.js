@@ -252,11 +252,7 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { numTokensCl100KNoSpecialTokensBlocking, numTokensCl100KNoSpecialTokensNonBlocking, encodeCl100KNoSpecialTokensBlocking, encodeCl100KNoSpecialTokensNonBlocking, decodeCl100KNoSpecialTokensBlocking, decodeCl100KNoSpecialTokensNonBlocking } = nativeBinding
+const { Tokenizer, getTokenizer } = nativeBinding
 
-module.exports.numTokensCl100KNoSpecialTokensBlocking = numTokensCl100KNoSpecialTokensBlocking
-module.exports.numTokensCl100KNoSpecialTokensNonBlocking = numTokensCl100KNoSpecialTokensNonBlocking
-module.exports.encodeCl100KNoSpecialTokensBlocking = encodeCl100KNoSpecialTokensBlocking
-module.exports.encodeCl100KNoSpecialTokensNonBlocking = encodeCl100KNoSpecialTokensNonBlocking
-module.exports.decodeCl100KNoSpecialTokensBlocking = decodeCl100KNoSpecialTokensBlocking
-module.exports.decodeCl100KNoSpecialTokensNonBlocking = decodeCl100KNoSpecialTokensNonBlocking
+module.exports.Tokenizer = Tokenizer
+module.exports.getTokenizer = getTokenizer

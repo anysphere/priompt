@@ -774,6 +774,13 @@ const App = () => {
         <div>
           Used tokens: {tokenCountUsed} ({tokenCountReserved} reserved for
           generation, {priorityCutoff} cutoff)
+          <button
+            onClick={() => {
+              fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
+            }}
+          >
+            rerender
+          </button>
         </div>
         <div>
           Render time: {durationMs}ms (don't trust too much because caching)
