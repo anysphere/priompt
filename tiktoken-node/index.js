@@ -252,7 +252,9 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { Tokenizer, getTokenizer } = nativeBinding
+const { SupportedEncoding, Tokenizer, SpecialTokenAction, getTokenizer } = nativeBinding
 
+module.exports.SupportedEncoding = SupportedEncoding
 module.exports.Tokenizer = Tokenizer
+module.exports.SpecialTokenAction = SpecialTokenAction
 module.exports.getTokenizer = getTokenizer
