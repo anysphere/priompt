@@ -24,10 +24,27 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --platform --release",
+    "build": "wireit",
     "build:debug": "napi build --platform",
     "prepublishOnly": "napi prepublish -t npm",
     "universal": "napi universal",
     "version": "napi version"
+  },
+  "wireit": {
+    "build": {
+      "command": "napi build --platform --release",
+      "files": [
+        "src/**",
+        "Cargo.toml",
+        "Cargo.lock",
+        "build.rs"
+      ],
+      "output": [
+        "index.js",
+        "index.d.ts",
+        "tiktoken-node.*.node"
+      ]
+    }
+
   }
 }

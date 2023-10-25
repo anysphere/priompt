@@ -51,7 +51,9 @@
       "command": "pnpm i",
       "dependencies": [
         "../priompt:build"
-      ]
+      ],
+      "files": [],
+      "output": []
     },
     "lint": {
       "command": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
