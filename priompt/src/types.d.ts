@@ -24,6 +24,10 @@ export type Empty = {
 	tokenCount: number;
 };
 
+export type BreakToken = {
+	type: 'breaktoken';
+};
+
 export type Capture = {
 	type: 'capture';
 } & CaptureProps;
@@ -92,7 +96,7 @@ export type FunctionDefinition = {
 	parameters: JSONSchema7;
 }
 
-export type Node = FunctionDefinition | First | Isolate | Capture | Scope | Empty | ChatMessage | string | null | undefined | number | false;
+export type Node = FunctionDefinition | BreakToken | First | Isolate | Capture | Scope | Empty | ChatMessage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -121,6 +125,7 @@ export namespace JSX {
 		scope: BaseProps;
 		br: Omit<BaseProps, 'children'>;
 		hr: Omit<BaseProps, 'children'>;
+		breaktoken: Omit<BaseProps, 'children'>;
 		// automatically use a certain number of tokens (useful for leaving space for the model to give its answer)
 		empty: BaseProps & { tokens: number; };
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
@@ -133,14 +138,19 @@ export namespace JSX {
 	}
 }
 
+// if prompt string is a list of strings, then those strings should be tokenized independently
+// this prevents tokens from crossing the boundary between strings, which is useful for things when you
+// need exact copying
+export type PromptString = string | string[];
+
 export type ChatPromptUserSystemMessage = {
 	role: 'user' | 'system';
-	content: string;
+	content: PromptString;
 }
 
 export type ChatPromptAssistantMessage = {
 	role: 'assistant';
-	content?: string;
+	content?: PromptString;
 	functionCall?: {
 		name: string;
 		arguments: string; // json string
@@ -150,7 +160,7 @@ export type ChatPromptAssistantMessage = {
 export type ChatPromptFunctionResultMessage = {
 	role: 'function';
 	name: string;
-	content: string;
+	content: PromptString;
 };
 
 export type ChatPromptMessage = ChatPromptUserSystemMessage | ChatPromptAssistantMessage | ChatPromptFunctionResultMessage;
@@ -162,7 +172,7 @@ export type ChatPrompt = {
 
 export type TextPrompt = {
 	type: 'text';
-	text: string;
+	text: PromptString;
 }
 
 export type ChatAndFunctionPromptFunction = {
@@ -179,7 +189,7 @@ export type FunctionPrompt = {
 // higher priority handler will be called first in case there are multiple
 export type OutputHandler<T> = (output: T, options?: { p?: number }) => Promise<void>;
 
-export type RenderedPrompt = string | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);
+export type RenderedPrompt = PromptString | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);
 
 export type Prompt<PropsT, ReturnT = never> = (props: PromptProps<PropsT, ReturnT>) => PromptElement;
 
@@ -191,11 +201,15 @@ export type RenderOptions = {
 	model?: UsableLanguageModel;
 	tokenLimit?: number;
 	tokenizer?: UsableTokenizer;
+
+	// if it is, then we need to count tokens differently
+	lastMessageIsIncomplete?: boolean;
 };
 export type RenderOutput = {
 	prompt: RenderedPrompt;
 	tokenCount: number;
 	tokenLimit: number;
+	tokenizer: UsableTokenizer;
 	tokensReserved: number;
 	priorityCutoff: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];

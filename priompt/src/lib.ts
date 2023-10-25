@@ -5,33 +5,50 @@
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
-import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions } from './types';
+import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
+import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
 
 
 
 export function isChatPrompt(prompt: RenderedPrompt | undefined): prompt is ChatPrompt {
-	return typeof prompt === 'object' && prompt.type === 'chat';
+	return typeof prompt === 'object' && !Array.isArray(prompt) && prompt.type === 'chat';
 }
-export function isPlainPrompt(prompt: RenderedPrompt | undefined): prompt is string {
-	return typeof prompt === 'string';
+export function isPlainPrompt(prompt: RenderedPrompt | undefined): prompt is PromptString {
+	return typeof prompt === 'string' || Array.isArray(prompt);
 }
-function isTextPromptPotentiallyWithFunctions(prompt: RenderedPrompt | undefined): prompt is ((TextPrompt & FunctionPrompt) | string) {
+function isTextPromptPotentiallyWithFunctions(prompt: RenderedPrompt | undefined): prompt is ((TextPrompt & FunctionPrompt) | PromptString) {
 	return (typeof prompt === 'object' && 'text' in prompt) || typeof prompt === 'string';
 }
 export function promptHasFunctions(prompt: RenderedPrompt | undefined): prompt is ((ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt)) {
 	return typeof prompt === 'object' && 'functions' in prompt && prompt.functions !== undefined;
 }
+export function promptStringToString(promptString: PromptString): string {
+	return Array.isArray(promptString) ? promptString.join('') : promptString;
+}
 function promptGetText(prompt: RenderedPrompt | undefined): string | undefined {
 	if (!isTextPromptPotentiallyWithFunctions(prompt)) {
 		return undefined;
 	}
-	if (typeof prompt === 'string') {
-		return prompt;
+	if (isPlainPrompt(prompt)) {
+		return promptStringToString(prompt);
 	}
-	return prompt.text;
+	return promptStringToString(prompt.text);
+}
+
+function sumPromptStrings(a: PromptString, b: PromptString): PromptString {
+	if (Array.isArray(a) && Array.isArray(b)) {
+		return [...a.slice(0, -1), a[a.length - 1] + b[0], ...b.slice(1)];
+	}
+	if (Array.isArray(a)) {
+		return [...a.slice(0, -1), a[a.length - 1] + b,];
+	}
+	if (Array.isArray(b)) {
+		return [a + b[0], ...b.slice(1)];
+	}
+	return a + b;
 }
 
 function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined): RenderedPrompt | undefined {
@@ -55,15 +72,15 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
 		const prompt: TextPrompt & FunctionPrompt = {
 			type: 'text',
-			text: (isPlainPrompt(a) ? a : a.text) + (isPlainPrompt(b) ? b : b.text),
+			text: sumPromptStrings((isPlainPrompt(a) ? a : a.text), (isPlainPrompt(b) ? b : b.text)),
 			functions,
 		};
 		return prompt;
 	}
 	if (isPlainPrompt(a) && isPlainPrompt(b)) {
-		return a + b;
+		return sumPromptStrings(a, b);
 	}
-	throw new Error(`cannot sum prompts ${a} (${typeof a === 'string' ? 'string' : a.type}) and ${b} (${typeof b === 'string' ? 'string' : b.type})`);
+	throw new Error(`cannot sum prompts ${a} (${isPlainPrompt(a) ? 'string' : a.type}) and ${b} (${isPlainPrompt(b) ? 'string' : b.type})`);
 }
 
 export function createElement(tag: ((props: BaseProps & Record<string, unknown>) => PromptElement) | string, props: Record<string, unknown> | null, ...children: PromptElement[]): PromptElement {
@@ -100,6 +117,20 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 				return {
 					type: 'scope',
 					children: ['\n'],
+					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
+					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
+				};
+			}
+		case 'breaktoken':
+			{
+				if (children.length > 0) {
+					throw new Error(`breaktoken tag must have no children, got ${children}`);
+				}
+				return {
+					type: 'scope',
+					children: [{
+						type: 'breaktoken',
+					}],
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
 				};
@@ -337,7 +368,7 @@ export async function renderun<
 	}
 }
 
-export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): Promise<RenderOutput> {
+export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -426,7 +457,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 				countStart = performance.now();
 			}
 			// const prompt = renderWithLevel(elem, candidateLevel);
-			tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "");
+			tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 			if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
 				// this means that the candidateLevel is too low
 				exclusiveLowerBound = candidateLevelIndex;
@@ -456,7 +487,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 	}
 
 	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true);
-	const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "");
+	const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 
 	if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
 		// this means that the base level prompt is too big
@@ -484,6 +515,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		tokenCount: tokenCount,
 		tokensReserved: prompt.emptyTokenCount,
 		tokenLimit: tokenLimit,
+		tokenizer,
 		durationMs: duration,
 		outputHandlers: prompt.outputHandlers,
 		streamHandlers: prompt.streamHandlers,
@@ -492,7 +524,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 
 }
 
-export async function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenLimit, tokenizer }: RenderOptions): Promise<RenderOutput> {
+export async function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -626,7 +658,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 	// because you always have a gap to fill anyways
 	// consider adding a mode that if this happens, backtracks
 	if (prevPrompt.prompt !== undefined) {
-		const exactTokenCount = await countTokensExact(tokenizer, prevPrompt.prompt);
+		const exactTokenCount = await countTokensExact(tokenizer, prevPrompt.prompt, { lastMessageIsIncomplete });
 		console.log(`Discrepancy: (estimated token count) - (actual token count) = ${prevPrompt.tokenCount} - ${exactTokenCount} = ${prevPrompt.tokenCount - exactTokenCount}`);
 		prevPrompt.tokenCount = exactTokenCount;
 		if (exactTokenCount + prevPrompt.emptyTokenCount > tokenLimit) {
@@ -649,6 +681,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 		tokenCount: prevPrompt.tokenCount,
 		tokensReserved: prevPrompt.emptyTokenCount,
 		tokenLimit: tokenLimit,
+		tokenizer,
 		outputHandlers: prevPrompt.outputHandlers,
 		streamHandlers: prevPrompt.streamHandlers,
 		durationMs: duration,
@@ -681,7 +714,7 @@ type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAss
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
-type NormalizedNode = NormalizedFirst | NormalizedScope | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
+type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
 type NormalizedPromptElement = NormalizedNode[];
 function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	// we want to merge all the strings together
@@ -712,6 +745,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 			switch (node.type) {
 				case 'capture':
 				case 'isolate':
+				case 'breaktoken':
 				case 'empty': {
 					newNode = node;
 					break;
@@ -805,6 +839,16 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: elem.onOutput ? [elem.onOutput] : [],
 				streamHandlers: elem.onStream ? [elem.onStream] : []
+			}
+		}
+		case 'breaktoken': {
+			return {
+				// a breaktoken is just a split!
+				prompt: ['', ''],
+				tokenCount: 0,
+				emptyTokenCount: 0,
+				outputHandlers: [],
+				streamHandlers: []
 			}
 		}
 		case 'empty': {
@@ -998,6 +1042,12 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				emptyTokenCount: 0
 			}
 		}
+		case 'breaktoken': {
+			return {
+				prompt: ['', ''],
+				emptyTokenCount: 0
+			}
+		}
 		case 'empty': {
 			return {
 				prompt: undefined,
@@ -1129,12 +1179,9 @@ function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promi
 		case 'first': {
 			return hydrateIsolates(elem.children, tokenizer);
 		}
-		case 'capture': {
-			return;
-		}
-		case 'empty': {
-			return;
-		}
+		case 'capture':
+		case 'empty':
+		case 'breaktoken':
 		case 'functionDefinition': {
 			return;
 		}
@@ -1238,6 +1285,14 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				streamHandlers: elem.onStream ? [
 					elem.onStream
 				] : []
+			}
+		}
+		case 'breaktoken': {
+			return {
+				prompt: ['', ''],
+				emptyTokenCount: 0,
+				outputHandlers: [],
+				streamHandlers: []
 			}
 		}
 		case 'empty': {
@@ -1385,6 +1440,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 			return;
 		}
 		case 'capture':
+		case 'breaktoken':
 		case 'functionDefinition':
 		case 'empty': {
 			return;
@@ -1434,6 +1490,7 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 			return;
 		}
 		case 'capture':
+		case 'breaktoken':
 		case 'functionDefinition':
 		case 'empty': {
 			return;
@@ -1488,6 +1545,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 		}
 		case 'capture':
 		case 'functionDefinition':
+		case 'breaktoken':
 		case 'empty': {
 			// nothing happens
 			return;
@@ -1520,17 +1578,32 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 	throw new Error(`BUG!! computePriorityLevels got an invalid node of type ${typeof elem} (see the console log above)`);
 }
 
+async function numTokensPromptString(p: PromptString, tokenizer: UsableTokenizer): Promise<number> {
+	if (Array.isArray(p)) {
+		// should be tokenized independently!!!!!!!
+		const t = await Promise.all(p.map(s => numTokens(s, { tokenizer })));
+		return t.reduce((a, b) => a + b, 0);
+	}
+	return numTokens(p, { tokenizer });
+}
 
-async function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedPrompt): Promise<number> {
+
+async function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedPrompt, options: {
+	lastMessageIsIncomplete?: boolean;
+}): Promise<number> {
 	let tokens = 0;
 	if (isPlainPrompt(prompt)) {
-		tokens += await numTokens(prompt, { tokenizer });
+		tokens += await numTokensPromptString(prompt, tokenizer);
 	} else if (isChatPrompt(prompt)) {
 		const msgTokens = await Promise.all(prompt.messages.map(msg => countMessageTokens(msg, tokenizer)));
 		// docs here: https://platform.openai.com/docs/guides/chat/introduction
 		tokens += msgTokens.reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
+		if (options.lastMessageIsIncomplete === true) {
+			// one for the <|im_end|>
+			tokens = tokens - (CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT + 1);
+		}
 	} else {
-		tokens += await numTokens(prompt.text, { tokenizer });
+		tokens += await numTokensPromptString(prompt.text, tokenizer);
 	}
 	if (promptHasFunctions(prompt)) {
 		// we assume an extra 2 tokens per function
@@ -1551,12 +1624,58 @@ export function promptToOpenAIChatRequest(prompt: RenderedPrompt): { messages: A
 	};
 }
 
+const CL100K_SYSTEM_TOKENS = [100264, 9125, 100266];
+const CL100K_USER_TOKENS = [100264, 882, 100266];
+const CL100K_ASSISTANT_TOKENS = [100264, 78191, 100266];
+const CL100K_END_TOKEN = [100265];
+
+export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTokenizer): Promise<number[]> {
+	if (tokenizer !== 'cl100k_base') {
+		throw new Error("promptToTokens only supports the cl100k_base tokenizer for now!")
+	}
+	if (isPlainPrompt(prompt)) {
+		// we should just encode it as a plain prompt!
+		if (Array.isArray(prompt)) {
+			const tokens = await Promise.all(prompt.map(s => tokenizerObject.encodeCl100KNoSpecialTokens(s)));
+			return tokens.reduce((a, b) => a.concat(b), []);
+		}
+		return tokenizerObject.encodeCl100KNoSpecialTokens(prompt);
+	} else if (isChatPrompt(prompt)) {
+		// THIS IS HYPERSPECIFIC TO CL100K
+
+		const parts = await Promise.all(prompt.messages.map(async (msg) => {
+			if (msg.role === 'function') {
+				// let's just throw
+				throw new Error(`BUG!! promptToTokens got a chat prompt with a function message, which is not supported yet!`);
+			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
+				throw new Error(`BUG!! promptToTokens got a chat prompt with a function message, which is not supported yet!`);
+			} else {
+				return [
+					...(
+						msg.role === 'assistant' ? CL100K_ASSISTANT_TOKENS : msg.role === 'system' ? CL100K_SYSTEM_TOKENS : CL100K_USER_TOKENS
+					),
+					...(msg.content !== undefined ? (await promptToTokens(msg.content, tokenizer)) : []),
+				];
+			}
+		}));
+		const final: number[] = [];
+		for (const part of parts) {
+			if (final.length > 0) {
+				final.push(...CL100K_END_TOKEN);
+			}
+			final.push(...part);
+		}
+		return final;
+	}
+	throw new Error(`BUG!! promptToTokens got an invalid prompt`);
+}
+
 export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCompletionRequestMessage> {
 	if (isPlainPrompt(prompt)) {
 		return [
 			{
 				role: 'user',
-				content: prompt
+				content: promptStringToString(prompt)
 			}
 		];
 	} else if (isChatPrompt(prompt)) {
@@ -1565,18 +1684,18 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 				return {
 					role: msg.role,
 					name: msg.name,
-					content: msg.content,
+					content: promptStringToString(msg.content),
 				}
 			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
 				return {
 					role: msg.role,
-					content: msg.content ?? "", // openai is lying when they say this should not be provided
+					content: msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
 					function_call: msg.functionCall,
 				}
 			} else {
 				return {
 					role: msg.role,
-					content: msg.content,
+					content: msg.content !== undefined ? promptStringToString(msg.content) : "",
 				}
 			}
 		});
@@ -1587,11 +1706,11 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 async function countMessageTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): Promise<number> {
 	if (message.role === 'function') {
 		// add an extra 2 tokens for good measure
-		return (await numTokens(message.name, { tokenizer })) + (await numTokens(message.content, { tokenizer })) + 2;
+		return (await numTokens(message.name, { tokenizer })) + (await numTokensPromptString(message.content, tokenizer)) + 2;
 	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
-		return (await countFunctionCallMessageTokens(message.functionCall, tokenizer)) + (message.content !== undefined ? (await numTokens(message.content, { tokenizer })) : 0);
+		return (await countFunctionCallMessageTokens(message.functionCall, tokenizer)) + (message.content !== undefined ? (await numTokensPromptString(message.content, tokenizer)) : 0);
 	} else {
-		return await numTokens(message.content ?? "", { tokenizer });
+		return await numTokensPromptString(message.content ?? "", tokenizer);
 	}
 }
 
@@ -1637,13 +1756,13 @@ function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, t
 			} else if (b.role === 'assistant' && b.functionCall !== undefined) {
 				return a + estimateTokensUsingCharcount(b.functionCall.name + b.functionCall.arguments + (b.content ?? ""), tokenizer)[0];
 			} else {
-				return a + estimateTokensUsingCharcount(b.content ?? "", tokenizer)[0];
+				return a + estimateTokensUsingCharcount(b.content !== undefined ? promptStringToString(b.content) : "", tokenizer)[0];
 			}
 		}, 0);
 	} else if (isPlainPrompt(prompt)) {
-		contentTokens = estimateTokensUsingCharcount(prompt, tokenizer)[0];
+		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt), tokenizer)[0];
 	} else {
-		contentTokens = estimateTokensUsingCharcount(prompt.text, tokenizer)[0];
+		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt.text), tokenizer)[0];
 	}
 
 	const functionTokens = (promptHasFunctions(prompt) ? prompt.functions.reduce((a, b) => (a + estimateFunctionTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);

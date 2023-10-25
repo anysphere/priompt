@@ -16,6 +16,8 @@
     "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "wireit",
+    "tsc-build": "wireit",
+    "priompt:build": "wireit",
     "preview": "vite preview"
   },
   "wireit": {
@@ -61,7 +63,10 @@
         "src/**/*",
         "tsconfig.json"
       ],
-      "clean": "if-file-deleted"
+      "clean": "if-file-deleted",
+      "dependencies": [
+        "priompt:build"
+      ]
     }
   },
   "dependencies": {

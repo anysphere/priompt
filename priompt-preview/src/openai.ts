@@ -121,6 +121,7 @@ export async function* streamChatCompletion(createChatCompletionRequest: CreateC
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}. message: ${await response.text()}`);
 		}
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		streamer = streamSource<CreateCompletionResponse>(response.body!);
 		for await (const data of streamer) {
 			clearTimeout(timeout);

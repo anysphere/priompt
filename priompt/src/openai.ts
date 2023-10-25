@@ -101,9 +101,11 @@ export type UsableTokenizer = typeof usableTokenizers[number];
 
 export const EMBEDDING_MODEL = 'text-embedding-ada-002';
 
-// docs here: https://platform.openai.com/docs/guides/chat/introduction
+// docs here: https://platform.openai.com/docs/guides/chat/introduction (out of date!)
+// linear factor is <|im_start|>system<|im_sep|>  and <|im_end|>
 export const CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR = 4;
-export const CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT = 2;
+// this is <|im_start|>assistant<|im_sep|>
+export const CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT = 3;
 
 export interface StreamChatCompletionResponse extends CreateChatCompletionResponse {
 	/**

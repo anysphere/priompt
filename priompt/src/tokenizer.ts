@@ -27,7 +27,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 	}
 }
 
-const tokenizer = tiktoken.getTokenizer();
+export const tokenizerObject = tiktoken.getTokenizer();
 
 export async function numTokens(text: string, opts: {
 	model?: UsableModel;
@@ -37,7 +37,21 @@ export async function numTokens(text: string, opts: {
 
 	switch (tokenizerName) {
 		case 'cl100k_base':
-			return await tokenizer.exactNumTokensCl100KNoSpecialTokens(text);
+			return await tokenizerObject.exactNumTokensCl100KNoSpecialTokens(text);
+		default:
+			throw new Error(`Unknown tokenizer ${tokenizerName}`);
+	}
+}
+
+export async function encodeTokens(text: string, opts?: {
+	model?: UsableModel;
+	tokenizer?: UsableTokenizer;
+}): Promise<number[]> {
+	const tokenizerName = opts?.tokenizer ?? (opts?.model !== undefined ? getTokenizerName(opts?.model) : 'cl100k_base');
+
+	switch (tokenizerName) {
+		case 'cl100k_base':
+			return await tokenizerObject.encodeCl100KNoSpecialTokens(text);
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}

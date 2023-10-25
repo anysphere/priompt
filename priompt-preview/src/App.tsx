@@ -19,9 +19,23 @@ import {
   ChatPrompt,
   ChatPromptAssistantMessage,
   FunctionPrompt,
+  PromptString,
 } from "@anysphere/priompt/dist/types";
 
 const userId = uuidv4();
+
+function promptStringToString(promptString: PromptString): string {
+  return Array.isArray(promptString) ? promptString.join("") : promptString;
+}
+function isChatPrompt(
+  prompt: RenderedPrompt | undefined
+): prompt is ChatPrompt {
+  return (
+    typeof prompt === "object" &&
+    !Array.isArray(prompt) &&
+    prompt.type === "chat"
+  );
+}
 
 function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   callback: T,
@@ -118,7 +132,7 @@ const App = () => {
       const m = prompt.messages[i];
       const x: ChatCompletionResponseMessage = {
         role: "assistant",
-        content: m.content,
+        content: m.content ? promptStringToString(m.content) : undefined,
         function_call: (m as ChatPromptAssistantMessage).functionCall,
       };
 
@@ -517,18 +531,24 @@ const App = () => {
                   return {
                     role: m.role,
                     name: m.name,
-                    content: m.content,
+                    content: m.content
+                      ? promptStringToString(m.content)
+                      : undefined,
                   };
                 } else if (m.role === "assistant" && m.functionCall) {
                   return {
                     role: m.role,
                     function_call: m.functionCall,
-                    content: m.content,
+                    content: m.content
+                      ? promptStringToString(m.content)
+                      : undefined,
                   };
                 } else {
                   return {
                     role: m.role,
-                    content: m.content,
+                    content: m.content
+                      ? promptStringToString(m.content)
+                      : undefined,
                   };
                 }
               }),
@@ -625,7 +645,7 @@ const App = () => {
         setAbortController(undefined);
       }
     },
-    [prompt, temperature, forceFunctionCall, tokenCountUsed, tokenCount]
+    [prompt, temperature, forceFunctionCall]
   );
 
   useEffect(() => {
@@ -664,7 +684,8 @@ const App = () => {
             prompt.type === "chat" &&
             r.value !== prompt.messages[i].content
           ) {
-            r.value = prompt.messages[i].content ?? "";
+            const x = prompt.messages[i].content;
+            r.value = x ? promptStringToString(x) : "";
             fixTextareaHeight(r);
           }
         }
@@ -910,9 +931,13 @@ const App = () => {
                               output={output}
                               setTextArea={(
                                 _: HTMLTextAreaElement | undefined
-                              ) => {}}
+                              ) => {
+                                // intentionally empty
+                              }}
                               currentTextArea={undefined}
-                              setFullText={(_: string) => {}}
+                              setFullText={(_: string) => {
+                                // intentionally empty
+                              }}
                             />
                           )}
                         </>
@@ -1168,7 +1193,7 @@ const TextAreaWithSetting = memo(
       if (internalRef.current !== null) {
         props.setTextArea(internalRef.current);
       }
-    }, [internalRef.current]);
+    }, [props]);
 
     const handleScroll: React.UIEventHandler<HTMLTextAreaElement> = (event) => {
       if (scrollCorrection) {
@@ -1290,9 +1315,8 @@ function FullPromptFunction({
     console.log("FORCE RERENDER", forceRerender);
     if (prompt) {
       if (
-        typeof prompt !== "string" &&
         prompt !== undefined &&
-        prompt.type === "chat" &&
+        isChatPrompt(prompt) &&
         "functions" in prompt
       ) {
         if (functionIndex >= prompt.functions.length) {
@@ -1638,8 +1662,7 @@ function AssistantBox(props: {
             }}
           />
           {props.prompt &&
-            typeof props.prompt === "object" &&
-            props.prompt.type === "chat" &&
+            isChatPrompt(props.prompt) &&
             "functions" in props.prompt &&
             props.prompt.functions.length > 0 && (
               <>

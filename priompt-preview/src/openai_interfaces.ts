@@ -78,6 +78,7 @@ export interface CreateChatCompletionRequestFunctionCallOneOf {
  * The prompt(s) to generate completions for, encoded as a string, array of strings, array of tokens, or array of token arrays.  Note that <|endoftext|> is the document separator that the model sees during training, so if a prompt is not specified the model will generate as if from the beginning of a new document.
  * @export
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export declare type CreateCompletionRequestPrompt = Array<any> | Array<number> | Array<string> | string;
 /**
  * @type CreateCompletionRequestStop
