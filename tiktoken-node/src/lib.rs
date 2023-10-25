@@ -31,6 +31,12 @@ enum TokenizerMessage {
         encoding: SupportedEncoding,
         special_token_handling: tiktoken::SpecialTokenHandling,
     },
+    // always encodes all special tokens!
+    EncodeSingleToken {
+        respond_to: oneshot::Sender<anyhow::Result<u32>>,
+        bytes: Vec<u8>,
+        encoding: SupportedEncoding,
+    },
     DecodeTokens {
         respond_to: oneshot::Sender<anyhow::Result<String>>,
         tokens: Vec<u32>,
@@ -89,6 +95,21 @@ impl TokenizerActor {
 
                 // The `let _ =` ignores any errors when sending.
                 let _ = respond_to.send(tokens);
+            }
+            TokenizerMessage::EncodeSingleToken { respond_to, bytes, encoding } => {
+                let enc = match encoding {
+                    SupportedEncoding::Cl100k => &self.cl100k_encoding,
+                };
+
+                let token = enc.encode_single_token_bytes(&bytes);
+
+                let token = match token {
+                    Ok(t) => Ok(t as u32),
+                    Err(_) => Err(anyhow::anyhow!("Token not recognized")),
+                };
+
+                // The `let _ =` ignores any errors when sending.
+                let _ = respond_to.send(token);
             }
             TokenizerMessage::DecodeTokens { respond_to, tokens, encoding } => {
                 let enc = match encoding {
@@ -263,6 +284,31 @@ impl Tokenizer {
                     .map(|(k, v)| (k, v.to_tiktoken()))
                     .collect(),
             },
+        };
+
+        // Ignore send errors. If this send fails, so does the
+        // recv.await below. There's no reason to check for the
+        // same failure twice.
+        let _ = self.sender.send(msg).await;
+        match recv.await {
+            Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
+            Err(e) => {
+                Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string())))
+            }
+        }
+    }
+
+    #[napi]
+    pub async fn encode_single_token(
+        &self,
+        bytes: napi::bindgen_prelude::Uint8Array,
+        encoding: SupportedEncoding,
+    ) -> Result<u32, Error> {
+        let (send, recv) = oneshot::channel();
+        let msg = TokenizerMessage::EncodeSingleToken {
+            respond_to: send,
+            bytes: bytes.to_vec(),
+            encoding,
         };
 
         // Ignore send errors. If this send fails, so does the
