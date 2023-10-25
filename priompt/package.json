@@ -61,7 +61,7 @@
     "rimraf": "^5.0.0",
     "tiny-glob": "^0.2.9",
     "tsx": "^3.12.6",
-    "typescript": "^5.0.4",
+    "typescript": "^5.2.0",
     "vitest": "^0.30.1",
     "wireit": "^0.14.0"
   },
