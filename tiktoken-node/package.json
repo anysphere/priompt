@@ -40,11 +40,8 @@
         "build.rs"
       ],
       "output": [
-        "index.js",
-        "index.d.ts",
         "tiktoken-node.*.node"
       ]
     }
-
   }
 }
