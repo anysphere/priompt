@@ -75,3 +75,4 @@ do
   echo "$COMMIT_ID" > "$SCRIPT_DIR/../priompt-last-internal-synced-commit.txt"
 done
 
+echo "DONE! Now please push inside the open source folder."
