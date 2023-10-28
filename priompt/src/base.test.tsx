@@ -236,4 +236,33 @@ describe("isolate", () => {
     const toTokens = await promptToTokens(specialTokens.prompt, "cl100k_base");
     expect(specialTokens.tokenCount).toBe(toTokens.length);
   });
+
+  function EmptyPrompt(
+    props: PromptProps<{ tokenLimit: number }>
+  ): PromptElement {
+    return (
+      <>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore */}
+        <isolate tokenLimit={props.tokenLimit}>
+          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore */}
+          <empty tokens={props.tokenLimit + 1} />
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore */}
+        </isolate>
+      </>
+    );
+  }
+
+  it("empty element reserves tokens", async () => {
+    try {
+      await render(EmptyPrompt({ tokenLimit: 500 }), {
+        tokenLimit: 1000,
+        tokenizer: "cl100k_base",
+      });
+    } catch (e) {
+      expect(e.message).toContain("which is higher than the limit");
+    }
+  });
 });
