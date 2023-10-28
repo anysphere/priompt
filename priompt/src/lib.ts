@@ -180,7 +180,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					type: 'scope',
 					children: [{
 						type: 'empty',
-						tokenCount: props.tokens,
+						tokens: props.tokens,
 					}],
 					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
@@ -855,7 +855,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 			return {
 				prompt: undefined,
 				tokenCount: 0,
-				emptyTokenCount: elem.tokenCount,
+				emptyTokenCount: elem.tokens,
 				outputHandlers: [],
 				streamHandlers: []
 			}
@@ -1051,7 +1051,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 		case 'empty': {
 			return {
 				prompt: undefined,
-				emptyTokenCount: elem.tokenCount
+				emptyTokenCount: elem.tokens
 			}
 		}
 		case 'functionDefinition': {
@@ -1298,7 +1298,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 		case 'empty': {
 			return {
 				prompt: undefined,
-				emptyTokenCount: elem.tokenCount,
+				emptyTokenCount: elem.tokens,
 				outputHandlers: [],
 				streamHandlers: []
 			}
