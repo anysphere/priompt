@@ -1415,7 +1415,7 @@ function validateUnrenderedPrompt(elem: PromptNode): void {
 
 function validateNotBothAbsoluteAndRelativePriority(elem: PromptNode): void {
 	if (Array.isArray(elem)) {
-		elem.forEach(e => validateUnrenderedPrompt(e));
+		elem.forEach(e => validateNotBothAbsoluteAndRelativePriority(e));
 		return;
 	}
 
@@ -1459,9 +1459,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptNode): void {
 
 function validateNoChildrenHigherPriorityThanParent(elem: PromptNode, parentPriority: number = BASE_PRIORITY): void {
 	if (Array.isArray(elem)) {
-		for (const child of elem) {
-			validateNoChildrenHigherPriorityThanParent(child, parentPriority);
-		}
+		elem.forEach(e => validateNoChildrenHigherPriorityThanParent(e, parentPriority));
 		return;
 	}
 
