@@ -231,12 +231,11 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 }
 
 export function Fragment({ children }: { children: PromptNode; }): PromptElement {
-	const childrenToPass = Array.isArray(children) ? children : [children];
 	return {
 		type: "scope",
-		children: childrenToPass,
 		absolutePriority: undefined,
 		relativePriority: undefined,
+		children,
 	};
 }
 
