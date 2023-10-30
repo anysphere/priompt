@@ -34,7 +34,7 @@ export type Capture = {
 
 export type Isolate = {
 	type: 'isolate';
-	children: Node[];
+	children: PromptNode;
 	cachedRenderOutput?: RenderOutput;
 } & IsolateProps;
 
@@ -52,7 +52,7 @@ export type IsolateProps = {
 // it shouldn't be the case that both the relative priority and the absolute priority is set
 export type Scope = {
 	type: 'scope';
-	children: Node[];
+	children: PromptNode;
 	// absolute priority takes precedence over relative priority
 	absolutePriority: number | undefined;
 	// relativePriority is relative to the parent of this scope
@@ -65,13 +65,13 @@ export type Scope = {
 export type ChatUserSystemMessage = {
 	type: 'chat';
 	role: 'user' | 'system';
-	children: Node[];
+	children: PromptNode;
 }
 
 export type ChatAssistantMessage = {
 	type: 'chat';
 	role: 'assistant';
-	children: Node[]; // can be empty!
+	children: PromptNode; // can be empty!
 
 	// the functionCall is provided by the assistant
 	functionCall?: {
@@ -84,7 +84,7 @@ export type ChatFunctionResultMessage = {
 	type: 'chat';
 	role: 'function';
 	name: string;
-	children: Node[];
+	children: PromptNode;
 }
 
 export type ChatMessage = ChatUserSystemMessage | ChatFunctionResultMessage | ChatAssistantMessage;
@@ -96,9 +96,9 @@ export type FunctionDefinition = {
 	parameters: JSONSchema7;
 }
 
-export type Node = FunctionDefinition | BreakToken | First | Isolate | Capture | Scope | Empty | ChatMessage | string | null | undefined | number | false;
+export type PromptElement = FunctionDefinition | BreakToken | First | Isolate | Capture | Scope | Empty | ChatMessage;
 
-export type PromptElement = Node[] | Node;
+export type PromptNode = PromptElement | PromptNode[] | string | null | undefined | number | false;
 
 export type BaseProps = {
 	// absolute priority takes precedence over relative priority
@@ -108,7 +108,7 @@ export type BaseProps = {
 	// TODO: add a max (token count) here. the max functions as follows:
 	// first we optimize over the outest token count scope. if any max exceeds its token count, it is capped to the token count. once we have a global solution we seek the local solution
 	// this works, but leads to something that may be a little bit weird: something of priority 1000 in a maxed out scope is not included while something with a priority of 0 outside the maxed out scope is included. but that's fine. i guess the whole point of the max is to break the global opptimization
-	children?: PromptElement[] | PromptElement;
+	children?: PromptNode;
 	onEject?: () => void;
 	onInclude?: () => void;
 };
@@ -128,7 +128,7 @@ export namespace JSX {
 		breaktoken: Omit<BaseProps, 'children'>;
 		// automatically use a certain number of tokens (useful for leaving space for the model to give its answer)
 		empty: BaseProps & { tokens: number; };
-		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
+		first: Omit<BaseProps, 'p' | 'prel'>;
 		capture: Omit<BaseProps, 'children'> & CaptureProps;
 		isolate: BaseProps & IsolateProps;
 	}
@@ -191,7 +191,7 @@ export type OutputHandler<T> = (output: T, options?: { p?: number }) => Promise<
 
 export type RenderedPrompt = PromptString | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);
 
-export type Prompt<PropsT, ReturnT = never> = (props: PromptProps<PropsT, ReturnT>) => PromptElement;
+export type Prompt<PropsT, ReturnT = never> = (props: PromptProps<PropsT, ReturnT>) => PromptNode;
 
 // TODO: should the components have access to the token limit?
 // argument against: no, it should all be responsive to the token limit and we shouldn't need this

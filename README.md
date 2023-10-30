@@ -33,7 +33,7 @@ function ExamplePrompt(
     message: string,
     history: { case: "user" | "assistant", message: string },
   }>
-): PromptElement {
+): PromptNode {
   const capitalizedName = props.name[0].toUpperCase() + props.name.slice(1);
   return (
     <>

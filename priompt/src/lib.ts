@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
 import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken } from './types';
+import { BaseProps, PromptElement, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptNode, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
@@ -83,7 +83,7 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	throw new Error(`cannot sum prompts ${a} (${isPlainPrompt(a) ? 'string' : a.type}) and ${b} (${isPlainPrompt(b) ? 'string' : b.type})`);
 }
 
-export function createElement(tag: ((props: BaseProps & Record<string, unknown>) => PromptElement) | string, props: Record<string, unknown> | null, ...children: PromptElement[]): PromptElement {
+export function createElement(tag: ((props: BaseProps & Record<string, unknown>) => PromptNode) | string, props: Record<string, unknown> | null, ...children: PromptNode[]): PromptElement {
 	if (typeof tag === 'function') {
 		// we scope each tag so we can add priorities to it
 		return {
@@ -152,10 +152,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 				const newChildren: Scope[] = [];
 				// assert that all children are scopes
 				for (const child of children.flat()) {
-					if (child === null || typeof child !== 'object') {
-						throw new Error(`first tag must have only scope children, got ${child}`);
-					}
-					if (child.type !== 'scope') {
+					if (child === null || typeof child !== 'object' || !("type" in child) || child.type !== 'scope') {
 						throw new Error(`first tag must have only scope children, got ${child}`);
 					}
 					newChildren.push(child);
@@ -234,17 +231,20 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 	}
 }
 
-export function Fragment({ children }: { children: PromptElement[]; }): PromptElement {
-	// merge all the lists
-	return children.flat();
+export function Fragment({ children }: { children: PromptNode; }): PromptElement {
+	const childrenToPass = Array.isArray(children) ? children.flat() : [children];
+	return {
+		type: "scope",
+		children: childrenToPass,
+		absolutePriority: undefined,
+		relativePriority: undefined,
+	};
 }
-
-
 
 // priority level if it is not set becomes 1e9, i.e. it is always rendered
 const BASE_PRIORITY = 1e9;
 
-export async function render(elem: PromptElement, options: RenderOptions): Promise<RenderOutput> {
+export async function render(elem: PromptNode, options: RenderOptions): Promise<RenderOutput> {
 
 	// TODO: we need to performance optimize this.
 	// the problem is if there are a lot of scopes.
@@ -274,7 +274,7 @@ export async function renderun<
 	loggingOptions,
 	renderedMessagesCallback = (messages: ChatCompletionResponseMessage[]) => { },
 }: {
-	prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
+	prompt: (props: PromptProps<PropsT, ReturnT>) => PromptNode;
 	props: Omit<PropsT, "onReturn">;
 	renderOptions: RenderOptions;
 	renderedMessagesCallback?: (messages: ChatCompletionResponseMessage[]) => void
@@ -282,7 +282,7 @@ export async function renderun<
 		args: ReturnType<typeof promptToOpenAIChatRequest>
 	) => Promise<{ type: "output", value: CreateChatCompletionResponse } | { type: "stream", value: AsyncIterable<ChatCompletionResponseMessage> }>;
 	loggingOptions?: {
-		promptElementRef?: { current: PromptElement | undefined };
+		promptElementRef?: { current: PromptNode | undefined };
 		renderOutputRef?: { current: RenderOutput | undefined };
 	}
 }): Promise<ReturnT> {
@@ -368,7 +368,7 @@ export async function renderun<
 	}
 }
 
-export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
+export async function renderBinarySearch(elem: PromptNode, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -524,7 +524,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 
 }
 
-export async function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
+export async function renderBackwardsLinearSearch(elem: PromptNode, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -696,29 +696,30 @@ type NormalizedString = {
 	cachedCount: number | undefined;
 }
 type NormalizedScope = Omit<Scope, 'children'> & {
-	children: NormalizedNode[];
+	children: NormalizedNode;
 };
 type NormalizedFirst = Omit<First, 'children'> & {
 	children: NormalizedScope[];
 };
 type NormalizedChatUserSystemMessage = Omit<ChatUserSystemMessage, 'children'> & {
-	children: NormalizedNode[];
+	children: NormalizedNode;
 };
 type NormalizedChatAssistantMessage = Omit<ChatAssistantMessage, 'children'> & {
-	children: NormalizedNode[];
+	children: NormalizedNode;
 };
 type NormalizedChatFunctionResultMessage = Omit<ChatFunctionResultMessage, 'children'> & {
-	children: NormalizedNode[];
+	children: NormalizedNode;
 };
 type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAssistantMessage | NormalizedChatFunctionResultMessage;
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
-type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
-type NormalizedPromptElement = NormalizedNode[];
-function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
+type NormalizedElement = NormalizedFirst | NormalizedScope | BreakToken | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
+type NormalizedNode = NormalizedElement | NormalizedNode[];
+
+function normalizePrompt(elem: PromptNode): NormalizedElement[] {
 	// we want to merge all the strings together
-	const result: NormalizedNode[] = [];
+	const result: NormalizedElement[] = [];
 	let currentString = "";
 	const elemArray = Array.isArray(elem) ? elem : [elem];
 	const pushCurrentString = () => {
@@ -735,13 +736,16 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 		if (node === undefined || node === null) {
 			continue;
 		}
-		if (typeof node === 'string') {
+		if (Array.isArray(node)) {
+			pushCurrentString();
+			result.push(...normalizePrompt(node));
+		} else if (typeof node === 'string') {
 			currentString += node;
 		} else if (typeof node === 'number') {
 			currentString += node.toString();
 		} else if (typeof node === 'object') {
 			pushCurrentString();
-			let newNode: NormalizedNode;
+			let newNode: NormalizedElement;
 			switch (node.type) {
 				case 'capture':
 				case 'isolate':
@@ -789,7 +793,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 }
 
 // if chat prompt, the token count will be missing the constant factor
-async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: UsableTokenizer): Promise<{
+async function renderWithLevelAndCountTokens(elem: NormalizedNode, level: number, tokenizer: UsableTokenizer): Promise<{
 	prompt: RenderedPrompt | undefined;
 	tokenCount: number;
 	emptyTokenCount: number;
@@ -980,7 +984,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 }
 
 // WARNING: do not attempt to make this function async!!! it will make it a lot slower!
-function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: UsableTokenizer, tokenLimit: number): {
+function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptNode, level: number, tokenizer: UsableTokenizer, tokenLimit: number): {
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 } {
@@ -1141,7 +1145,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 	}
 }
 
-function recursivelyEject(elem: PromptElement) {
+function recursivelyEject(elem: PromptNode) {
 	if (elem === undefined || elem === null || elem === false || typeof elem === 'string' || typeof elem === 'number') {
 		return;
 	}
@@ -1157,7 +1161,7 @@ function recursivelyEject(elem: PromptElement) {
 	}
 }
 
-function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promise<void> | undefined {
+function hydrateIsolates(elem: PromptNode, tokenizer: UsableTokenizer): Promise<void> | undefined {
 	if (elem === undefined || elem === null || elem === false) {
 		return;
 	}
@@ -1208,7 +1212,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promi
 }
 
 // WARNING: do not attempt to make this function async!!! it will make it a lot slower!
-function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): {
+function renderWithLevel(elem: PromptNode, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): {
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
@@ -1403,7 +1407,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 }
 
 // TODO: make this into eslint rules so they can be shown in the IDE
-function validateUnrenderedPrompt(elem: PromptElement): void {
+function validateUnrenderedPrompt(elem: PromptNode): void {
 	validateNoChildrenHigherPriorityThanParent(elem);
 
 	// print a warning if any scope has both an absolute and relative priority
@@ -1411,11 +1415,9 @@ function validateUnrenderedPrompt(elem: PromptElement): void {
 }
 
 
-function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
+function validateNotBothAbsoluteAndRelativePriority(elem: PromptNode): void {
 	if (Array.isArray(elem)) {
-		for (const child of elem) {
-			validateUnrenderedPrompt(child);
-		}
+		elem.forEach(e => validateUnrenderedPrompt(e));
 		return;
 	}
 
@@ -1434,8 +1436,8 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 		case 'chat':
 		case 'isolate':
 		case 'first': {
-			for (const child of elem.children) {
-				validateNotBothAbsoluteAndRelativePriority(child);
+			if (Array.isArray(elem.children)) {
+				elem.children.forEach(child => validateNotBothAbsoluteAndRelativePriority(child));
 			}
 			return;
 		}
@@ -1449,15 +1451,15 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 			if (elem.absolutePriority !== undefined && elem.relativePriority !== undefined) {
 				console.warn(`Priompt WARNING: scope has both absolute and relative priority.This is discouraged.Ignoring relative priority.`);
 			}
-			for (const child of elem.children) {
-				validateNotBothAbsoluteAndRelativePriority(child);
+			if (Array.isArray(elem.children)) {
+				elem.children.forEach(child => validateNotBothAbsoluteAndRelativePriority(child));
 			}
 			return;
 		}
 	}
 }
 
-function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentPriority: number = BASE_PRIORITY): void {
+function validateNoChildrenHigherPriorityThanParent(elem: PromptNode, parentPriority: number = BASE_PRIORITY): void {
 	if (Array.isArray(elem)) {
 		for (const child of elem) {
 			validateNoChildrenHigherPriorityThanParent(child, parentPriority);
@@ -1479,8 +1481,8 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 	switch (elem.type) {
 		case 'chat':
 		case 'first': {
-			for (const child of elem.children) {
-				validateNoChildrenHigherPriorityThanParent(child, parentPriority);
+			if (Array.isArray(elem.children)) {
+				elem.children.forEach(child => validateNoChildrenHigherPriorityThanParent(child, parentPriority));
 			}
 			return;
 		}
@@ -1500,8 +1502,8 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 			if (priority > parentPriority) {
 				console.warn(`Priompt WARNING: child scope has a higher priority(${priority}) than its parent(${parentPriority}).This is discouraged, because the child will only be included if the parent is, and thus the effective priority of the child is just the parent's priority.`);
 			}
-			for (const child of elem.children) {
-				validateNoChildrenHigherPriorityThanParent(child, priority);
+			if (Array.isArray(elem.children)) {
+				elem.children.forEach(child => validateNoChildrenHigherPriorityThanParent(child, priority));
 			}
 			return;
 		}
@@ -1512,9 +1514,9 @@ function computePriority(elem: Scope | NormalizedScope, parentPriority: number) 
 	return elem.absolutePriority ?? (parentPriority + (elem.relativePriority ?? 0));
 }
 
-type AnyNode = NormalizedNode | Node;
+type AnyNode = NormalizedNode | PromptNode;
 
-function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number, levels: Set<number>): void {
+function computePriorityLevels(elem: AnyNode, parentPriority: number, levels: Set<number>): void {
 	if (Array.isArray(elem)) {
 		for (const child of elem) {
 			computePriorityLevels(child, parentPriority, levels);
@@ -1538,8 +1540,8 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 		case 'chat':
 		case 'first': {
 			// just do it for each child
-			for (const child of elem.children) {
-				computePriorityLevels(child, parentPriority, levels);
+			if (Array.isArray(elem.children)) {
+				elem.children.forEach(child => computePriorityLevels(child, parentPriority, levels));
 			}
 			return;
 		}
@@ -1561,9 +1563,8 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 			levels.add(priority);
 			// we make the elem have this priority, so that we don't need to redo the priority calculation
 			elem.absolutePriority = priority;
-			// then for each child
-			for (const child of elem.children) {
-				computePriorityLevels(child, priority, levels);
+			if (Array.isArray(elem.children)) {
+				elem.children.forEach(child => computePriorityLevels(child, priority, levels));
 			}
 			return;
 		}

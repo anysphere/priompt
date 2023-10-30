@@ -2,7 +2,7 @@ import * as Priompt from "@anysphere/priompt";
 import {
   PreviewConfig,
   PreviewManager,
-  PromptElement,
+  PromptNode,
   PromptProps,
   SystemMessage,
   UserMessage,
@@ -22,7 +22,7 @@ export type ExamplePromptProps = PromptProps<{
 export function ExamplePrompt(
   props: ExamplePromptProps,
   args?: { dump?: boolean }
-): PromptElement {
+): PromptNode {
   if (args?.dump === true) {
     PreviewManager.dump(ExamplePromptConfig, props);
   }
@@ -50,7 +50,7 @@ export function SimplePrompt(
     },
     boolean
   >
-): PromptElement {
+): PromptNode {
   return (
     <>
       <SystemMessage>
@@ -78,7 +78,7 @@ export function SimplePrompt(
 PreviewManager.register(ArvidStory);
 export function ArvidStory(
   props: PromptProps<undefined, AsyncIterable<string>>
-): PromptElement {
+): PromptNode {
   return (
     <>
       <SystemMessage>

@@ -7,13 +7,13 @@ import {
   promptToTokens,
   render,
 } from "./lib";
-import { PromptElement, PromptProps } from "./types";
+import { PromptNode, PromptProps } from "./types";
 import { AssistantMessage, SystemMessage, UserMessage } from "./components";
 
 describe("isolate", () => {
   function Isolate(
     props: PromptProps<{ isolate: boolean; tokenLimit: number }>
-  ): PromptElement {
+  ): PromptNode {
     if (props.isolate) {
       return (
         <>
@@ -41,7 +41,7 @@ describe("isolate", () => {
     }
   }
 
-  function Test(props: PromptProps<{ isolate: boolean }>): PromptElement {
+  function Test(props: PromptProps<{ isolate: boolean }>): PromptNode {
     return (
       <>
         This is the start of the prompt.
@@ -120,7 +120,7 @@ describe("isolate", () => {
 
   function SimplePrompt(
     props: PromptProps<{ breaktoken: boolean }>
-  ): PromptElement {
+  ): PromptNode {
     return (
       <>
         This is the start of the p
@@ -159,7 +159,7 @@ describe("isolate", () => {
 
   function SimpleMessagePrompt(
     props: PromptProps<{ breaktoken: boolean }>
-  ): PromptElement {
+  ): PromptNode {
     return (
       <>
         {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -214,7 +214,7 @@ describe("isolate", () => {
     ]);
   });
 
-  function SpecialTokensPrompt(): PromptElement {
+  function SpecialTokensPrompt(): PromptNode {
     return (
       <>
         {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
