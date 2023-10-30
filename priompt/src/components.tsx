@@ -5,82 +5,67 @@ import { JSONSchema7 } from "json-schema";
 import { z } from "zod";
 import zodToJsonSchemaImpl from "zod-to-json-schema";
 
-export function SystemMessage(props: PromptProps): PromptElement {
+export function SystemMessage({ children }: PromptProps): PromptElement {
   return {
     type: "chat",
     role: "system",
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    children,
   };
 }
 
-export function UserMessage(props: PromptProps): PromptElement {
+export function UserMessage({ children }: PromptProps): PromptElement {
   return {
     type: "chat",
     role: "user",
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    children,
   };
 }
 
-export function AssistantMessage(
-  props: PromptProps<{
-    functionCall?: {
-      name: string;
-      arguments: string; // json string
-    };
-  }>
-): PromptElement {
+export function AssistantMessage({
+  functionCall,
+  children,
+}: PromptProps<{
+  functionCall?: {
+    name: string;
+    arguments: string; // json string
+  };
+}>): PromptElement {
   return {
     type: "chat",
     role: "assistant",
-    functionCall: props.functionCall,
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    functionCall,
+    children,
   };
 }
 
-export function FunctionMessage(
-  props: PromptProps<{
-    name: string;
-  }>
-): PromptElement {
+export function FunctionMessage({
+  name,
+  children,
+}: PromptProps<{
+  name: string;
+}>): PromptElement {
   return {
     type: "chat",
     role: "function",
-    name: props.name,
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    name,
+    children,
   };
 }
 
-export function Function(
-  props: PromptProps<{
-    name: string;
-    description: string;
-    parameters: JSONSchema7;
-    onCall?: (args: string) => Promise<void>;
-  }>
-): PromptElement {
-  if (!validFunctionName(props.name)) {
+export function Function({
+  name,
+  description,
+  parameters,
+  onCall,
+}: PromptProps<{
+  name: string;
+  description: string;
+  parameters: JSONSchema7;
+  onCall?: (args: string) => Promise<void>;
+}>): PromptElement {
+  if (!validFunctionName(name)) {
     throw new Error(
-      `Invalid function name: ${props.name}. Function names must be between 1 and 64 characters long and may only contain a-z, A-Z, 0-9, and underscores.`
+      `Invalid function name: ${name}. Function names must be between 1 and 64 characters long and may only contain a-z, A-Z, 0-9, and underscores.`
     );
   }
 
@@ -90,20 +75,20 @@ export function Function(
     <>
       {{
         type: "functionDefinition",
-        name: props.name,
-        description: props.description,
-        parameters: props.parameters,
+        name,
+        description,
+        parameters,
       }}
       {{
         type: "capture",
         onOutput: async (output: ChatCompletionResponseMessage) => {
           if (
-            props.onCall !== undefined &&
+            onCall !== undefined &&
             output.function_call !== undefined &&
-            output.function_call.name === props.name &&
+            output.function_call.name === name &&
             output.function_call.arguments !== undefined
           ) {
-            await props.onCall(output.function_call.arguments);
+            await onCall(output.function_call.arguments);
           }
         },
       }}

@@ -88,7 +88,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 		// we scope each tag so we can add priorities to it
 		return {
 			type: 'scope',
-			children: [tag({ ...props, children: children })].flat(),
+			children: [tag({ ...props, children: children })],
 			absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 			relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
 		};
@@ -102,7 +102,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 			{
 				return {
 					type: 'scope',
-					children: children.flat(),
+					children,
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined,
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					onEject: props && typeof props.onEject === 'function' ? props.onEject as () => void : undefined,
@@ -149,14 +149,13 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 			}
 		case 'first':
 			{
-				const newChildren: Scope[] = [];
 				// assert that all children are scopes
-				for (const child of children.flat()) {
+				const newChildren: Scope[] = children.map(child => {
 					if (child === null || typeof child !== 'object' || !("type" in child) || child.type !== 'scope') {
 						throw new Error(`first tag must have only scope children, got ${child}`);
 					}
-					newChildren.push(child);
-				}
+					return child;
+				});
 				return {
 					type: 'first',
 					children: newChildren,
@@ -196,7 +195,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 						type: 'isolate',
 						tokenLimit: props.tokenLimit,
 						cachedRenderOutput: undefined,
-						children: children.flat(),
+						children,
 					}],
 					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
@@ -232,7 +231,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 }
 
 export function Fragment({ children }: { children: PromptNode; }): PromptElement {
-	const childrenToPass = Array.isArray(children) ? children.flat() : [children];
+	const childrenToPass = Array.isArray(children) ? children : [children];
 	return {
 		type: "scope",
 		children: childrenToPass,
