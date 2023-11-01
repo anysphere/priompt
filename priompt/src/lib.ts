@@ -1544,6 +1544,7 @@ function computePriorityLevels(elem: AnyNode, parentPriority: number, levels: Se
 			levels.add(priority);
 			// we make the elem have this priority, so that we don't need to redo the priority calculation
 			elem.absolutePriority = priority;
+			// then for children
 			computePriorityLevels(elem.children, priority, levels);
 			return;
 		}
