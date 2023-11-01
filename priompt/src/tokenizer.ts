@@ -15,6 +15,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'gpt-4-32k':
 		case 'gpt-4-32k-0613':
 		case 'text-embedding-ada-002':
+		case 'ft:gpt-3.5-turbo-0613:anysphere::8Dp3FfRl':
 		case 'gpt-3.5-turbo':
 		case 'gpt-3.5-turbo-0613':
 		case 'gpt-3.5-turbo-16k':
@@ -39,7 +40,7 @@ export async function numTokens(text: string, opts: {
 		case 'cl100k_base':
 			return await tokenizerObject.exactNumTokensCl100KNoSpecialTokens(text);
 		default:
-			throw new Error(`Unknown tokenizer ${tokenizerName}`);
+			throw new Error(`Unknown tokenizer ${tokenizerName} ${opts.model}`);
 	}
 }
 

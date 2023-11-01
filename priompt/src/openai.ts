@@ -20,6 +20,7 @@ export const CL100K_BASE = 'cl100k_base';
 export const R50K_BASE = 'r50k_base';
 export const P50K_BASE = 'p50k_base';
 export const GPT2_TOKENIZER = 'gpt2';
+export const GPT_3_5_FINETUNE_CPP = 'ft:gpt-3.5-turbo-0613:anysphere::8Dp3FfRl';
 
 export const usableModels = [
 	GPT_3_5_TURBO,
@@ -34,6 +35,7 @@ export const usableModels = [
 	AZURE_3_5_TURBO,
 	TEXT_EMBEDDING_ADA_002,
 	TEXT_DAVINCI_003,
+	GPT_3_5_FINETUNE_CPP
 ] as const;
 
 export const usableLanguageModels = [
@@ -46,7 +48,8 @@ export const usableLanguageModels = [
 	GPT_4_NIGHTLY_0613,
 	GPT_4_32K,
 	GPT_4_32K_NIGHTLY_0613,
-	AZURE_3_5_TURBO
+	AZURE_3_5_TURBO,
+	GPT_3_5_FINETUNE_CPP
 ] as const;
 
 export function isUsableLanguageModel(s: string): s is UsableLanguageModel {
@@ -67,6 +70,7 @@ export const MODEL_CONTEXTS: {
 	[key in UsableLanguageModel]: number;
 } = {
 	[GPT_3_5_TURBO]: 2_000,
+	[GPT_3_5_FINETUNE_CPP]: 2_000,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 2_000,
 	[GPT_3_5_TURBO_16K]: 10_000,
 	[GPT3_3_5_TURBO_DOTHISFORME]: 4_000,
@@ -82,6 +86,7 @@ export const MAX_TOKENS: {
 	[key in UsableLanguageModel]: number;
 } = {
 	[GPT_3_5_TURBO]: 4096,
+	[GPT_3_5_FINETUNE_CPP]: 4096,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 4096,
 	[GPT_3_5_TURBO_16K]: 16_384,
 	[GPT_3_5_TURBO_INSTRUCT]: 4096,
