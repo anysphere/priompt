@@ -21,6 +21,7 @@ export const R50K_BASE = 'r50k_base';
 export const P50K_BASE = 'p50k_base';
 export const GPT2_TOKENIZER = 'gpt2';
 export const GPT_3_5_FINETUNE_CPP = 'ft:gpt-3.5-turbo-0613:anysphere::8Dp3FfRl';
+export const CODE_LLAMA_RERANKER = 'codellama_7b_reranker';
 
 export const usableModels = [
 	GPT_3_5_TURBO,
@@ -35,7 +36,8 @@ export const usableModels = [
 	AZURE_3_5_TURBO,
 	TEXT_EMBEDDING_ADA_002,
 	TEXT_DAVINCI_003,
-	GPT_3_5_FINETUNE_CPP
+	GPT_3_5_FINETUNE_CPP,
+	CODE_LLAMA_RERANKER
 ] as const;
 
 export const usableLanguageModels = [
@@ -49,7 +51,8 @@ export const usableLanguageModels = [
 	GPT_4_32K,
 	GPT_4_32K_NIGHTLY_0613,
 	AZURE_3_5_TURBO,
-	GPT_3_5_FINETUNE_CPP
+	GPT_3_5_FINETUNE_CPP,
+	CODE_LLAMA_RERANKER
 ] as const;
 
 export function isUsableLanguageModel(s: string): s is UsableLanguageModel {
@@ -80,6 +83,7 @@ export const MODEL_CONTEXTS: {
 	[GPT_4_32K]: 32_000,
 	[GPT_4_NIGHTLY_0613]: 4_000,
 	[GPT_4_32K_NIGHTLY_0613]: 32_000,
+	[CODE_LLAMA_RERANKER]: 4_000,
 };
 
 export const MAX_TOKENS: {
@@ -96,6 +100,7 @@ export const MAX_TOKENS: {
 	[GPT_4_NIGHTLY_0613]: 8000,
 	[GPT_4_32K]: 32000,
 	[GPT_4_32K_NIGHTLY_0613]: 32000,
+	[CODE_LLAMA_RERANKER]: 4_000,
 };
 
 
