@@ -1434,9 +1434,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptNode): void {
 		case 'chat':
 		case 'isolate':
 		case 'first': {
-			if (Array.isArray(elem.children)) {
-				elem.children.forEach(child => validateNotBothAbsoluteAndRelativePriority(child));
-			}
+			validateNotBothAbsoluteAndRelativePriority(elem.children);
 			return;
 		}
 		case 'capture':
@@ -1449,9 +1447,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptNode): void {
 			if (elem.absolutePriority !== undefined && elem.relativePriority !== undefined) {
 				console.warn(`Priompt WARNING: scope has both absolute and relative priority.This is discouraged.Ignoring relative priority.`);
 			}
-			if (Array.isArray(elem.children)) {
-				elem.children.forEach(child => validateNotBothAbsoluteAndRelativePriority(child));
-			}
+			validateNotBothAbsoluteAndRelativePriority(elem.children);
 			return;
 		}
 	}
@@ -1477,9 +1473,7 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptNode, parentPrio
 	switch (elem.type) {
 		case 'chat':
 		case 'first': {
-			if (Array.isArray(elem.children)) {
-				elem.children.forEach(child => validateNoChildrenHigherPriorityThanParent(child, parentPriority));
-			}
+			validateNoChildrenHigherPriorityThanParent(elem.children, parentPriority);
 			return;
 		}
 		case 'isolate': {
@@ -1498,9 +1492,7 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptNode, parentPrio
 			if (priority > parentPriority) {
 				console.warn(`Priompt WARNING: child scope has a higher priority(${priority}) than its parent(${parentPriority}).This is discouraged, because the child will only be included if the parent is, and thus the effective priority of the child is just the parent's priority.`);
 			}
-			if (Array.isArray(elem.children)) {
-				elem.children.forEach(child => validateNoChildrenHigherPriorityThanParent(child, priority));
-			}
+			validateNoChildrenHigherPriorityThanParent(elem.children, priority);
 			return;
 		}
 	}
@@ -1535,10 +1527,8 @@ function computePriorityLevels(elem: AnyNode, parentPriority: number, levels: Se
 	switch (elem.type) {
 		case 'chat':
 		case 'first': {
-			// just do it for each child
-			if (Array.isArray(elem.children)) {
-				elem.children.forEach(child => computePriorityLevels(child, parentPriority, levels));
-			}
+			// just do it for children
+			computePriorityLevels(elem.children, parentPriority, levels);
 			return;
 		}
 		case 'capture':
@@ -1559,9 +1549,7 @@ function computePriorityLevels(elem: AnyNode, parentPriority: number, levels: Se
 			levels.add(priority);
 			// we make the elem have this priority, so that we don't need to redo the priority calculation
 			elem.absolutePriority = priority;
-			if (Array.isArray(elem.children)) {
-				elem.children.forEach(child => computePriorityLevels(child, priority, levels));
-			}
+			computePriorityLevels(elem.children, priority, levels);
 			return;
 		}
 		case 'normalizedString': {
