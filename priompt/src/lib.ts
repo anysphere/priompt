@@ -230,13 +230,8 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 	}
 }
 
-export function Fragment({ children }: { children: PromptNode; }): PromptElement {
-	return {
-		type: "scope",
-		absolutePriority: undefined,
-		relativePriority: undefined,
-		children,
-	};
+export function Fragment({ children }: { children: PromptNode; }): PromptNode {
+	return children;
 }
 
 // priority level if it is not set becomes 1e9, i.e. it is always rendered
