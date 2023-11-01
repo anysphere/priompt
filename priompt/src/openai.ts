@@ -20,7 +20,7 @@ export const CL100K_BASE = 'cl100k_base';
 export const R50K_BASE = 'r50k_base';
 export const P50K_BASE = 'p50k_base';
 export const GPT2_TOKENIZER = 'gpt2';
-export const GPT_3_5_FINETUNE_CPP = 'ft:gpt-3.5-turbo-0613:anysphere::8Dp3FfRl';
+export const GPT_3_5_FINETUNE_CPP = 'ft:gpt-3.5-turbo-0613:anysphere::8ERu98np';
 export const CODE_LLAMA_RERANKER = 'codellama_7b_reranker';
 
 export const usableModels = [
