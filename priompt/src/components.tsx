@@ -31,51 +31,46 @@ export function UserMessage(
   };
 }
 
-export function AssistantMessage({
-  functionCall,
-  children,
-}: PromptProps<{
-  functionCall?: {
-    name: string;
-    arguments: string; // json string
-  };
-}>): PromptElement {
+export function AssistantMessage(
+  props: PromptProps<{
+    functionCall?: {
+      name: string;
+      arguments: string; // json string
+    };
+  }>
+): PromptElement {
   return {
     type: "chat",
     role: "assistant",
-    functionCall,
-    children,
+    functionCall: props.functionCall,
+    children: props.children,
   };
 }
 
-export function FunctionMessage({
-  name,
-  children,
-}: PromptProps<{
-  name: string;
-}>): PromptElement {
+export function FunctionMessage(
+  props: PromptProps<{
+    name: string;
+  }>
+): PromptElement {
   return {
     type: "chat",
     role: "function",
-    name,
-    children,
+    name: props.name,
+    children: props.children,
   };
 }
 
-export function Function({
-  name,
-  description,
-  parameters,
-  onCall,
-}: PromptProps<{
-  name: string;
-  description: string;
-  parameters: JSONSchema7;
-  onCall?: (args: string) => Promise<void>;
-}>): PromptElement {
-  if (!validFunctionName(name)) {
+export function Function(
+  props: PromptProps<{
+    name: string;
+    description: string;
+    parameters: JSONSchema7;
+    onCall?: (args: string) => Promise<void>;
+  }>
+): PromptElement {
+  if (!validFunctionName(props.name)) {
     throw new Error(
-      `Invalid function name: ${name}. Function names must be between 1 and 64 characters long and may only contain a-z, A-Z, 0-9, and underscores.`
+      `Invalid function name: ${props.name}. Function names must be between 1 and 64 characters long and may only contain a-z, A-Z, 0-9, and underscores.`
     );
   }
 
@@ -85,20 +80,20 @@ export function Function({
     <>
       {{
         type: "functionDefinition",
-        name,
-        description,
-        parameters,
+        name: props.name,
+        description: props.description,
+        parameters: props.parameters,
       }}
       {{
         type: "capture",
         onOutput: async (output: ChatCompletionResponseMessage) => {
           if (
-            onCall !== undefined &&
+            props.onCall !== undefined &&
             output.function_call !== undefined &&
             output.function_call.name === name &&
             output.function_call.arguments !== undefined
           ) {
-            await onCall(output.function_call.arguments);
+            await props.onCall(output.function_call.arguments);
           }
         },
       }}
