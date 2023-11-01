@@ -65,6 +65,7 @@ export type Scope = {
 export type ChatUserSystemMessage = {
 	type: 'chat';
 	role: 'user' | 'system';
+	name?: string;
 	children: PromptNode;
 }
 
@@ -145,6 +146,7 @@ export type PromptString = string | string[];
 
 export type ChatPromptUserSystemMessage = {
 	role: 'user' | 'system';
+	name?: string;
 	content: PromptString;
 }
 

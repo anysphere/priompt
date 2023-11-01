@@ -40,6 +40,7 @@ echo $COMMIT_IDS
 
 for COMMIT_ID in $COMMIT_IDS
 do
+  cd "$SCRIPT_DIR/priompt-opensource"
   git show $COMMIT_ID > "$SCRIPT_DIR/commit.patch"
   sd 'a/' 'a/' "$SCRIPT_DIR/commit.patch"
   sd 'b/' 'b/' "$SCRIPT_DIR/commit.patch"

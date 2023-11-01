@@ -5,19 +5,29 @@ import { JSONSchema7 } from "json-schema";
 import { z } from "zod";
 import zodToJsonSchemaImpl from "zod-to-json-schema";
 
-export function SystemMessage({ children }: PromptProps): PromptElement {
+export function SystemMessage(
+  props: PromptProps<{
+    name?: string;
+  }>
+): PromptElement {
   return {
     type: "chat",
     role: "system",
-    children,
+    name: props.name,
+    children: props.children,
   };
 }
 
-export function UserMessage({ children }: PromptProps): PromptElement {
+export function UserMessage(
+  props: PromptProps<{
+    name?: string;
+  }>
+): PromptElement {
   return {
     type: "chat",
     role: "user",
-    children,
+    name: props.name,
+    children: props.children,
   };
 }
 

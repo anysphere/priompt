@@ -907,6 +907,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode, level: number
 			if (elem.role === 'user' || elem.role === 'system') {
 				message = {
 					role: elem.role,
+					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				};
 			} else if (elem.role === 'assistant') {
@@ -1089,6 +1090,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptNode, level:
 			if (elem.role === 'user' || elem.role === 'system') {
 				message = {
 					role: elem.role,
+					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				};
 			} else if (elem.role === 'assistant') {
@@ -1342,6 +1344,7 @@ function renderWithLevel(elem: PromptNode, level: number, tokenizer: UsableToken
 			if (elem.role === 'user' || elem.role === 'system') {
 				message = {
 					role: elem.role,
+					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				};
 			} else if (elem.role === 'assistant') {
@@ -1610,6 +1613,12 @@ const CL100K_USER_TOKENS = [100264, 882, 100266];
 const CL100K_ASSISTANT_TOKENS = [100264, 78191, 100266];
 const CL100K_END_TOKEN = [100265];
 
+async function injectName(tokens: number[], name: string): Promise<number[]> {
+	// i don't really know if this is the right way to format it....
+	const nameTokens = await tokenizerObject.encodeCl100KNoSpecialTokens(":" + name);
+	return [...tokens.slice(0, -1), ...nameTokens, tokens[tokens.length - 1]];
+}
+
 export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTokenizer): Promise<number[]> {
 	if (tokenizer !== 'cl100k_base') {
 		throw new Error("promptToTokens only supports the cl100k_base tokenizer for now!")
@@ -1631,10 +1640,13 @@ export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTo
 			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
 				throw new Error(`BUG!! promptToTokens got a chat prompt with a function message, which is not supported yet!`);
 			} else {
+				let headerTokens =
+					msg.role === 'assistant' ? CL100K_ASSISTANT_TOKENS : msg.role === 'system' ? CL100K_SYSTEM_TOKENS : CL100K_USER_TOKENS;
+				if ('name' in msg && msg.name !== undefined) {
+					headerTokens = await injectName(headerTokens, msg.name);
+				}
 				return [
-					...(
-						msg.role === 'assistant' ? CL100K_ASSISTANT_TOKENS : msg.role === 'system' ? CL100K_SYSTEM_TOKENS : CL100K_USER_TOKENS
-					),
+					...headerTokens,
 					...(msg.content !== undefined ? (await promptToTokens(msg.content, tokenizer)) : []),
 				];
 			}
@@ -1677,6 +1689,7 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 				return {
 					role: msg.role,
 					content: msg.content !== undefined ? promptStringToString(msg.content) : "",
+					name: 'name' in msg ? msg.name : undefined,
 				}
 			}
 		});
