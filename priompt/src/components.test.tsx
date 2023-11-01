@@ -33,7 +33,7 @@ describe("SystemMessage", () => {
 
   function TestSystemMessageWithName(
     props: PromptProps<{ systemName?: string; userName?: string }>
-  ): PromptElement {
+  ): PromptNode {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     return (
