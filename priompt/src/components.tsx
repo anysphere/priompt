@@ -14,12 +14,7 @@ export function SystemMessage(
     type: "chat",
     role: "system",
     name: props.name,
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    children: props.children,
   };
 }
 
@@ -32,12 +27,7 @@ export function UserMessage(
     type: "chat",
     role: "user",
     name: props.name,
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    children: props.children,
   };
 }
 
@@ -53,12 +43,7 @@ export function AssistantMessage(
     type: "chat",
     role: "assistant",
     functionCall: props.functionCall,
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    children: props.children,
   };
 }
 
@@ -71,12 +56,7 @@ export function FunctionMessage(
     type: "chat",
     role: "function",
     name: props.name,
-    children:
-      props.children !== undefined
-        ? Array.isArray(props.children)
-          ? props.children.flat()
-          : [props.children]
-        : [],
+    children: props.children,
   };
 }
 

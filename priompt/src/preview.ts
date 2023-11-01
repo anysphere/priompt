@@ -1,5 +1,5 @@
 import { render } from './lib';
-import { Prompt, PromptElement, PromptProps, RenderOutput } from './types';
+import { Prompt, PromptNode, PromptProps, RenderOutput } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -44,7 +44,7 @@ type LiveModeOutput = {
 
 type LiveModeData = {
   liveModeId: string;
-  promptElement: PromptElement;
+  promptElement: PromptNode;
 };
 
 function getProjectRoot(): string {
@@ -52,7 +52,7 @@ function getProjectRoot(): string {
   return process.cwd();
 }
 
-export function configFromPrompt<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement): PreviewConfig<T> {
+export function configFromPrompt<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptNode): PreviewConfig<T> {
   return {
     id: prompt.name,
     prompt,
@@ -71,7 +71,7 @@ export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>,
 
 export type PreviewConfig<PropsT, ReturnT = never> = {
   id: string;
-  prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
+  prompt: (props: PromptProps<PropsT, ReturnT>) => PromptNode;
   // defaults to yaml but can be overridden
   dump?: (props: Omit<PropsT, "onReturn">) => string; hydrate?: (dump: string) => PropsT;
 }
@@ -162,7 +162,7 @@ class PreviewManagerImpl implements IPreviewManager {
 
   }
 
-  private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement {
+  private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptNode {
     if (promptId === 'liveModePromptId') {
       if (this.lastLiveModeData === null) {
         throw new Error('live mode prompt not found');
@@ -213,7 +213,7 @@ class PreviewManagerImpl implements IPreviewManager {
     return props;
   }
 
-  maybeDump<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement, props: Omit<T, "onReturn">) {
+  maybeDump<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptNode, props: Omit<T, "onReturn">) {
     if (!this.shouldDump) {
       return;
     }
@@ -261,7 +261,7 @@ class PreviewManagerImpl implements IPreviewManager {
     });
   }
 
-  async getLiveModePromptCompletion(promptElement: PromptElement, options: { model: string, abortSignal?: AbortSignal }): Promise<CreateChatCompletionResponse> {
+  async getLiveModePromptCompletion(promptElement: PromptNode, options: { model: string, abortSignal?: AbortSignal }): Promise<CreateChatCompletionResponse> {
     const liveModeData: LiveModeData = {
       liveModeId: randomString(),
       promptElement,
@@ -290,7 +290,7 @@ class PreviewManagerImpl implements IPreviewManager {
     return output;
   }
 
-  async *streamLiveModePromptCompletion(promptElement: PromptElement, options: { model: string, abortSignal?: AbortSignal }): AsyncGenerator<StreamChatCompletionResponse> {
+  async *streamLiveModePromptCompletion(promptElement: PromptNode, options: { model: string, abortSignal?: AbortSignal }): AsyncGenerator<StreamChatCompletionResponse> {
     const output: StreamChatCompletionResponse = await this.getLiveModePromptCompletion(promptElement, options);
 
     output.choices[0].delta = output.choices[0].message;

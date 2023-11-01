@@ -14,10 +14,10 @@ import {
   SystemMessage,
   UserMessage,
 } from "./components";
-import { PromptElement, PromptProps } from "./types";
+import { PromptNode, PromptProps } from "./types";
 
 describe("SystemMessage", () => {
-  function TestSystemMessage(props: PromptProps): PromptElement {
+  function TestSystemMessage(props: PromptProps): PromptNode {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     return <SystemMessage>hi this is a system message</SystemMessage>;
@@ -33,7 +33,7 @@ describe("SystemMessage", () => {
 
   function TestSystemMessageWithName(
     props: PromptProps<{ systemName?: string; userName?: string }>
-  ): PromptElement {
+  ): PromptNode {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     return (
@@ -83,7 +83,7 @@ describe("SystemMessage", () => {
 });
 
 describe("Function", () => {
-  function TestFunction(props: PromptProps): PromptElement {
+  function TestFunction(props: PromptProps): PromptNode {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     return (
@@ -139,7 +139,7 @@ describe("Function", () => {
 });
 
 describe("All kinds of messages", () => {
-  function TestAllMessages(props: PromptProps): PromptElement {
+  function TestAllMessages(props: PromptProps): PromptNode {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     return (

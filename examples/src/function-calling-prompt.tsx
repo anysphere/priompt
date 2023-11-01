@@ -2,7 +2,7 @@ import * as Priompt from "@anysphere/priompt";
 import {
   PreviewConfig,
   PreviewManager,
-  PromptElement,
+  PromptNode,
   PromptProps,
   SystemMessage,
   UserMessage,
@@ -32,7 +32,7 @@ const arr = Array.from(Array(800).keys());
 export function FunctionCallingPrompt(
   props: FunctionCallingPromptProps,
   args?: { dump?: boolean }
-): PromptElement {
+): PromptNode {
   if (args?.dump === true) {
     PreviewManager.dump(FunctionCallingPromptConfig, props);
   }
