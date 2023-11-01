@@ -90,7 +90,7 @@ export function Function(
           if (
             props.onCall !== undefined &&
             output.function_call !== undefined &&
-            output.function_call.name === name &&
+            output.function_call.name === props.name &&
             output.function_call.arguments !== undefined
           ) {
             await props.onCall(output.function_call.arguments);
