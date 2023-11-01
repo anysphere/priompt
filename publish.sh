@@ -6,7 +6,7 @@ cd "$SCRIPT_DIR"
 
 # Check if a version bumping flag is provided
 if [ $# -ne 1 ]; then
-    echo "Error: Version bumping flag (--patch, --minor, or --major) is required."
+    echo "Error: Version bumping flag (patch, minor, or major) is required."
     exit 1
 fi
 
@@ -15,7 +15,7 @@ case $1 in
     patch|minor|major)
         ;;
     *)
-        echo "Error: Invalid version bumping flag. Use --patch, --minor, or --major."
+        echo "Error: Invalid version bumping flag. Use patch, minor, or major."
         exit 1
         ;;
 esac
