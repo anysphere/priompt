@@ -102,7 +102,7 @@ export const MAX_TOKENS: {
 	[key in UsableLanguageModel]: number;
 } = {
 	[GPT_3_5_TURBO]: 4096,
-	[GPT_3_5_FINETUNE_CPP]: 4_096,
+	[GPT_3_5_FINETUNE_CPP]: 4096,
 	[GPT_3_5_FINETUNE_RERANKER]: 2000,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 4096,
 	[GPT_3_5_TURBO_16K]: 16_384,
