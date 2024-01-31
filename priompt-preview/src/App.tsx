@@ -209,6 +209,7 @@ function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
 }
 
 const ALL_MODELS_STR = "gpt-3.5-turbo,gpt-4,gpt-4-32k,gpt-4-vision-preview";
+
 const ALL_MODELS = ALL_MODELS_STR.split(",");
 const COMPLETION_MODELS_STR = "text-davinci-003,code-davinci-002";
 const COMPLETION_MODELS = COMPLETION_MODELS_STR.split(",");
@@ -607,6 +608,12 @@ const App = () => {
 
   const [inJsonMode, setInJsonMode] = useState<boolean>(false);
   const [dontDisplayExtras, setDontDisplayExtras] = useState<boolean>(false);
+  const [lastPassedInModel, setLastPassedInModel] = useState<
+    {
+      displayName: string,
+      modelKey: string
+    } | undefined
+  >(undefined);
 
   useEffect(() => {
     window.addEventListener("message", (event) => {
@@ -618,6 +625,13 @@ const App = () => {
         | {
             case: "s3Url";
             s3Url: string;
+          }
+        | {
+            case: "model";
+            model: {
+              displayName: string,
+              modelKey: string
+            };
           } = event.data;
 
       console.log("GOT MESSAGE", t);
@@ -662,6 +676,12 @@ const App = () => {
           setSelectedPrompt("");
           setSelectedRemotePrompt(s3);
           setDontDisplayExtras(true);
+          break;
+        }
+        case "model": {
+          const model = t.model;
+          console.log("[Got New Model]", model);
+          setLastPassedInModel(model);
           break;
         }
       }
@@ -1383,6 +1403,9 @@ const App = () => {
                           setFullText={(newText: string) => {
                             debouncedSetFullPrompts(i, newText);
                           }}
+                          extraModels={
+                            lastPassedInModel ? [lastPassedInModel] : []
+                          }
                         />
                       ) : (
                         <>
@@ -1392,8 +1415,8 @@ const App = () => {
                                 msg.role === "user"
                                   ? "rgba(0, 0, 255, 0.2)"
                                   : msg.role === "system"
-                                    ? "rgba(100, 100, 100, 0.1)"
-                                    : "rgba(180,100,0,0.5)",
+                                  ? "rgba(100, 100, 100, 0.1)"
+                                  : "rgba(180,100,0,0.5)",
                               width: "100%",
                               // height: "fit-content",
                             }}
@@ -1467,6 +1490,9 @@ const App = () => {
                               setFullText={(_: string) => {
                                 // intentionally empty
                               }}
+                              extraModels={
+                                lastPassedInModel ? [lastPassedInModel] : []
+                              }
                             />
                           )}
                         </>
@@ -2189,6 +2215,7 @@ function AssistantBox(props: {
   currentTextArea: HTMLTextAreaElement | undefined;
   key: string;
   setFullText: (value: string) => void;
+  extraModels?: { displayName: string, modelKey: string}[];
 }) {
   // State to hold the user's chat model input
   const [customChatModel, setCustomChatModel] = useState("");
@@ -2207,11 +2234,32 @@ function AssistantBox(props: {
     setCustomCompletionModel(event.target.value);
   };
 
+  const initialExtraModelsDisplayNames = props.extraModels?.map(model => model.displayName) ?? []
+  const [allModels, setAllModels] = useState([
+    ...(props.extraModels ? initialExtraModelsDisplayNames : []),
+    ...ALL_MODELS,
+  ]);
+
+  useEffect(() => {
+    const extraModelsDisplayNames = props.extraModels?.map(model => model.displayName) ?? []
+    setAllModels([
+      ...(props.extraModels ? extraModelsDisplayNames : []),
+      ...ALL_MODELS,
+    ]);
+  }, [props.extraModels]);
+
   return (
     <div key={props.key}>
       <div>
-        {ALL_MODELS.map((model) => (
-          <button key={model} onClick={() => props.streamCompletion(model)}>
+        {allModels.map((model) => (
+          <button key={model} onClick={() => {
+            const maybeModel = props.extraModels?.find(modelObj => modelObj.displayName === model)
+            if (maybeModel) {
+              props.streamCompletion(maybeModel.modelKey)
+            } else {
+              props.streamCompletion(model)
+            }
+          }}>
             Submit to {model}
           </button>
         ))}
