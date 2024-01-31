@@ -290,6 +290,19 @@ class PreviewManagerImpl implements IPreviewManager {
       fs.mkdirSync(dumpsPath, { recursive: true });
     }
 
+    // if there are more than 2000 files, delete the oldest 1000 of them
+    try {
+      const files = fs.readdirSync(dumpsPath);
+      if (files.length > 2000) {
+        const sortedFiles = files.sort((a, b) => a.localeCompare(b));
+        for (let i = 0; i < 1000; i++) {
+          fs.unlinkSync(path.join(dumpsPath, sortedFiles[i]));
+        }
+      }
+    } catch (e) {
+      console.warn({ error: e }, "failed to remove old priompt dumps")
+    }
+
     const propsId = new Date().toISOString().replace(/[:.]/g, '-'); // Human-readable propsId with date and time
     const filePath = path.join(dumpsPath, `${propsId}.yaml`); // Changed file extension to .yaml
     fs.writeFileSync(filePath, dump);
