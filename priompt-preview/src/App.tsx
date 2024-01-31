@@ -103,7 +103,6 @@ const App = () => {
     >
   >({});
   const [output, setOutput] = useState<string | undefined>(undefined);
-
   const textAreaRefs = useRef<Array<HTMLTextAreaElement | undefined>>(
     Array.from({ length: 1 }).map(() => undefined)
   );
@@ -1775,6 +1774,15 @@ function AssistantBox(props: {
   key: string;
   setFullText: (value: string) => void;
 }) {
+  // State to hold the user's chat model input
+  const [customChatModel, setCustomChatModel] = useState("");
+
+  // Function to update the state as the user types in the textbox
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleChatModelChange = (event: any) => {
+    setCustomChatModel(event.target.value);
+  };
+
   return (
     <div key={props.key}>
       <div>
@@ -1783,6 +1791,15 @@ function AssistantBox(props: {
             Submit to {model}
           </button>
         ))}
+        <input
+          type="text"
+          value={customChatModel}
+          onChange={handleChatModelChange}
+          placeholder="Enter your chat model"
+        />
+        <button onClick={() => props.streamCompletion(customChatModel)}>
+          Submit to {customChatModel}
+        </button>
         {props.abortController !== undefined && (
           <>
             <button
