@@ -726,7 +726,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		// we could either return an empty string or we could throw an error here
 		// this is never desirable behavior, and indicates a bug with the prompt
 		// hence we throw an error
-		throw new Error(`Base prompt estimated token count is ${tokenCount} with ${prompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
+		throw new TooManyTokensForBasePriority(`Base prompt estimated token count is ${tokenCount} with ${prompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
 	}
 
 	if (process.env.NODE_ENV === 'development') {
@@ -874,7 +874,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 		// we could either return an empty string or we could throw an error here
 		// this is never desirable behavior, and indicates a bug with the prompt
 		// hence we throw an error
-		throw new Error(`Base prompt estimated token count is ${thisPrompt?.tokenCount} with ${thisPrompt?.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
+		throw new TooManyTokensForBasePriority(`Base prompt estimated token count is ${thisPrompt?.tokenCount} with ${thisPrompt?.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
 	}
 
 	let startExactTokenCount = undefined;
@@ -2345,4 +2345,11 @@ function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, t
 	const functionTokens = (promptHasFunctions(prompt) ? prompt.functions.reduce((a, b) => (a + estimateFunctionTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);
 
 	return contentTokens + functionTokens;
+}
+
+export class TooManyTokensForBasePriority extends Error {
+	constructor(message?: string) {
+		super(message);
+		this.name = "TooManyTokensForBasePriority";
+	}
 }
