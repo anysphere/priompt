@@ -694,71 +694,73 @@ const App = () => {
   }, []);
 
   // Add event listener for keydown events
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key;
-      // console.log(event._stopPropagation);
-      // If the textarea is focused, stop propagation of the event
-      if (
-        document.activeElement?.id &&
-        document.activeElement.id.includes("prompt-textarea")
-      ) {
-        return;
-      }
+  // removed because they interfere with input boxes
+  // and also never really that useful imo?
+  // useEffect(() => {
+  //   const handleKeyDown = (event: KeyboardEvent) => {
+  //     const key = event.key;
+  //     // console.log(event._stopPropagation);
+  //     // If the textarea is focused, stop propagation of the event
+  //     if (
+  //       document.activeElement?.id &&
+  //       document.activeElement.id.includes("prompt-textarea")
+  //     ) {
+  //       return;
+  //     }
 
-      // Press "r" to reload (fetchPrompt again)
-      if (key === "r") {
-        fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
-      }
+  //     // Press "r" to reload (fetchPrompt again)
+  //     if (key === "r") {
+  //       fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
+  //     }
 
-      const slider = document.getElementById(
-        "token-count-slider"
-      ) as HTMLInputElement;
+  //     const slider = document.getElementById(
+  //       "token-count-slider"
+  //     ) as HTMLInputElement;
 
-      // Press shift-left and shift-right arrows to advance the slider by 128
-      const shiftStep = 128;
-      if (event.shiftKey && key === "ArrowLeft") {
-        slider.value = Math.max(
-          parseInt(slider.value) - shiftStep,
-          parseInt(slider.min)
-        ).toString();
-        setTokenCount(parseInt(slider.value));
-      } else if (event.shiftKey && key === "ArrowRight") {
-        slider.value = Math.min(
-          parseInt(slider.value) + shiftStep,
-          parseInt(slider.max)
-        ).toString();
-        setTokenCount(parseInt(slider.value));
-      }
+  //     // Press shift-left and shift-right arrows to advance the slider by 128
+  //     const shiftStep = 128;
+  //     if (event.shiftKey && key === "ArrowLeft") {
+  //       slider.value = Math.max(
+  //         parseInt(slider.value) - shiftStep,
+  //         parseInt(slider.min)
+  //       ).toString();
+  //       setTokenCount(parseInt(slider.value));
+  //     } else if (event.shiftKey && key === "ArrowRight") {
+  //       slider.value = Math.min(
+  //         parseInt(slider.value) + shiftStep,
+  //         parseInt(slider.max)
+  //       ).toString();
+  //       setTokenCount(parseInt(slider.value));
+  //     }
 
-      // Press left-right arrows to advance the slider left and right
-      const step = 1; // Change this value to adjust the step size
-      if (key === "ArrowLeft") {
-        slider.value = Math.max(
-          parseInt(slider.value) - step,
-          parseInt(slider.min)
-        ).toString();
-        setTokenCount(parseInt(slider.value));
-      } else if (key === "ArrowRight") {
-        slider.value = Math.min(
-          parseInt(slider.value) + step,
-          parseInt(slider.max)
-        ).toString();
-        setTokenCount(parseInt(slider.value));
-      }
+  //     // Press left-right arrows to advance the slider left and right
+  //     const step = 1; // Change this value to adjust the step size
+  //     if (key === "ArrowLeft") {
+  //       slider.value = Math.max(
+  //         parseInt(slider.value) - step,
+  //         parseInt(slider.min)
+  //       ).toString();
+  //       setTokenCount(parseInt(slider.value));
+  //     } else if (key === "ArrowRight") {
+  //       slider.value = Math.min(
+  //         parseInt(slider.value) + step,
+  //         parseInt(slider.max)
+  //       ).toString();
+  //       setTokenCount(parseInt(slider.value));
+  //     }
 
-      if (key >= "1" && key <= "9") {
-        const digit = parseInt(key);
-        const tokenCount = Math.round((digit * 1000) / 1024) * 1024;
-        setTokenCount(tokenCount);
-      }
-    };
+  //     if (key >= "1" && key <= "9") {
+  //       const digit = parseInt(key);
+  //       const tokenCount = Math.round((digit * 1000) / 1024) * 1024;
+  //       setTokenCount(tokenCount);
+  //     }
+  //   };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedPrompt, selectedPropsId, tokenCount, fetchPrompt]);
+  //   window.addEventListener("keydown", handleKeyDown);
+  //   return () => {
+  //     window.removeEventListener("keydown", handleKeyDown);
+  //   };
+  // }, [selectedPrompt, selectedPropsId, tokenCount, fetchPrompt]);
 
   const handleSelectPrompt = useCallback(
     (promptId: string) => {
