@@ -11,6 +11,7 @@ import { GPT_3_5_FINETUNE_RERANKER, UsableModel, UsableTokenizer } from './opena
 export function getTokenizerName(model: UsableModel): UsableTokenizer {
 	switch (model) {
 		case 'gpt-4':
+		case 'gpt-4-vision-preview':
 		case 'gpt-4-0613':
 		case 'gpt-4-32k':
 		case 'gpt-4-1106-preview':

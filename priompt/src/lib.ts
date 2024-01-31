@@ -3,10 +3,10 @@
 
 // TODO: add an IDE plugin or something that renders the prompt when you hover over it (and has a slider for the priority)
 
-import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
+import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
 import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
@@ -30,6 +30,9 @@ export function isChatPrompt(prompt: RenderedPrompt | undefined): prompt is Chat
 }
 export function isPlainPrompt(prompt: RenderedPrompt | undefined): prompt is PromptString {
 	return typeof prompt === 'string' || Array.isArray(prompt);
+}
+export function isPromptContent(prompt: RenderedPrompt | undefined): prompt is PromptContentWrapper {
+	return typeof prompt === 'object' && !Array.isArray(prompt) && 'type' in prompt && prompt.type === 'prompt_content'
 }
 function isTextPromptPotentiallyWithFunctions(prompt: RenderedPrompt | undefined): prompt is ((TextPrompt & FunctionPrompt) | PromptString) {
 	return (typeof prompt === 'object' && 'text' in prompt) || typeof prompt === 'string';
@@ -76,6 +79,7 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	if (b === undefined) {
 		return a;
 	}
+	// These are non-intersecting messages, so we are fine
 	if ((isChatPrompt(a) && isChatPrompt(b)) || (isChatPrompt(a) && promptGetText(b) === '') || (isChatPrompt(b) && promptGetText(a) === '')) {
 		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
 		const prompt: (ChatPrompt & FunctionPrompt) | ChatPrompt = {
@@ -95,10 +99,64 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 		};
 		return prompt;
 	}
+
+	// We should not have contentPrompts with functions in them
+	if ((promptHasFunctions(a) && isPromptContent(b)) || (promptHasFunctions(b) && isPromptContent(a))) {
+		throw new Error(`Cannot sum prompts ${a} and ${b} since one has a function and the other has images`);
+	}
+
+	// Sum together content with plain text
+	if (isPlainPrompt(a) && isPromptContent(b)) {
+		return {
+			...b,
+			content: sumPromptStrings(a, b.content),
+			images: b.images,
+		}
+	} else if (isPlainPrompt(b) && isPromptContent(a)) {
+		return {
+			...a,
+			content: sumPromptStrings(b, a.content),
+			images: a.images,
+		}
+	} else if (isPromptContent(a) && isPromptContent(b)) {
+		return {
+			...a,
+			content: sumPromptStrings(a.content, b.content),
+			images: [...(a.images ?? []), ...(b.images ?? [])],
+		}
+	}
+
 	if (isPlainPrompt(a) && isPlainPrompt(b)) {
 		return sumPromptStrings(a, b);
 	}
 	throw new Error(`cannot sum prompts ${a} (${isPlainPrompt(a) ? 'string' : a.type}) and ${b} (${isPlainPrompt(b) ? 'string' : b.type})`);
+}
+
+export function numTokensForImage(dimensions: { width: number; height: number; }, detail: 'low' | 'high' | 'auto'): number {
+	if (detail === 'low') {
+		return 85
+	} else if (detail === 'high' || detail === 'auto') {
+		// First, we rescale to fit within 2048 x 2048
+		const largestRatio = Math.max(dimensions.width / 2048, dimensions.height / 2048);
+		if (largestRatio > 1) {
+			dimensions.width = Math.floor(dimensions.width / largestRatio);
+			dimensions.height = Math.floor(dimensions.height / largestRatio);
+		}
+
+		// Next, we scale the shortest side to be 768 px
+		const smallestRatio = Math.min(dimensions.width / 768, dimensions.height / 768);
+
+		dimensions.width = Math.floor(dimensions.width / smallestRatio);
+		dimensions.height = Math.floor(dimensions.height / smallestRatio);
+
+		// Finally, we calculate the number of 512 x 512 blocks needed to cover the image
+		// and pay 85 tokens per block
+		const numWidthBlocks = Math.ceil(dimensions.width / 512);
+		const numHeightBlocks = Math.ceil(dimensions.height / 512);
+		return numWidthBlocks * numHeightBlocks * 85;
+	} else {
+		return 1020;
+	}
 }
 
 export function createElement(tag: ((props: BaseProps & Record<string, unknown>) => PromptElement) | string, props: Record<string, unknown> | null, ...children: PromptElement[]): PromptElement {
@@ -247,6 +305,29 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
 				};
 			}
+		case 'image': {
+			if (!props || !('bytes' in props) || !(props.bytes instanceof Uint8Array)) {
+				throw new Error(`image tag must have a bytes prop that's a Uint8Array, got ${props}`);
+			}
+			if (!('dimensions' in props) || typeof props.dimensions !== 'object' || (!props.dimensions) || !('width' in props.dimensions) || !('height' in props.dimensions) ||
+				typeof props.dimensions.width !== 'number' || typeof props.dimensions.height !== 'number') {
+				throw new Error(`image tag must have a dimensions prop that's an object with width and height, got ${props}`);
+			}
+
+			if (!(props.detail === 'low' || props.detail === 'high' || props.detail === 'auto')) {
+				throw new Error(`image tag must have a detail prop that's either low, high, or auto, got ${props}`);
+			}
+			return {
+				type: 'image',
+				bytes: props.bytes,
+				dimensions: {
+					width: props.dimensions.width,
+					height: props.dimensions.height,
+				},
+				detail: props.detail
+			}
+
+		}
 		default:
 			throw new Error(`Unknown tag ${tag}`);
 	}
@@ -275,7 +356,6 @@ export async function render(elem: PromptElement, options: RenderOptions): Promi
 	// another idea is to implement this in Rust, and use the napi-rs library to call it from JS. in rust, implementing this would be trivial, because we would actually have a good data structure and memory management and parallelism (i think)
 
 	// return renderBackwardsLinearSearch(elem, options);
-
 	return await renderBinarySearch(elem, options);
 }
 
@@ -290,12 +370,12 @@ export async function renderun<
 	renderOptions,
 	modelCall,
 	loggingOptions,
-	renderedMessagesCallback = (messages: ChatCompletionResponseMessage[]) => { },
+	renderedMessagesCallback = (messages: ChatCompletionRequestMessage[]) => { },
 }: {
 	prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
 	props: Omit<PropsT, "onReturn">;
 	renderOptions: RenderOptions;
-	renderedMessagesCallback?: (messages: ChatCompletionResponseMessage[]) => void
+	renderedMessagesCallback?: (messages: ChatCompletionRequestMessage[]) => void
 	modelCall: (
 		args: ReturnType<typeof promptToOpenAIChatRequest>
 	) => Promise<{ type: "output", value: CreateChatCompletionResponse } | { type: "stream", value: AsyncIterable<ChatCompletionResponseMessage> }>;
@@ -430,9 +510,7 @@ export function renderCumulativeSum(
 	}
 
 	let startTimeComputingPriorityLevels = undefined;
-	if (process.env.NODE_ENV === 'development') {
-		startTimeComputingPriorityLevels = performance.now();
-	}
+	startTimeComputingPriorityLevels = performance.now();
 
 	// We normalize the node first
 	const normalizedNode = normalizePrompt(elem);
@@ -868,7 +946,7 @@ type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAss
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
-type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | NormalizedFunctionDefinition;
+type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | ChatImage | NormalizedFunctionDefinition;
 type NormalizedPromptElement = NormalizedNode[];
 function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	// we want to merge all the strings together
@@ -900,6 +978,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 				case 'capture':
 				case 'isolate':
 				case 'breaktoken':
+				case 'image':
 				case 'empty': {
 					newNode = node;
 					break;
@@ -986,13 +1065,36 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				streamHandlers: []
 			};
 		}
+		case 'image': {
+			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+			return {
+				prompt: {
+					type: 'prompt_content',
+					content: [],
+					images: [{
+						type: 'image',
+						image_url: {
+							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
+							detail: elem.detail,
+							// Temporary addition to be removed before sent to openai
+							dimensions: elem.dimensions,
+						}
+					}],
+				},
+				// Count the number of tokens for the image
+				emptyTokenCount: 0,
+				tokenCount: numTokensForImage(elem.dimensions, elem.detail),
+				outputHandlers: [],
+				streamHandlers: [],
+			}
+		}
 		case 'capture': {
 			return {
 				prompt: undefined,
 				tokenCount: 0,
 				emptyTokenCount: 0,
-				outputHandlers: elem.onOutput ? [elem.onOutput] : [],
-				streamHandlers: elem.onStream ? [elem.onStream] : []
+				outputHandlers: elem.onOutput !== undefined ? [elem.onOutput] : [],
+				streamHandlers: elem.onStream !== undefined ? [elem.onStream] : []
 			}
 		}
 		case 'breaktoken': {
@@ -1061,13 +1163,35 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 
 			let extraTokenCount = 0;
 			let message: ChatPromptMessage;
-			if (elem.role === 'user' || elem.role === 'system') {
-				message = {
-					role: elem.role,
-					name: elem.name,
-					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-				};
+			if (elem.role === 'user') {
+				if (isPromptContent(p.prompt)) {
+					message = {
+						role: elem.role,
+						name: elem.name,
+						content: p.prompt.content,
+						images: p.prompt.images,
+					};
+				} else {
+					message = {
+						role: elem.role,
+						name: elem.name,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					};
+				}
+			} else if (elem.role === 'system') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in system message')
+				} else {
+					message = {
+						role: elem.role,
+						name: elem.name,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					};
+				}
 			} else if (elem.role === 'assistant') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in assistant message')
+				}
 				if (elem.functionCall !== undefined) {
 					message = {
 						role: elem.role,
@@ -1082,6 +1206,9 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					}
 				}
 			} else if (elem.role === 'function') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in function message')
+				}
 				message = {
 					role: elem.role,
 					name: elem.name,
@@ -1226,6 +1353,25 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				emptyTokenCount: 0
 			}
 		}
+		case 'image': {
+			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+			return {
+				prompt: {
+					type: 'prompt_content',
+					content: [],
+					images: [{
+						type: 'image',
+						image_url: {
+							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
+							detail: elem.detail,
+							dimensions: elem.dimensions,
+						}
+					}],
+				},
+				// Count the number of tokens for the image
+				emptyTokenCount: 0,
+			}
+		}
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
@@ -1244,13 +1390,34 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 			}
 
 			let message: ChatPromptMessage;
-			if (elem.role === 'user' || elem.role === 'system') {
+			if (elem.role === 'user') {
+				if (isPromptContent(p.prompt)) {
+					message = {
+						role: elem.role,
+						name: elem.name,
+						content: p.prompt.content,
+						images: p.prompt.images,
+					};
+				} else {
+					message = {
+						role: elem.role,
+						name: elem.name,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					};
+				}
+			} else if (elem.role === 'system') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in system message')
+				}
 				message = {
 					role: elem.role,
 					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				};
 			} else if (elem.role === 'assistant') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in assistant message')
+				}
 				if (elem.functionCall !== undefined) {
 					message = {
 						role: elem.role,
@@ -1264,6 +1431,9 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 					}
 				}
 			} else if (elem.role === 'function') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in function message')
+				}
 				message = {
 					role: elem.role,
 					name: elem.name,
@@ -1337,6 +1507,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promi
 		}
 		case 'capture':
 		case 'empty':
+		case 'image':
 		case 'breaktoken':
 		case 'functionDefinition': {
 			return;
@@ -1498,13 +1669,34 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 			}
 
 			let message: ChatPromptMessage;
-			if (elem.role === 'user' || elem.role === 'system') {
+			if (elem.role === 'user') {
+				if (isPromptContent(p.prompt)) {
+					message = {
+						role: elem.role,
+						name: elem.name,
+						content: p.prompt.content,
+						images: p.prompt.images
+					};
+				} else {
+					message = {
+						role: elem.role,
+						name: elem.name,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					};
+				}
+			} else if (elem.role === 'system') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in system message')
+				}
 				message = {
 					role: elem.role,
 					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				};
 			} else if (elem.role === 'assistant') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in assistant message')
+				}
 				if (elem.functionCall !== undefined) {
 					message = {
 						role: elem.role,
@@ -1518,6 +1710,9 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 					}
 				}
 			} else if (elem.role === 'function') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in function message')
+				}
 				message = {
 					role: elem.role,
 					name: elem.name,
@@ -1556,6 +1751,27 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				streamHandlers: []
 			}
 		}
+		case 'image': {
+			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+			return {
+				prompt: {
+					type: 'prompt_content',
+					content: [],
+					images: [{
+						type: 'image',
+						image_url: {
+							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
+							detail: elem.detail,
+							dimensions: elem.dimensions,
+						}
+					}],
+				},
+				// Count the number of tokens for the image
+				emptyTokenCount: 0,
+				outputHandlers: [],
+				streamHandlers: []
+			}
+		}
 	}
 }
 
@@ -1588,6 +1804,7 @@ function validateNoUnhandledTypes(elem: PromptElement): void {
 
 	switch (elem.type) {
 		case 'functionDefinition':
+		case 'image':
 		case 'empty': {
 			return;
 		}
@@ -1638,6 +1855,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 		case 'capture':
 		case 'breaktoken':
 		case 'functionDefinition':
+		case 'image':
 		case 'empty': {
 			return;
 		}
@@ -1686,6 +1904,7 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 			return;
 		}
 		case 'capture':
+		case 'image':
 		case 'breaktoken':
 		case 'functionDefinition':
 		case 'empty': {
@@ -1739,6 +1958,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 			}
 			return;
 		}
+		case 'image':
 		case 'capture':
 		case 'functionDefinition':
 		case 'breaktoken':
@@ -1834,6 +2054,7 @@ function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedN
 		case 'isolate':
 		case 'breaktoken':
 		case 'capture':
+		case 'image':
 		case 'first': {
 			throw new Error(`BUG!! computePriorityLevelsTokensMapping should not be called on a ${elem.type}!`);
 		}
@@ -1863,6 +2084,15 @@ async function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedProm
 		if (options.lastMessageIsIncomplete === true) {
 			// one for the <|im_end|>
 			tokens = tokens - (CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT + 1);
+		}
+	} else if (isPromptContent(prompt)) {
+		// We count the tokens of each text element
+		tokens += await numTokensPromptString(prompt.content, tokenizer);
+		if (prompt.images) {
+			prompt.images.forEach(image => {
+				tokens += numTokensForImage(image.image_url.dimensions, image.image_url.detail)
+			});
+
 		}
 	} else {
 		tokens += await numTokensPromptString(prompt.text, tokenizer);
@@ -1897,6 +2127,21 @@ async function injectName(tokens: number[], name: string): Promise<number[]> {
 	return [...tokens.slice(0, -1), ...nameTokens, tokens[tokens.length - 1]];
 }
 
+function contentArrayToStringContent(content: Array<string | PromptContent>): string[] {
+	const newContent: string[] = []
+	content.forEach(c => {
+		if (typeof c === 'string') {
+			newContent.push(c);
+		} else if (c.type === 'text') {
+			newContent.push(c.text);
+		} else if (c.type === 'image') {
+			// Do nothing with images
+		}
+	});
+	return newContent;
+
+}
+
 export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTokenizer): Promise<number[]> {
 	if (tokenizer !== 'cl100k_base') {
 		throw new Error("promptToTokens only supports the cl100k_base tokenizer for now!")
@@ -1923,9 +2168,16 @@ export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTo
 				if ('name' in msg && msg.name !== undefined) {
 					headerTokens = await injectName(headerTokens, msg.name);
 				}
+				let newContent: string[] | string | undefined = undefined
+				if (Array.isArray(msg.content)) {
+					// We just combine the tokens to a string array to get around images
+					newContent = contentArrayToStringContent(msg.content);
+				} else {
+					newContent = msg.content;
+				}
 				return [
 					...headerTokens,
-					...(msg.content !== undefined ? (await promptToTokens(msg.content, tokenizer)) : []),
+					...(newContent !== undefined ? (await promptToTokens(newContent, tokenizer)) : []),
 				];
 			}
 		}));
@@ -1963,11 +2215,41 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 					content: msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
 					function_call: msg.functionCall,
 				}
-			} else {
+			} else if (msg.role === 'assistant') {
 				return {
 					role: msg.role,
-					content: msg.content !== undefined ? promptStringToString(msg.content) : "",
-					name: 'name' in msg ? msg.name : undefined,
+					content: msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
+				}
+			} else if (msg.role === 'system') {
+				return {
+					role: msg.role,
+					name: msg.name,
+					content: msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
+				}
+			} else {
+				if (msg.images && msg.images.length > 0) {
+					// We format the content
+					const content: Content[] = [];
+					// First, we add the image
+					content.push(...msg.images)
+					// Then we add the text
+					const textContent = msg.content !== undefined ? promptStringToString(msg.content) : "";
+					content.push({
+						type: 'text',
+						text: textContent
+					})
+					// Import new openai api version to support images
+					return {
+						role: msg.role,
+						content: content,
+						name: 'name' in msg ? msg.name : undefined,
+					}
+				} else {
+					return {
+						role: msg.role,
+						content: msg.content !== undefined ? promptStringToString(msg.content) : '',
+						name: 'name' in msg ? msg.name : undefined,
+					}
 				}
 			}
 		});
@@ -1982,7 +2264,13 @@ async function countMessageTokens(message: ChatPromptMessage, tokenizer: UsableT
 	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
 		return (await countFunctionCallMessageTokens(message.functionCall, tokenizer)) + (message.content !== undefined ? (await numTokensPromptString(message.content, tokenizer)) : 0);
 	} else {
-		return await numTokensPromptString(message.content ?? "", tokenizer);
+		let numTokens = await numTokensPromptString(message.content ?? "", tokenizer);
+		if (message.role === 'user' && message.images !== undefined) {
+			message.images.forEach(image => {
+				numTokens += numTokensForImage(image.image_url.dimensions, image.image_url.detail);
+			});
+		}
+		return numTokens;
 	}
 }
 
@@ -2047,6 +2335,8 @@ function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, t
 		}, 0);
 	} else if (isPlainPrompt(prompt)) {
 		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt), tokenizer)[0];
+	} else if (isPromptContent(prompt)) {
+		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt.content), tokenizer)[0];
 	} else {
 		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt.text), tokenizer)[0];
 	}
