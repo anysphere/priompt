@@ -154,7 +154,7 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	} else if (isPlainPrompt(b) && isPromptContent(a)) {
 		return {
 			...a,
-			content: sumPromptStrings(b, a.content),
+			content: sumPromptStrings(a.content, b),
 			images: a.images,
 		}
 	} else if (isPromptContent(a) && isPromptContent(b)) {

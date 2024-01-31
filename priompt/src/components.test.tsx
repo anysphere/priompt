@@ -11,6 +11,7 @@ import {
   AssistantMessage,
   Function,
   FunctionMessage,
+  ImageComponent,
   SystemMessage,
   UserMessage,
 } from "./components";
@@ -234,5 +235,65 @@ describe("All kinds of messages", () => {
         content: "this is a test echo",
       },
     ]);
+  });
+});
+
+describe("Images", () => {
+  function TestImageMessage(props: PromptProps): PromptElement {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    return (
+      <>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+        <SystemMessage>System message</SystemMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+        <UserMessage>
+          <ImageComponent
+            bytes={new Uint8Array([0, 0, 0, 0, 0])}
+            dimensions={{ width: 10, height: 10 }}
+            detail="auto"
+          />
+          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+          <br />
+          If the instructions mention this image, use it to help you write the
+          code with the utmost precision and detail.
+          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+          <br />
+          {"<instructions>"}
+          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+          <br />
+          TEST, THIS IS A TEST,
+          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+          <br />
+          {"</instructions>"}
+          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+          <br />
+        </UserMessage>
+      </>
+    );
+  }
+
+  it("should create all kinds of messages", async () => {
+    const rendered = await render(TestImageMessage({}), {
+      tokenLimit: 1000,
+      tokenizer: "cl100k_base",
+    });
+    expect(isChatPrompt(rendered.prompt)).toBe(true);
+    if (!isChatPrompt(rendered.prompt)) return;
+    // make sure the prompt string part is in the right order
+    expect(rendered.prompt.messages[1].content).toBe(
+      "\n" +
+        "If the instructions mention this image, use it to help you write the code with the utmost precision and detail.\n" +
+        "<instructions>\n" +
+        "TEST, THIS IS A TEST,\n" +
+        "</instructions>\n"
+    );
   });
 });
