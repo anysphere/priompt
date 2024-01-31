@@ -59,7 +59,7 @@ function getProjectRoot(): string {
   return process.cwd();
 }
 
-export function configFromPrompt<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement): PreviewConfig<T> {
+export function configFromPrompt<T, ReturnT = never>(prompt: Prompt<T, ReturnT>): PreviewConfig<T> {
   return {
     id: prompt.name,
     prompt,
@@ -78,7 +78,7 @@ export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>,
 
 export type PreviewConfig<PropsT, ReturnT = never> = {
   id: string;
-  prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
+  prompt: Prompt<PropsT, ReturnT>;
   // defaults to yaml but can be overridden
   dump?: (props: Omit<PropsT, "onReturn">) => string; hydrate?: (dump: string) => PropsT;
 }
@@ -121,7 +121,10 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
   async getPrompt(query: PreviewManagerGetPromptQuery): Promise<RenderOutput> {
-    const element = PreviewManager.getElement(query.promptId, query.propsId);
+    let element = PreviewManager.getElement(query.promptId, query.propsId);
+    if (element instanceof Promise) {
+      element = await element;
+    }
 
     const rendered = await render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
 
@@ -131,7 +134,10 @@ class PreviewManagerImpl implements IPreviewManager {
   async getPromptOutput(query: PreviewManagerGetPromptOutputQuery): Promise<unknown> {
     const outputCatcher = NewOutputCatcher<unknown>();
 
-    const element = PreviewManager.getElement(query.promptId, query.propsId, outputCatcher);
+    let element = PreviewManager.getElement(query.promptId, query.propsId, outputCatcher);
+    if (element instanceof Promise) {
+      element = await element;
+    }
 
     const rendered = await render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
 
@@ -170,7 +176,10 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
   async getPromptFromRemote(query: PreviewManagerGetRemotePromptQuery) {
-    const element = this.getRemoteElement(query.promptId, query.promptDump);
+    let element = this.getRemoteElement(query.promptId, query.promptDump);
+    if (element instanceof Promise) {
+      element = await element;
+    }
     const rendered = await render(element, { model: query.modelName, tokenLimit: query.tokenLimit });
     return rendered
   }
@@ -183,7 +192,7 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
 
-  private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement {
+  private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement | Promise<PromptElement> {
     if (promptId === 'liveModePromptId') {
       if (this.lastLiveModeData === null) {
         throw new Error('live mode prompt not found');
