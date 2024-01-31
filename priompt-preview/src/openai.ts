@@ -4,6 +4,28 @@ import { encodingForModel } from "js-tiktoken";
 
 const API_KEY = 'PRIOMPT_PREVIEW_OPENAI_KEY';
 
+const s = "";
+const ossEndpointsJson = `PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING${s}`;
+
+const ossEndpoints = JSON.parse(ossEndpointsJson.includes("PREVIEW_OSS_ENDPOINTS_JSON_STRING") ? '{}' : ossEndpointsJson);
+
+export const OSS_MODELS = [
+	{ displayName: "deepseek-7b", modelKey: "ft:deepseek-7b-cpp" },
+	{ displayName: "deepseek-33b", modelKey: "ft:deepseek-33b-cpp" },
+]
+
+export function isOSS(model: string): boolean {
+	return model.includes('deepseek') || model.includes('mistral');
+}
+
+function getBaseUrl(model: string) {
+	let url = 'https://api.openai.com/v1/';
+	if (Object.keys(ossEndpoints).includes(model)) {
+		url = ossEndpoints[model as keyof typeof ossEndpoints];
+	}
+	return url;
+}
+
 export async function* streamChat(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
 	let streamer: AsyncGenerator<StreamChatCompletionResponse> | undefined = undefined;
 
@@ -34,7 +56,8 @@ export async function* streamChat(createChatCompletionRequest: CreateChatComplet
 			}),
 		};
 
-		const response = await fetch('https://api.openai.com/v1/chat/completions', requestOptions);
+		const url = getBaseUrl(createChatCompletionRequest.model) + '/chat/completions';
+		const response = await fetch(url, requestOptions);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}. message: ${await response.text()}`);
 		}
@@ -120,7 +143,8 @@ export async function* streamChatCompletion(createChatCompletionRequest: CreateC
 			}),
 		};
 
-		const response = await fetch('https://api.openai.com/v1/completions', requestOptions);
+		const url = getBaseUrl(createChatCompletionRequest.model) + '/completions';
+		const response = await fetch(url, requestOptions);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}. message: ${await response.text()}`);
 		}

@@ -7,7 +7,11 @@ import {
   useLayoutEffect,
 } from "react";
 import { RenderedPrompt } from "@anysphere/priompt";
-import { streamChat, streamChatCompletion } from "./openai";
+import {
+  OSS_MODELS,
+  streamChat,
+  streamChatCompletion,
+} from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
 import {
@@ -931,8 +935,10 @@ const App = () => {
         let start = performance.now();
         setTimeToFirstToken(undefined);
         setTimeToRemainingTokens(undefined);
-        const f =
-          options?.completionModel === true ? streamChatCompletion : streamChat;
+        const f = options?.completionModel === true
+          ? streamChatCompletion
+          : streamChat;
+
         const stream = f(
           {
             model,
@@ -1405,7 +1411,7 @@ const App = () => {
                             debouncedSetFullPrompts(i, newText);
                           }}
                           extraModels={
-                            lastPassedInModel ? [lastPassedInModel] : []
+                            (lastPassedInModel ? [lastPassedInModel] : []).concat(...OSS_MODELS)
                           }
                         />
                       ) : (
@@ -1492,7 +1498,7 @@ const App = () => {
                                 // intentionally empty
                               }}
                               extraModels={
-                                lastPassedInModel ? [lastPassedInModel] : []
+                                (lastPassedInModel ? [lastPassedInModel] : []).concat(...OSS_MODELS)
                               }
                             />
                           )}
