@@ -3,7 +3,7 @@ import { Prompt, PromptElement, PromptProps, RenderOutput, SynchronousPrompt } f
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { StreamChatCompletionResponse, UsableLanguageModel } from './openai';
+import { StreamChatCompletionResponse, UsableTokenizer } from './openai';
 import { ChatCompletionResponseMessage, CreateChatCompletionResponse } from 'openai';
 import { NewOutputCatcher, OutputCatcher } from './outputCatcher.ai';
 
@@ -11,12 +11,13 @@ export type PreviewManagerGetPromptQuery = {
   promptId: string;
   propsId: string;
   tokenLimit: number;
+  tokenizer: UsableTokenizer;
 };
 export type PreviewManagerGetRemotePromptQuery = {
   promptId: string;
   promptDump: string;
-  modelName: UsableLanguageModel;
-  tokenLimit?: number;
+  tokenLimit: number;
+  tokenizer: UsableTokenizer;
 };
 
 export type PreviewManagerGetRemotePropsQuery = {
@@ -28,6 +29,7 @@ export type PreviewManagerGetPromptOutputQuery = {
   promptId: string;
   propsId: string;
   tokenLimit: number;
+  tokenizer: UsableTokenizer;
   completion: ChatCompletionResponseMessage | ChatCompletionResponseMessage[];
   stream: boolean;
 };
@@ -167,7 +169,7 @@ class PreviewManagerImpl implements IPreviewManager {
       element = await element;
     }
 
-    const rendered = await render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: query.tokenizer, tokenLimit: query.tokenLimit });
 
     return rendered;
   }
@@ -180,7 +182,7 @@ class PreviewManagerImpl implements IPreviewManager {
       element = await element;
     }
 
-    const rendered = await render(element, { model: "gpt-4", tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: query.tokenizer, tokenLimit: query.tokenLimit });
 
     if (!query.stream) {
       // call all of them and wait all of them in parallel
@@ -238,7 +240,7 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
   async getPromptFromRemoteElement(query: Omit<PreviewManagerGetRemotePromptQuery, "promptId" | "promptDump">, element: PromptElement) {
-    const rendered = await render(element, { model: query.modelName, tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: query.tokenizer, tokenLimit: query.tokenLimit });
     return rendered
   }
 

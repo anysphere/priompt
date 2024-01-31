@@ -3,8 +3,8 @@
 
 // TODO: add an IDE plugin or something that renders the prompt when you hover over it (and has a slider for the priority)
 
-import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, getTokenizerName, } from './openai';
-import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
+import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
+import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, UsableTokenizer } from './openai';
 import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
 import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
@@ -548,7 +548,7 @@ export async function renderun<
 // yields ~50x speedup in many cases and is useful for datajobs
 export function renderCumulativeSum(
 	elem: PromptElement,
-	{ model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions
+	{ tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions
 ): Omit<RenderOutput, "tokenCount"> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
@@ -556,19 +556,6 @@ export function renderCumulativeSum(
 	}
 
 	// set the tokenLimit to the max number of tokens per model
-	if (tokenLimit === undefined) {
-		if (!model) {
-			throw new Error("Must specify model or tokenLimit");
-		}
-		tokenLimit = MAX_TOKENS[model];
-	}
-	if (tokenizer === undefined) {
-		if (!model) {
-			throw new Error("Must specify model or tokenizer");
-		}
-		tokenizer = getTokenizerName(model);
-	}
-
 	if (tokenizer === undefined) {
 		throw new Error("Must specify tokenizer or model!");
 	}
@@ -679,24 +666,10 @@ export function renderCumulativeSum(
 
 }
 
-export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY }: RenderOptions): Promise<RenderOutput> {
+export async function renderBinarySearch(elem: PromptElement, { tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
-	}
-
-	// set the tokenLimit to the max number of tokens per model
-	if (tokenLimit === undefined) {
-		if (!model) {
-			throw new Error("Must specify model or tokenLimit");
-		}
-		tokenLimit = MAX_TOKENS[model];
-	}
-	if (tokenizer === undefined) {
-		if (!model) {
-			throw new Error("Must specify model or tokenizer");
-		}
-		tokenizer = getTokenizerName(model);
 	}
 
 	let startTimeValidating: number | undefined;
@@ -848,24 +821,10 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 
 }
 
-export async function renderBackwardsLinearSearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
+export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
-	}
-
-	// set the tokenLimit to the max number of tokens per model
-	if (tokenLimit === undefined) {
-		if (!model) {
-			throw new Error("Must specify model or tokenLimit");
-		}
-		tokenLimit = MAX_TOKENS[model];
-	}
-	if (tokenizer === undefined) {
-		if (!model) {
-			throw new Error("Must specify model or tokenizer");
-		}
-		tokenizer = getTokenizerName(model);
 	}
 
 	let startTimeValidating: number | undefined;

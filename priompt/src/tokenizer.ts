@@ -6,48 +6,45 @@
 // and we probably want to compile our own tiktoken because i'm slightly worried about
 // supply-chain attacks here
 import tiktoken, { getTokenizer, SyncTokenizer } from '@anysphere/tiktoken-node';
-import { getTokenizerName, GPT_3_5_FINETUNE_RERANKER, UsableModel, UsableTokenizer } from './openai';
+import { UsableTokenizer } from './openai';
 
 
 export const tokenizerObject = tiktoken.getTokenizer();
 export const syncTokenizer = new SyncTokenizer();
 
 export async function numTokens(text: string, opts: {
-	model?: UsableModel;
-	tokenizer?: UsableTokenizer;
+	tokenizer: UsableTokenizer;
 }) {
-	const tokenizerName = opts.tokenizer ?? (opts.model !== undefined ? getTokenizerName(opts.model) : 'cl100k_base');
+	const tokenizerName = opts.tokenizer;
 
 	switch (tokenizerName) {
 		case 'cl100k_base':
 			return await tokenizerObject.exactNumTokensCl100KNoSpecialTokens(text);
 		default:
-			throw new Error(`Unknown tokenizer ${tokenizerName} ${opts.model}`);
+			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
 }
 
 // if you tokenize a lot of tokens, this can block the event loop
 // only use this in a data job or with very few tokens
 export function estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text: string, opts: {
-	model?: UsableModel;
-	tokenizer?: UsableTokenizer;
+	tokenizer: UsableTokenizer;
 }) {
-	const tokenizerName = opts.tokenizer ?? (opts.model !== undefined ? getTokenizerName(opts.model) : 'cl100k_base');
+	const tokenizerName = opts.tokenizer;
 
 	switch (tokenizerName) {
 		case 'cl100k_base':
 			return syncTokenizer.approxNumTokens(text, tiktoken.SupportedEncoding.Cl100k);
 		default:
-			throw new Error(`Unknown tokenizer ${tokenizerName} ${opts.model}`);
+			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
 }
 
 
-export async function encodeTokens(text: string, opts?: {
-	model?: UsableModel;
-	tokenizer?: UsableTokenizer;
+export async function encodeTokens(text: string, opts: {
+	tokenizer: UsableTokenizer;
 }): Promise<number[]> {
-	const tokenizerName = opts?.tokenizer ?? (opts?.model !== undefined ? getTokenizerName(opts?.model) : 'cl100k_base');
+	const tokenizerName = opts.tokenizer;
 
 	switch (tokenizerName) {
 		case 'cl100k_base':

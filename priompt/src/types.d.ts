@@ -3,7 +3,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import { ChatCompletionResponseMessage } from 'openai';
-import { UsableLanguageModel, UsableTokenizer } from './openai';
+import { UsableTokenizer } from './openai';
 
 export type FunctionBody = {
 	name: string;
@@ -256,9 +256,8 @@ export type SynchronousPrompt<PropsT, ReturnT = never> = (props: PromptProps<Pro
 // argument for: CSS has media queries because it is very hard to have something that's fully responsive without changing any of the layout
 // decision: wait for now, see if it is needed
 export type RenderOptions = {
-	model?: UsableLanguageModel;
-	tokenLimit?: number;
-	tokenizer?: UsableTokenizer;
+	tokenLimit: number;
+	tokenizer: UsableTokenizer;
 	countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY?: boolean;
 
 	// if it is, then we need to count tokens differently

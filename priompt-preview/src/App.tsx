@@ -640,6 +640,7 @@ const App = () => {
         promptId,
         propsId,
         tokenLimit: tokenCount.toString(),
+        tokenizer: "cl100k_base"
       };
 
       if (promptId === "liveModePromptId" && propsId === "") {
