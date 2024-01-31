@@ -628,7 +628,7 @@ export function renderCumulativeSum(
 
 }
 
-export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE }: RenderOptions): Promise<RenderOutput> {
+export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -675,7 +675,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 
 	// We lower the token limit if this is an approx count
 	let usedTokenlimit: number;
-	if (countTokensFast_UNSAFE === true) {
+	if (countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY === true) {
 		usedTokenlimit = tokenLimit * 0.95
 	} else {
 		usedTokenlimit = tokenLimit;
@@ -725,7 +725,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 				countStart = performance.now();
 			}
 			// const prompt = renderWithLevel(elem, candidateLevel);
-			if (countTokensFast_UNSAFE === true) {
+			if (countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY === true) {
 				tokenCount = countTokensApproxFast_UNSAFE(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 			} else {
 				tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
