@@ -59,7 +59,8 @@ export const CODE_LLAMA_RERANKER = 'codellama_7b_reranker';
 export const MISTRAL_MEDIUM = 'mistral-medium';
 export const DEEPSEEK_7B_CMDK = 'ft:deepseek-7b-cmdk';
 export const DEEPSEEK_33B_CMDK = 'ft:deepseek-33b-cmdk';
-export const GPT_3_5_FINETUNE_CMDK = 'ft:gpt-3.5-turbo-1106:anysphere::8glsI2WY';
+export const GPT_3_5_FINETUNE_CMDK = 'ft:gpt-3.5-turbo-1106:anysphere::8fOY9fCJ';
+export const GPT_3_5_FINETUNE_COMBINED = 'ft:gpt-3.5-turbo-1106:anysphere::8glsI2WY';
 export const DEEPSEEK_7B_CPP = 'ft:deepseek-7b-cpp';
 
 export const AZURE_3_5_TURBO = 'azure-3.5-turbo';
@@ -105,6 +106,7 @@ export const usableModels = [
 	DEEPSEEK_7B_CMDK,
 	DEEPSEEK_33B_CMDK,
 	GPT_3_5_FINETUNE_CMDK,
+	GPT_3_5_FINETUNE_COMBINED,
 	DEEPSEEK_7B_CPP
 ] as const;
 
@@ -136,6 +138,7 @@ export const usableLanguageModels = [
 	DEEPSEEK_7B_CMDK,
 	DEEPSEEK_33B_CMDK,
 	GPT_3_5_FINETUNE_CMDK,
+	GPT_3_5_FINETUNE_COMBINED,
 	DEEPSEEK_7B_CPP
 ] as const;
 
@@ -174,6 +177,7 @@ export const MODEL_CONTEXTS: {
 	[DEEPSEEK_7B_CMDK]: 16_000,
 	[DEEPSEEK_33B_CMDK]: 16_000,
 	[GPT_3_5_FINETUNE_CMDK]: 16_000,
+	[GPT_3_5_FINETUNE_COMBINED]: 16_000,
 	[DEEPSEEK_7B_CPP]: 16_000
 };
 
@@ -201,6 +205,7 @@ export const MAX_TOKENS: {
 	[DEEPSEEK_7B_CMDK]: 4096,
 	[DEEPSEEK_33B_CMDK]: 4096,
 	[GPT_3_5_FINETUNE_CMDK]: 16_000,
+	[GPT_3_5_FINETUNE_COMBINED]: 16_000,
 	[DEEPSEEK_7B_CPP]: 4096
 };
 
@@ -224,6 +229,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'azure-3.5-turbo':
 		case 'gpt-ft-cursor-0810':
 		case 'ft:gpt-3.5-turbo-1106:anysphere::8glsI2WY':
+		case 'ft:gpt-3.5-turbo-1106:anysphere::8fOY9fCJ':
 		case 'ft:deepseek-7b-cmdk':
 		case 'ft:deepseek-33b-cmdk':
 		case 'ft:deepseek-7b-cpp':
