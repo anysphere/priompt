@@ -177,8 +177,6 @@ describe("isolate", () => {
           <br />
           This is the second part of the prompt.
         </SystemMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>hi!</UserMessage>
       </>
     );
@@ -222,11 +220,7 @@ describe("isolate", () => {
         {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore */}
         <SystemMessage>{"<|im_start|>"}</SystemMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>{"<|diff_marker|>"}</UserMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <AssistantMessage>{"<|endoftext|>"}</AssistantMessage>
       </>
     );
