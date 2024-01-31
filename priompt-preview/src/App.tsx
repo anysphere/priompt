@@ -1272,8 +1272,8 @@ const App = () => {
                                 msg.role === "user"
                                   ? "rgba(0, 0, 255, 0.2)"
                                   : msg.role === "system"
-                                  ? "rgba(100, 100, 100, 0.1)"
-                                  : "rgba(180,100,0,0.5)",
+                                    ? "rgba(100, 100, 100, 0.1)"
+                                    : "rgba(180,100,0,0.5)",
                               width: "100%",
                               // height: "fit-content",
                             }}
@@ -2031,11 +2031,19 @@ function AssistantBox(props: {
 }) {
   // State to hold the user's chat model input
   const [customChatModel, setCustomChatModel] = useState("");
+  // State to hold the user's completion model input
+  const [customCompletionModel, setCustomCompletionModel] = useState("");
 
   // Function to update the state as the user types in the textbox
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleChatModelChange = (event: any) => {
     setCustomChatModel(event.target.value);
+  };
+
+  // Function to update the state as the user types in the textbox
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleCompletionModelChange = (event: any) => {
+    setCustomCompletionModel(event.target.value);
   };
 
   return (
@@ -2209,6 +2217,21 @@ function AssistantBox(props: {
               Submit to {model}
             </button>
           ))}
+          <input
+            type="text"
+            value={customCompletionModel}
+            onChange={handleCompletionModelChange}
+            placeholder="Enter your completion model"
+          />
+          <button
+            onClick={() =>
+              props.streamCompletion(customCompletionModel, {
+                completionModel: true,
+              })
+            }
+          >
+            Submit to {customCompletionModel}
+          </button>
           {props.abortController !== undefined && (
             <>
               <button
