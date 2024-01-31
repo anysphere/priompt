@@ -338,6 +338,7 @@ const App = () => {
           setErrorMessage("");
           setCompletion(undefined);
           setOutput(undefined);
+          setForceRerender((r) => r + 1);
         })
         .catch((error) => {
           setErrorMessage(error.message);
@@ -397,6 +398,7 @@ const App = () => {
   );
 
   const [inJsonMode, setInJsonMode] = useState<boolean>(false);
+  const [dontDisplayExtras, setDontDisplayExtras] = useState<boolean>(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -440,36 +442,60 @@ const App = () => {
 
   useEffect(() => {
     window.addEventListener("message", (event) => {
-      const jsonLine: Array<ChatCompletionRequestMessage> = event.data;
+      const t:
+        | {
+            case: "messages";
+            messages: ChatCompletionRequestMessage[];
+          }
+        | {
+            case: "s3Url";
+            s3Url: string;
+          } = event.data;
 
-      // convert to renderoutput
-      const data = {
-        prompt: {
-          type: "chat" as const,
-          messages: jsonLine.map((m) => {
-            return m;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any[],
-        },
-        outputHandlers: [],
-        priorityCutoff: 100,
-        streamHandlers: [],
-        tokenCount: 100,
-        tokenizer: "cl100k_base",
-        tokenLimit: 100,
-        tokensReserved: 100,
-        durationMs: 100,
-      };
-      setTokenCountUsed(data.tokenCount);
-      setTokenCountReserved(data.tokensReserved);
-      setDurationMs(data.durationMs);
-      setPriorityCutoff(data.priorityCutoff);
-      setPrompt(data.prompt);
-      setErrorMessage("");
-      setCompletion(undefined);
-      setOutput(undefined);
-      setInJsonMode(true);
-      setForceRerender((r) => r + 1);
+      switch (t.case) {
+        case "messages": {
+          const jsonLine: Array<ChatCompletionRequestMessage> = event.data;
+
+          // convert to renderoutput
+          const data = {
+            prompt: {
+              type: "chat" as const,
+              messages: jsonLine.map((m) => {
+                return m;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              }) as any[],
+            },
+            outputHandlers: [],
+            priorityCutoff: 100,
+            streamHandlers: [],
+            tokenCount: 100,
+            tokenizer: "cl100k_base",
+            tokenLimit: 100,
+            tokensReserved: 100,
+            durationMs: 100,
+          };
+          setTokenCountUsed(data.tokenCount);
+          setTokenCountReserved(data.tokensReserved);
+          setDurationMs(data.durationMs);
+          setPriorityCutoff(data.priorityCutoff);
+          setPrompt(data.prompt);
+          setErrorMessage("");
+          setCompletion(undefined);
+          setOutput(undefined);
+          setInJsonMode(true);
+          setDontDisplayExtras(true);
+          setForceRerender((r) => r + 1);
+          break;
+        }
+        case "s3Url": {
+          const s3 = t.s3Url;
+
+          setSelectedPrompt("");
+          setSelectedRemotePrompt(s3);
+          setDontDisplayExtras(true);
+          break;
+        }
+      }
     });
   }, []);
 
@@ -941,7 +967,7 @@ const App = () => {
         }))}
       />
       <div>
-        {!inJsonMode && (
+        {!dontDisplayExtras && (
           <div>
             <h1>Welcome to Priompt</h1>
             <div>
