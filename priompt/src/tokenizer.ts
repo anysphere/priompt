@@ -49,7 +49,9 @@ export async function numTokens(text: string, opts: {
 	}
 }
 
-export function estimateNumTokensFast(text: string, opts: {
+// if you tokenize a lot of tokens, this can block the event loop
+// only use this in a data job or with very few tokens
+export function estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text: string, opts: {
 	model?: UsableModel;
 	tokenizer?: UsableTokenizer;
 }) {

@@ -5,7 +5,7 @@
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
-import { estimateNumTokensFast, estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
+import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
 import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
@@ -368,6 +368,8 @@ export async function renderun<
 	}
 }
 
+// a fast, synchronous, somewhat inexact and incomplete way to render a prompt
+// yields ~50x speedup in many cases and is useful for datajobs
 export function renderCumulativeSum(
 	elem: PromptElement,
 	{ model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions
@@ -434,9 +436,9 @@ export function renderCumulativeSum(
 			if (typeof countable === 'number') {
 				newTokens += countable;
 			} else if (typeof countable === 'string') {
-				newTokens += estimateNumTokensFast(countable, { tokenizer });
+				newTokens += estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(countable, { tokenizer });
 			} else {
-				newTokens += countFunctionTokensApprox(countable, definedTokenizer);
+				newTokens += countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(countable, definedTokenizer);
 			}
 		});
 		runningTokenSum += newTokens;
@@ -1988,7 +1990,7 @@ async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunc
 	return Math.ceil(raw * 1.5) + 10;
 }
 
-function countFunctionTokensApprox(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): number {
+function countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): number {
 	// hmmmm how do we count these tokens? openai has been quite unclear
 	// for now we JSON stringify and count tokens, and hope that that is reasonably close
 	const stringifiedFunction = JSON.stringify({
@@ -1997,7 +1999,7 @@ function countFunctionTokensApprox(functionDefinition: ChatAndFunctionPromptFunc
 		parameters: functionDefinition.parameters,
 	}, null, 2);
 	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
-	const raw = estimateNumTokensFast(stringifiedFunction, { tokenizer });
+	const raw = estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(stringifiedFunction, { tokenizer });
 	return Math.ceil(raw * 1.5) + 10;
 }
 
