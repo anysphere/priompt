@@ -66,6 +66,7 @@ const TOKEN_LIMIT: Record<string, number> = {
 	"azure-3.5-turbo": 4096,
 	"gpt-4": 8192,
 	"gpt-4-cursor-completions": 8192,
+	"gpt-4-cursor-vinod": 8192,
 	"gpt-4-0314": 8192,
 	"gpt-4-32k": 32000,
 	"gpt-4-1106-preview": 128000,
