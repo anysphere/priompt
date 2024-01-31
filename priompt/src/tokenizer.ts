@@ -6,7 +6,7 @@
 // and we probably want to compile our own tiktoken because i'm slightly worried about
 // supply-chain attacks here
 import tiktoken, { getTokenizer } from '@anysphere/tiktoken-node';
-import { UsableModel, UsableTokenizer } from './openai';
+import { GPT_3_5_FINETUNE_RERANKER, UsableModel, UsableTokenizer } from './openai';
 
 export function getTokenizerName(model: UsableModel): UsableTokenizer {
 	switch (model) {
@@ -16,6 +16,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'gpt-4-32k-0613':
 		case 'text-embedding-ada-002':
 		case 'ft:gpt-3.5-turbo-0613:anysphere::8ERu98np':
+		case 'ft:gpt-3.5-turbo-0613:anysphere::8GgLaVNe':
 		case 'gpt-3.5-turbo':
 		case 'gpt-3.5-turbo-0613':
 		case 'gpt-3.5-turbo-16k':
