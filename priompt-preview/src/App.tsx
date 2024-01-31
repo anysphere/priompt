@@ -61,7 +61,8 @@ function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   ) as T;
 }
 
-const ALL_MODELS_STR = "gpt-3.5-turbo,gpt-3.5-turbo-1106,gpt-4,gpt-4-32k,gpt-4-1106-preview";
+const ALL_MODELS_STR =
+  "gpt-3.5-turbo,gpt-3.5-turbo-1106,gpt-4,gpt-4-32k,gpt-4-1106-preview";
 const ALL_MODELS = ALL_MODELS_STR.split(",");
 const COMPLETION_MODELS_STR = "text-davinci-003,code-davinci-002";
 const COMPLETION_MODELS = COMPLETION_MODELS_STR.split(",");
@@ -74,6 +75,7 @@ const App = () => {
     number | null
   >();
   const [selectedPrompt, setSelectedPrompt] = useState("");
+  const [selectedRemotePrompt, setSelectedRemotePrompt] = useState<string>("");
   const [selectedPropsId, setSelectedPropsId] = useState("");
   const [tokenCount, setTokenCount] = useState(8192);
   const [temperature, setTemperature] = useState(0);
@@ -261,6 +263,88 @@ const App = () => {
     100
   );
 
+  const fetchRemotePrompt = useCallback(
+    (promptUrl: string, tokenCount: number) => {
+      // Remove https
+      const remaining = promptUrl.split("://")[1];
+
+      // Parse the s3 aws url into a bucket and key
+      const bucket = remaining.split(".")[0];
+
+      const firstSlash = remaining.indexOf("/");
+
+      const key = remaining.slice(firstSlash + 1);
+
+      const query = {
+        bucket,
+        key,
+        modelName: "gpt-4",
+        numTokens: tokenCount.toString(),
+      };
+      console.log(query);
+      const urlParams = new URLSearchParams(query);
+      const fullUrl = `http://localhost:7999/priompt/getDump?${urlParams}`;
+
+      console.log("fetching remote prompt", fullUrl);
+
+      fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((res) => res.json())
+        .then(({ data, completion }) => {
+          console.log("completion", completion);
+          setTokenCountUsed(data.tokenCount);
+          setTokenCountReserved(data.tokensReserved);
+          setDurationMs(data.durationMs);
+          setPriorityCutoff(data.priorityCutoff);
+          // setPrompt(data.prompt);
+          const dataPrompt = data.prompt as
+            | ChatPrompt
+            | (ChatPrompt & FunctionPrompt);
+
+          if ("functions" in dataPrompt) {
+            console.log("setting to this!!!");
+            setPrompt(data.prompt);
+          } else {
+            setPrompt({
+              ...dataPrompt,
+              messages: [
+                ...dataPrompt.messages,
+                {
+                  role: "assistant",
+                  content: completion,
+                },
+              ],
+            });
+          }
+          // const origPrompt = data.prompt as ChatPrompt;
+          // setPrompt({
+          //   type: "chat",
+          //   messages: [
+          //     ...origPrompt.messages,
+          //     {
+          //       role: "assistant",
+          //       content: completion,
+          //     },
+          //   ],
+          // });
+          setErrorMessage("");
+          setCompletion(undefined);
+          setOutput(undefined);
+        })
+        .catch((error) => {
+          setErrorMessage(error.message);
+          setPrompt(undefined);
+          setCompletion(undefined);
+          setOutput(undefined);
+        });
+    },
+    []
+  );
+
   const fetchPrompt = useCallback(
     (promptId: string, propsId: string, tokenCount: number) => {
       console.log("fetching prompt", promptId, propsId, tokenCount);
@@ -310,10 +394,18 @@ const App = () => {
 
   useEffect(() => {
     if (selectedPrompt) {
-      console.log("FETCHING PROMPT IN 156 use effect");
       fetchPrompt(selectedPrompt, selectedPropsId, derivedTokenCount);
+    } else if (selectedRemotePrompt) {
+      fetchRemotePrompt(selectedRemotePrompt, derivedTokenCount);
     }
-  }, [selectedPrompt, fetchPrompt, selectedPropsId, derivedTokenCount]);
+  }, [
+    selectedPrompt,
+    selectedRemotePrompt,
+    fetchPrompt,
+    fetchRemotePrompt,
+    selectedPropsId,
+    derivedTokenCount,
+  ]);
 
   // Add event listener for keydown events
   useEffect(() => {
@@ -715,6 +807,17 @@ const App = () => {
           </div>
         </div>
         <br />
+        <form
+          onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            const currentText = (e.currentTarget[0] as HTMLInputElement).value;
+            setSelectedPrompt("");
+            setSelectedRemotePrompt(currentText);
+          }}
+        >
+          <input type="text" placeholder="Enter remote prompt URL" />
+          <button type="submit">Fetch Remote Prompt</button>
+        </form>
         <input
           type="text"
           value={filterText}
@@ -797,7 +900,11 @@ const App = () => {
           generation, {priorityCutoff} cutoff)
           <button
             onClick={() => {
-              fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
+              if (selectedPrompt) {
+                fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
+              } else if (selectedRemotePrompt) {
+                fetchRemotePrompt(selectedRemotePrompt, tokenCount);
+              }
             }}
           >
             rerender

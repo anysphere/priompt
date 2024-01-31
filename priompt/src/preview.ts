@@ -3,13 +3,19 @@ import { Prompt, PromptElement, PromptProps, RenderOutput } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { StreamChatCompletionResponse } from './openai';
+import { StreamChatCompletionResponse, UsableLanguageModel } from './openai';
 import { ChatCompletionResponseMessage, CreateChatCompletionResponse } from 'openai';
 import { NewOutputCatcher, OutputCatcher } from './outputCatcher.ai';
 
 export type PreviewManagerGetPromptQuery = {
   promptId: string;
   propsId: string;
+  tokenLimit: number;
+};
+export type PreviewManagerGetRemotePromptQuery = {
+  promptId: string;
+  promptDump: string;
+  modelName: UsableLanguageModel;
   tokenLimit: number;
 };
 
@@ -36,6 +42,7 @@ export interface IPreviewManager {
   // these two methods need to be implemented on the server for priompt to work
   getPreviews(): Record<string, { dumps: string[], saved: string[] }>;
   getPrompt(query: PreviewManagerGetPromptQuery): Promise<RenderOutput>;
+  getPromptFromRemote(query: PreviewManagerGetRemotePromptQuery): Promise<RenderOutput>;
 }
 
 type LiveModeOutput = {
@@ -161,6 +168,20 @@ class PreviewManagerImpl implements IPreviewManager {
     }
 
   }
+
+  async getPromptFromRemote(query: PreviewManagerGetRemotePromptQuery) {
+    const element = this.getRemoteElement(query.promptId, query.promptDump);
+    const rendered = await render(element, { model: query.modelName, tokenLimit: query.tokenLimit });
+    return rendered
+  }
+
+  private getRemoteElement(promptId: string, promptDump: string) {
+    const config = this.previews[promptId];
+    const baseProps = this.hydrate(config, promptDump);
+    const element = config.prompt(baseProps as PromptProps<unknown>);
+    return element;
+  }
+
 
   private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement {
     if (promptId === 'liveModePromptId') {
