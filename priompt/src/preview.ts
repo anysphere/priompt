@@ -19,6 +19,11 @@ export type PreviewManagerGetRemotePromptQuery = {
   tokenLimit?: number;
 };
 
+export type PreviewManagerGetRemotePropsQuery = {
+  promptId: string;
+  promptDump: string
+}
+
 export type PreviewManagerGetPromptOutputQuery = {
   promptId: string;
   propsId: string;
@@ -205,7 +210,7 @@ class PreviewManagerImpl implements IPreviewManager {
     return this.getPromptFromRemoteElement(query, element);
   }
 
-  async getPropsFromRemote(query: PreviewManagerGetRemotePromptQuery) {
+  async getPropsFromRemote(query: PreviewManagerGetRemotePropsQuery) {
     const promptId = query.promptId;
     const promptDump = query.promptDump;
     const config = this.previews[promptId];
