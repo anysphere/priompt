@@ -62,6 +62,7 @@ export const DEEPSEEK_33B_CMDK = 'ft:deepseek-33b-cmdk';
 export const GPT_3_5_FINETUNE_CMDK = 'ft:gpt-3.5-turbo-1106:anysphere::8fOY9fCJ';
 export const GPT_3_5_FINETUNE_COMBINED = 'ft:gpt-3.5-turbo-1106:anysphere::8glsI2WY';
 export const DEEPSEEK_7B_CPP = 'ft:deepseek-7b-cpp';
+export const DEEPSEEK_33B_CPP = 'ft:deepseek-33b-cpp';
 
 export const AZURE_3_5_TURBO = 'azure-3.5-turbo';
 
@@ -107,7 +108,8 @@ export const usableModels = [
 	DEEPSEEK_33B_CMDK,
 	GPT_3_5_FINETUNE_CMDK,
 	GPT_3_5_FINETUNE_COMBINED,
-	DEEPSEEK_7B_CPP
+	DEEPSEEK_7B_CPP,
+	DEEPSEEK_33B_CPP
 ] as const;
 
 export const dedcapModels = [
@@ -139,7 +141,8 @@ export const usableLanguageModels = [
 	DEEPSEEK_33B_CMDK,
 	GPT_3_5_FINETUNE_CMDK,
 	GPT_3_5_FINETUNE_COMBINED,
-	DEEPSEEK_7B_CPP
+	DEEPSEEK_7B_CPP,
+	DEEPSEEK_33B_CPP,
 ] as const;
 
 export function isUsableLanguageModel(s: string): s is UsableLanguageModel {
@@ -178,7 +181,8 @@ export const MODEL_CONTEXTS: {
 	[DEEPSEEK_33B_CMDK]: 16_000,
 	[GPT_3_5_FINETUNE_CMDK]: 16_000,
 	[GPT_3_5_FINETUNE_COMBINED]: 16_000,
-	[DEEPSEEK_7B_CPP]: 16_000
+	[DEEPSEEK_7B_CPP]: 16_000,
+	[DEEPSEEK_33B_CPP]: 16_000,
 };
 
 export const MAX_TOKENS: {
@@ -206,7 +210,8 @@ export const MAX_TOKENS: {
 	[DEEPSEEK_33B_CMDK]: 4096,
 	[GPT_3_5_FINETUNE_CMDK]: 16_000,
 	[GPT_3_5_FINETUNE_COMBINED]: 16_000,
-	[DEEPSEEK_7B_CPP]: 4096
+	[DEEPSEEK_7B_CPP]: 4096,
+	[DEEPSEEK_33B_CPP]: 8192,
 };
 
 export function getTokenizerName(model: UsableModel): UsableTokenizer {
@@ -233,6 +238,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'ft:deepseek-7b-cmdk':
 		case 'ft:deepseek-33b-cmdk':
 		case 'ft:deepseek-7b-cpp':
+		case 'ft:deepseek-33b-cpp':
 			return 'cl100k_base';
 		// i think this is wrong.... but it's what we have and probably ~ roughly correct
 		case 'mistral-medium':
