@@ -609,10 +609,11 @@ const App = () => {
   const [inJsonMode, setInJsonMode] = useState<boolean>(false);
   const [dontDisplayExtras, setDontDisplayExtras] = useState<boolean>(false);
   const [lastPassedInModel, setLastPassedInModel] = useState<
-    {
-      displayName: string,
-      modelKey: string
-    } | undefined
+    | {
+        displayName: string;
+        modelKey: string;
+      }
+    | undefined
   >(undefined);
 
   useEffect(() => {
@@ -629,8 +630,8 @@ const App = () => {
         | {
             case: "model";
             model: {
-              displayName: string,
-              modelKey: string
+              displayName: string;
+              modelKey: string;
             };
           } = event.data;
 
@@ -2215,7 +2216,7 @@ function AssistantBox(props: {
   currentTextArea: HTMLTextAreaElement | undefined;
   key: string;
   setFullText: (value: string) => void;
-  extraModels?: { displayName: string, modelKey: string}[];
+  extraModels?: { displayName: string; modelKey: string }[];
 }) {
   // State to hold the user's chat model input
   const [customChatModel, setCustomChatModel] = useState("");
@@ -2234,14 +2235,16 @@ function AssistantBox(props: {
     setCustomCompletionModel(event.target.value);
   };
 
-  const initialExtraModelsDisplayNames = props.extraModels?.map(model => model.displayName) ?? []
+  const initialExtraModelsDisplayNames =
+    props.extraModels?.map((model) => model.displayName) ?? [];
   const [allModels, setAllModels] = useState([
     ...(props.extraModels ? initialExtraModelsDisplayNames : []),
     ...ALL_MODELS,
   ]);
 
   useEffect(() => {
-    const extraModelsDisplayNames = props.extraModels?.map(model => model.displayName) ?? []
+    const extraModelsDisplayNames =
+      props.extraModels?.map((model) => model.displayName) ?? [];
     setAllModels([
       ...(props.extraModels ? extraModelsDisplayNames : []),
       ...ALL_MODELS,
@@ -2252,14 +2255,20 @@ function AssistantBox(props: {
     <div key={props.key}>
       <div>
         {allModels.map((model) => (
-          <button key={model} onClick={() => {
-            const maybeModel = props.extraModels?.find(modelObj => modelObj.displayName === model)
-            if (maybeModel) {
-              props.streamCompletion(maybeModel.modelKey)
-            } else {
-              props.streamCompletion(model)
-            }
-          }}>
+          <button
+            key={model}
+            onClick={() => {
+              props.abortController?.abort();
+              const maybeModel = props.extraModels?.find(
+                (modelObj) => modelObj.displayName === model
+              );
+              if (maybeModel) {
+                props.streamCompletion(maybeModel.modelKey);
+              } else {
+                props.streamCompletion(model);
+              }
+            }}
+          >
             Submit to {model}
           </button>
         ))}
@@ -2277,7 +2286,6 @@ function AssistantBox(props: {
             <button
               onClick={() => {
                 props.abortController?.abort();
-                props.setAbortController(undefined);
               }}
             >
               Cancel
