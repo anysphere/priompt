@@ -234,7 +234,7 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
 
-  private hydrate<T>(config: PreviewConfig<T>, dump: string): T {
+  hydrate<T>(config: PreviewConfig<T>, dump: string): T {
     if (config.hydrate) {
       return config.hydrate(dump);
     }
