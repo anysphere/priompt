@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useRef, memo } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  memo,
+  useLayoutEffect,
+} from "react";
 import { RenderedPrompt } from "@anysphere/priompt";
 import { streamChat, streamChatCompletion } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
@@ -120,6 +127,8 @@ const App = () => {
   >(undefined);
   const [forceRerender, setForceRerender] = useState<number>(0);
 
+  const dontAutoload = useRef<boolean>(false);
+
   const getPromptOutput = useCallback(
     (stream: boolean, i: number) => {
       if (
@@ -174,6 +183,52 @@ const App = () => {
     [prompt, selectedPrompt, selectedPropsId, tokenCount]
   );
 
+  // we want to make sure this runs before anything else
+  useLayoutEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const dontAutoloadParam = urlParams.get("dontAutoload");
+    console.log("DONT AUTOLOAD", dontAutoloadParam);
+    if (dontAutoloadParam) {
+      dontAutoload.current = true;
+    }
+    const jsonlParam = urlParams.get("json");
+
+    if (jsonlParam) {
+      const jsonl = decodeURIComponent(jsonlParam);
+
+      const jsonLine: { messages: Array<ChatCompletionRequestMessage> } =
+        JSON.parse(jsonl);
+
+      // convert to renderoutput
+      const data = {
+        prompt: {
+          type: "chat" as const,
+          messages: jsonLine.messages.map((m) => {
+            return m;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any[],
+        },
+        outputHandlers: [],
+        priorityCutoff: 100,
+        streamHandlers: [],
+        tokenCount: 100,
+        tokenizer: "cl100k_base",
+        tokenLimit: 100,
+        tokensReserved: 100,
+        durationMs: 100,
+      };
+      setTokenCountUsed(data.tokenCount);
+      setTokenCountReserved(data.tokensReserved);
+      setDurationMs(data.durationMs);
+      setPriorityCutoff(data.priorityCutoff);
+      setPrompt(data.prompt);
+      setErrorMessage("");
+      setCompletion(undefined);
+      setOutput(undefined);
+      setInJsonMode(true);
+    }
+  }, []);
+
   useEffect(() => {
     const storedSelectedPrompt = localStorage.getItem("selectedPrompt");
     const storedSelectedPropsId = localStorage.getItem("selectedPropsId");
@@ -181,12 +236,21 @@ const App = () => {
     console.log(
       "FETCHING PROMPTS!",
       storedSelectedPrompt,
-      storedSelectedPropsId
+      storedSelectedPropsId,
+      dontAutoload
     );
+
+    if (dontAutoload.current) {
+      return;
+    }
 
     fetch(`http://localhost:3000/priompt/getPreviews`)
       .then((response) => response.json())
       .then((data) => {
+        if (dontAutoload.current) {
+          return;
+        }
+
         console.log("GOT RESPONSE", data);
         setPrompts(data);
         const x = Object.keys(data);
@@ -206,6 +270,7 @@ const App = () => {
         } else {
           setSelectedPrompt(x[ix]);
         }
+        console.log("dontAutoload", dontAutoload);
         console.log("ix", ix);
         console.log("x", x);
         console.log("dumps", data[x[ix]].dumps);
@@ -399,46 +464,6 @@ const App = () => {
 
   const [inJsonMode, setInJsonMode] = useState<boolean>(false);
   const [dontDisplayExtras, setDontDisplayExtras] = useState<boolean>(false);
-
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const jsonlParam = urlParams.get("json");
-
-    if (jsonlParam) {
-      const jsonl = decodeURIComponent(jsonlParam);
-
-      const jsonLine: { messages: Array<ChatCompletionRequestMessage> } =
-        JSON.parse(jsonl);
-
-      // convert to renderoutput
-      const data = {
-        prompt: {
-          type: "chat" as const,
-          messages: jsonLine.messages.map((m) => {
-            return m;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any[],
-        },
-        outputHandlers: [],
-        priorityCutoff: 100,
-        streamHandlers: [],
-        tokenCount: 100,
-        tokenizer: "cl100k_base",
-        tokenLimit: 100,
-        tokensReserved: 100,
-        durationMs: 100,
-      };
-      setTokenCountUsed(data.tokenCount);
-      setTokenCountReserved(data.tokensReserved);
-      setDurationMs(data.durationMs);
-      setPriorityCutoff(data.priorityCutoff);
-      setPrompt(data.prompt);
-      setErrorMessage("");
-      setCompletion(undefined);
-      setOutput(undefined);
-      setInJsonMode(true);
-    }
-  }, []);
 
   useEffect(() => {
     window.addEventListener("message", (event) => {
