@@ -115,6 +115,10 @@ class PreviewManagerImpl implements IPreviewManager {
 
   private readonly previews: Record<string, PreviewConfig<unknown>> = {};
 
+  getConfig(promptId: string) {
+    return this.previews[promptId];
+  }
+
   getPreviews() {
     return Object.keys(this.previews).reduce((acc: Record<string, { dumps: string[], saved: string[] }>, promptId) => {
       const promptPath = path.join(getProjectRoot(), 'priompt', promptId);
@@ -198,11 +202,15 @@ class PreviewManagerImpl implements IPreviewManager {
     if (element instanceof Promise) {
       element = await element;
     }
+    return this.getPromptFromRemoteElement(query, element);
+  }
+
+  async getPromptFromRemoteElement(query: Omit<PreviewManagerGetRemotePromptQuery, "promptId" | "promptDump">, element: PromptElement) {
     const rendered = await render(element, { model: query.modelName, tokenLimit: query.tokenLimit });
     return rendered
   }
 
-  private getRemoteElement(promptId: string, promptDump: string) {
+  getRemoteElement(promptId: string, promptDump: string) {
     const config = this.previews[promptId];
     const baseProps = this.hydrate(config, promptDump);
     const element = config.prompt(baseProps as PromptProps<unknown>);

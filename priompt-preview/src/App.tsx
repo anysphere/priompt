@@ -28,12 +28,61 @@ import { v4 as uuidv4 } from "uuid";
 import {
   ChatPrompt,
   ChatPromptAssistantMessage,
+  ChatPromptMessage,
   FunctionPrompt,
+  ImagePromptContent,
   PromptString,
 } from "@anysphere/priompt/dist/types";
 import { Content } from "@anysphere/priompt/dist/openai";
 
 const userId = uuidv4();
+
+function openAIChatMessagesToPrompt(
+  messages: ChatCompletionRequestMessage[]
+): ChatPrompt {
+  return {
+    type: "chat",
+    messages: messages.map((m) => {
+      let c: ChatPromptMessage;
+      if (Array.isArray(m.content)) {
+        if (m.role === "function") {
+          c = {
+            role: "function",
+            content: m.content
+              .map((c) => (c.type === "text" ? c.text : ""))
+              .join(""),
+            name: m.name ?? "",
+          };
+          return c;
+        }
+        c = {
+          role: m.role,
+          content: m.content
+            .map((c) => (c.type === "text" ? c.text : ""))
+            .join(""),
+          images: m.content.filter(
+            (c) => c.type === "image"
+          ) as ImagePromptContent[],
+        };
+        return c;
+      } else {
+        if (m.role === "function") {
+          c = {
+            role: "function",
+            content: m.content ?? "",
+            name: m.name ?? "",
+          };
+          return c;
+        }
+        c = {
+          role: m.role,
+          content: m.content ?? "",
+        };
+        return c;
+      }
+    }),
+  };
+}
 
 function promptStringToString(promptString: PromptString): string {
   return Array.isArray(promptString) ? promptString.join("") : promptString;
@@ -487,10 +536,7 @@ const App = () => {
           const data = {
             prompt: {
               type: "chat" as const,
-              messages: jsonLine.map((m) => {
-                return m;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              }) as any[],
+              messages: openAIChatMessagesToPrompt(jsonLine).messages,
             },
             outputHandlers: [],
             priorityCutoff: 100,

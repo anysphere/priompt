@@ -1,4 +1,18 @@
-
+export type Content = {
+	type: 'text';
+	text: string;
+} | {
+	type: 'image';
+	image_url: {
+		url: string,
+		detail?: 'low' | 'high' | 'auto'
+		// Temporary addition by Aman needed for token calculation
+		dimensions: {
+			width: number;
+			height: number;
+		}
+	},
+}
 /**
  *
  * @export
@@ -16,7 +30,7 @@ export interface ChatCompletionRequestMessage {
 	 * @type {string}
 	 * @memberof ChatCompletionRequestMessage
 	 */
-	'content'?: string;
+	'content'?: string | Content[];
 	/**
 	 * The name of the author of this message. `name` is required if role is `function`, and it should be the name of the function whose response is in the `content`. May contain a-z, A-Z, 0-9, and underscores, with a maximum length of 64 characters.
 	 * @type {string}

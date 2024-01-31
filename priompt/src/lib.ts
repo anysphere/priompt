@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, getTokenizerName, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
 import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
@@ -23,6 +23,34 @@ export function functionPromptToString(prompt: FunctionPrompt): string {
 	return prompt.functions.map((func) => {
 		JSON.stringify(func);
 	}).join('\n');
+}
+const OPENAI_SPECIAL_TOKENS = [
+	"<|im_start|>",
+	"<|im_sep|>",
+	"<|im_end|>",
+	"<|meta_start|>",
+	"<|meta_sep|>",
+	"<|meta_end|>",
+	"<|endoftext|>",
+	"<|endofprompt|>",
+	"<|endoffile|>",
+	"<|startoftext|>",
+	"<|fim_prefix|>",
+	"<|fim_middle|>",
+	"<|fim_suffix|>",
+	"<|disc_score|>",
+	"<|disc_sep|>",
+	"<|disc_thread|>",
+	"<|ipynb_marker|>",
+	"<|diff_marker|>",
+	"<|ghissue|>",
+	"<|ghreview|>",
+]
+export function replaceOpenaiSpecialTokens(s: string): string {
+	for (const token of OPENAI_SPECIAL_TOKENS) {
+		s = s.replace(new RegExp(token, 'g'), token.replace("<|", "<").replace("|>", ">"));
+	}
+	return s;
 }
 
 export function isChatPrompt(prompt: RenderedPrompt | undefined): prompt is ChatPrompt {
@@ -2192,6 +2220,45 @@ export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTo
 		return final;
 	}
 	throw new Error(`BUG!! promptToTokens got an invalid prompt`);
+}
+
+export function openAIChatMessagesToPrompt(messages: ChatCompletionRequestMessage[]): ChatPrompt {
+	return {
+		type: "chat",
+		messages: messages.map(m => {
+			let c: ChatPromptMessage;
+			if (Array.isArray(m.content)) {
+				if (m.role === "function") {
+					c = {
+						role: "function",
+						content: m.content.map(c => c.type === 'text' ? c.text : "").join(""),
+						name: m.name ?? "",
+					}
+					return c;
+				}
+				c = {
+					role: m.role,
+					content: m.content.map(c => c.type === 'text' ? c.text : "").join(""),
+					images: m.content.filter(c => c.type === 'image') as ImagePromptContent[],
+				}
+				return c;
+			} else {
+				if (m.role === "function") {
+					c = {
+						role: "function",
+						content: m.content ?? "",
+						name: m.name ?? "",
+					}
+					return c;
+				}
+				c = {
+					role: m.role,
+					content: m.content ?? ""
+				}
+				return c;
+			}
+		})
+	}
 }
 
 export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCompletionRequestMessage> {
