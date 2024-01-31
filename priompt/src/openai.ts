@@ -21,6 +21,7 @@ export const R50K_BASE = 'r50k_base';
 export const P50K_BASE = 'p50k_base';
 export const GPT2_TOKENIZER = 'gpt2';
 export const GPT_3_5_FINETUNE_CPP = 'ft:gpt-3.5-turbo-0613:anysphere::8ERu98np';
+export const GPT_3_5_FINETUNE_RERANKER = 'ft:gpt-3.5-turbo-0613:anysphere::8GgLaVNe'
 export const CODE_LLAMA_RERANKER = 'codellama_7b_reranker';
 
 export const usableModels = [
@@ -37,6 +38,7 @@ export const usableModels = [
 	TEXT_EMBEDDING_ADA_002,
 	TEXT_DAVINCI_003,
 	GPT_3_5_FINETUNE_CPP,
+	GPT_3_5_FINETUNE_RERANKER,
 	CODE_LLAMA_RERANKER
 ] as const;
 
@@ -52,6 +54,7 @@ export const usableLanguageModels = [
 	GPT_4_32K_NIGHTLY_0613,
 	AZURE_3_5_TURBO,
 	GPT_3_5_FINETUNE_CPP,
+	GPT_3_5_FINETUNE_RERANKER,
 	CODE_LLAMA_RERANKER
 ] as const;
 
@@ -74,6 +77,7 @@ export const MODEL_CONTEXTS: {
 } = {
 	[GPT_3_5_TURBO]: 2_000,
 	[GPT_3_5_FINETUNE_CPP]: 2_000,
+	[GPT_3_5_FINETUNE_RERANKER]: 2_000,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 2_000,
 	[GPT_3_5_TURBO_16K]: 10_000,
 	[GPT3_3_5_TURBO_DOTHISFORME]: 4_000,
@@ -91,6 +95,7 @@ export const MAX_TOKENS: {
 } = {
 	[GPT_3_5_TURBO]: 4096,
 	[GPT_3_5_FINETUNE_CPP]: 4096,
+	[GPT_3_5_FINETUNE_RERANKER]: 2000,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 4096,
 	[GPT_3_5_TURBO_16K]: 16_384,
 	[GPT_3_5_TURBO_INSTRUCT]: 4096,
