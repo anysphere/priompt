@@ -37,6 +37,92 @@ import { Content } from "@anysphere/priompt/dist/openai";
 
 const userId = uuidv4();
 
+function isPlainPrompt(
+  prompt: RenderedPrompt | undefined
+): prompt is PromptString {
+  return typeof prompt === "string" || Array.isArray(prompt);
+}
+function chatPromptToString(prompt: ChatPrompt): string {
+  return prompt.messages
+    .map((message) => {
+      return `<|im_start|>${message.role}<|im_sep|>${message.content}<|im_end|>`;
+    })
+    .join("\n");
+}
+
+function promptToOpenAIChatMessages(
+  prompt: RenderedPrompt
+): Array<ChatCompletionRequestMessage> {
+  if (isPlainPrompt(prompt)) {
+    return [
+      {
+        role: "user",
+        content: promptStringToString(prompt),
+      },
+    ];
+  } else if (isChatPrompt(prompt)) {
+    return prompt.messages.map((msg) => {
+      if (msg.role === "function") {
+        return {
+          role: msg.role,
+          name: msg.name,
+          content: promptStringToString(msg.content),
+        };
+      } else if (msg.role === "assistant" && msg.functionCall !== undefined) {
+        return {
+          role: msg.role,
+          content:
+            msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
+          function_call: msg.functionCall,
+        };
+      } else if (msg.role === "assistant") {
+        return {
+          role: msg.role,
+          content:
+            msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
+        };
+      } else if (msg.role === "system") {
+        return {
+          role: msg.role,
+          name: msg.name,
+          content:
+            msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
+        };
+      } else {
+        if (msg.images && msg.images.length > 0) {
+          // We format the content
+          const content: Content[] = [];
+          // First, we add the image
+          content.push(...msg.images);
+          // Then we add the text
+          const textContent =
+            msg.content !== undefined ? promptStringToString(msg.content) : "";
+          content.push({
+            type: "text",
+            text: textContent,
+          });
+          // Import new openai api version to support images
+          return {
+            role: msg.role,
+            content: content,
+            name: "name" in msg ? msg.name : undefined,
+          };
+        } else {
+          return {
+            role: msg.role,
+            content:
+              msg.content !== undefined
+                ? promptStringToString(msg.content)
+                : "",
+            name: "name" in msg ? msg.name : undefined,
+          };
+        }
+      }
+    });
+  }
+  throw new Error(`BUG!! promptToOpenAIChatMessagesgot an invalid prompt`);
+}
+
 function openAIChatMessagesToPrompt(
   messages: ChatCompletionRequestMessage[]
 ): ChatPrompt {
@@ -1414,6 +1500,47 @@ const App = () => {
         >
           Add Assistant Message
         </button>
+        {prompt && (
+          <div>
+            <button
+              onClick={() => {
+                const msgs = promptToOpenAIChatMessages(prompt);
+                const stringified = JSON.stringify(msgs, null, 2);
+                navigator.clipboard
+                  .writeText(stringified)
+                  .then(() => {
+                    console.log("Prompt JSON copied to clipboard");
+                  })
+                  .catch((err) => {
+                    console.error(
+                      "Failed to copy prompt JSON to clipboard",
+                      err
+                    );
+                  });
+              }}
+            >
+              Copy prompt as messages JSON
+            </button>
+            <button
+              onClick={() => {
+                const s = chatPromptToString(prompt);
+                navigator.clipboard
+                  .writeText(s)
+                  .then(() => {
+                    console.log("Prompt string copied to clipboard");
+                  })
+                  .catch((err) => {
+                    console.error(
+                      "Failed to copy prompt string to clipboard",
+                      err
+                    );
+                  });
+              }}
+            >
+              Copy prompt as completion prompt string
+            </button>
+          </div>
+        )}
 
         {selectedPrompt === "liveModePromptId" && selectedPropsId !== "" && (
           <div>
