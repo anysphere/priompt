@@ -21,6 +21,7 @@ import {
   FunctionPrompt,
   PromptString,
 } from "@anysphere/priompt/dist/types";
+import { Content } from "@anysphere/priompt/dist/openai";
 
 const userId = uuidv4();
 
@@ -61,7 +62,7 @@ function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   ) as T;
 }
 
-const ALL_MODELS_STR = "gpt-3.5-turbo,gpt-4,gpt-4-32k";
+const ALL_MODELS_STR = "gpt-3.5-turbo,gpt-4,gpt-4-32k,gpt-4-vision-preview";
 const ALL_MODELS = ALL_MODELS_STR.split(",");
 const COMPLETION_MODELS_STR = "text-davinci-003,code-davinci-002";
 const COMPLETION_MODELS = COMPLETION_MODELS_STR.split(",");
@@ -622,25 +623,51 @@ const App = () => {
                   return {
                     role: m.role,
                     name: m.name,
-                    content: m.content
-                      ? promptStringToString(m.content)
-                      : undefined,
+                    content: m.content ? promptStringToString(m.content) : "",
                   };
                 } else if (m.role === "assistant" && m.functionCall) {
                   return {
                     role: m.role,
                     function_call: m.functionCall,
-                    content: m.content
-                      ? promptStringToString(m.content)
-                      : undefined,
+                    content: m.content ? promptStringToString(m.content) : "",
                   };
-                } else {
+                } else if (m.role === "assistant" || m.role === "system") {
                   return {
                     role: m.role,
-                    content: m.content
-                      ? promptStringToString(m.content)
-                      : undefined,
+                    content: m.content ? promptStringToString(m.content) : "",
                   };
+                } else if (m.role === "user") {
+                  if (m.images) {
+                    const rawText = m.content
+                      ? promptStringToString(m.content)
+                      : "";
+                    const textContent: Content = {
+                      type: "text",
+                      text: rawText,
+                    };
+                    const images: Content[] = m.images.map((image) => {
+                      return {
+                        ...image,
+                        image_url: {
+                          url: image.image_url.url,
+                          detail: image.image_url.detail,
+                          // dimensions: image.image_url.dimensions,
+                        },
+                        // Hack to get around the dimensions hack
+                      } as Content;
+                    });
+                    return {
+                      role: m.role,
+                      content: [textContent, ...images],
+                    };
+                  } else {
+                    return {
+                      role: m.role,
+                      content: m.content ? promptStringToString(m.content) : "",
+                    };
+                  }
+                } else {
+                  throw new Error("unknown role");
                 }
               }),
             temperature,
@@ -651,6 +678,7 @@ const App = () => {
               functions.some((f) => f.name === forceFunctionCall)
                 ? { name: forceFunctionCall }
                 : undefined,
+            max_tokens: model.includes("vision") ? 500 : undefined,
             user: userId,
           },
           undefined,
@@ -1000,6 +1028,27 @@ const App = () => {
                             <b>{msg.role}</b>
                             {msg.role === "function" && <i>: {msg.name}</i>}
                             <br />
+                            {msg.role === "user" && msg.images && (
+                              <div
+                                style={{
+                                  maxHeight: "100%",
+                                  maxWidth: "100%",
+                                  padding: "2rem",
+                                }}
+                              >
+                                {msg.images.map((image) => {
+                                  return (
+                                    <img
+                                      src={image.image_url.url}
+                                      style={{
+                                        maxHeight: "100%",
+                                        maxWidth: "100%",
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
                             <TextAreaWithSetting
                               key={key}
                               realKey={key}

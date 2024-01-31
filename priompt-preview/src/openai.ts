@@ -1,4 +1,4 @@
-import { ChatCompletionRequestMessage, CreateChatCompletionRequest, CreateCompletionRequest, CreateCompletionResponse, StreamChatCompletionResponse } from './openai_interfaces';
+import { ChatCompletionRequestMessage, CreateChatCompletionRequest, CreateCompletionRequest, CreateCompletionResponse, StreamChatCompletionResponse } from '@anysphere/priompt/dist/openai';
 import { encodingForModel } from "js-tiktoken";
 
 

@@ -155,7 +155,7 @@ export function numTokensForImage(dimensions: { width: number; height: number; }
 		const numHeightBlocks = Math.ceil(dimensions.height / 512);
 		return numWidthBlocks * numHeightBlocks * 85;
 	} else {
-		return 1020;
+		throw new Error(`Unknown detail level ${detail}`);
 	}
 }
 
@@ -2078,7 +2078,7 @@ async function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedProm
 	if (isPlainPrompt(prompt)) {
 		tokens += await numTokensPromptString(prompt, tokenizer);
 	} else if (isChatPrompt(prompt)) {
-		const msgTokens = await Promise.all(prompt.messages.map(msg => countMessageTokens(msg, tokenizer)));
+		const msgTokens = await Promise.all(prompt.messages.map(msg => countMsgTokens(msg, tokenizer)));
 		// docs here: https://platform.openai.com/docs/guides/chat/introduction
 		tokens += msgTokens.reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
 		if (options.lastMessageIsIncomplete === true) {
@@ -2257,7 +2257,7 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 	throw new Error(`BUG!! promptToOpenAIChatMessagesgot an invalid prompt`);
 }
 
-async function countMessageTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): Promise<number> {
+export async function countMsgTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): Promise<number> {
 	if (message.role === 'function') {
 		// add an extra 2 tokens for good measure
 		return (await numTokens(message.name, { tokenizer })) + (await numTokensPromptString(message.content, tokenizer)) + 2;
