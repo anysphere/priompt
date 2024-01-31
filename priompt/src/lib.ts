@@ -673,6 +673,14 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
 
+	// We lower the token limit if this is an approx count
+	let usedTokenlimit: number;
+	if (countTokensFast_UNSAFE === true) {
+		usedTokenlimit = tokenLimit * 0.95
+	} else {
+		usedTokenlimit = tokenLimit;
+	}
+
 	// now we hydrate the isolates
 	let startTimeHydratingIsolates = undefined;
 	if (process.env.NODE_ENV === 'development') {
@@ -722,7 +730,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 			} else {
 				tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 			}
-			if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
+			if (tokenCount + prompt.emptyTokenCount > usedTokenlimit) {
 				// this means that the candidateLevel is too low
 				exclusiveLowerBound = candidateLevelIndex;
 			} else {
