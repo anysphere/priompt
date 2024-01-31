@@ -11,6 +11,7 @@ import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
 import { normalize } from 'path';
+export { RenderedPrompt } from './types';
 
 
 
@@ -628,7 +629,7 @@ export function renderCumulativeSum(
 
 }
 
-export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
+export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (process.env.NODE_ENV === 'development') {
 		startTime = performance.now();
@@ -717,7 +718,11 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 				countStart = performance.now();
 			}
 			// const prompt = renderWithLevel(elem, candidateLevel);
-			tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
+			if (countTokensFast_UNSAFE === true) {
+				tokenCount = countTokensApproxFast_UNSAFE(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
+			} else {
+				tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
+			}
 			if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
 				// this means that the candidateLevel is too low
 				exclusiveLowerBound = candidateLevelIndex;
@@ -2098,7 +2103,49 @@ async function numTokensPromptString(p: PromptString, tokenizer: UsableTokenizer
 	return numTokens(p, { tokenizer });
 }
 
+function numTokensPromptStringFast_UNSAFE(prompt: PromptString, tokenizer: UsableTokenizer): number {
+	if (Array.isArray(prompt)) {
+		return prompt.reduce((a, b) => a + numTokensPromptStringFast_UNSAFE(b, tokenizer), 0);
+	}
+	return estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(prompt, { tokenizer });
+}
 
+function countTokensApproxFast_UNSAFE(tokenizer: UsableTokenizer, prompt: RenderedPrompt, options: {
+	lastMessageIsIncomplete?: boolean;
+}): number {
+	let tokens = 0;
+	if (isPlainPrompt(prompt)) {
+		tokens += numTokensPromptStringFast_UNSAFE(prompt, tokenizer);
+	} else if (isChatPrompt(prompt)) {
+		const msgTokens = prompt.messages.map(msg => countMsgTokensFast_UNSAFE(msg, tokenizer));
+		// docs here: https://platform.openai.com/docs/guides/chat/introduction
+		tokens += msgTokens.reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
+		if (options.lastMessageIsIncomplete === true) {
+			// one for the <|im_end|>
+			tokens = tokens - (CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT + 1);
+		}
+	} else if (isPromptContent(prompt)) {
+		// We count the tokens of each text element
+		tokens += numTokensPromptStringFast_UNSAFE(prompt.content, tokenizer);
+		if (prompt.images) {
+			prompt.images.forEach(image => {
+				// Fine because sync anyways
+				tokens += numTokensForImage(image.image_url.dimensions, image.image_url.detail)
+			});
+
+		}
+	} else {
+		tokens += numTokensPromptStringFast_UNSAFE(prompt.text, tokenizer);
+	}
+	if (promptHasFunctions(prompt)) {
+		// we assume an extra 2 tokens per function
+		const functionTokens = prompt.functions.map((func) => {
+			return countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(func, tokenizer) + 2;
+		});
+		tokens += functionTokens.reduce((a, b) => a + b, 0);
+	}
+	return tokens;
+}
 async function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedPrompt, options: {
 	lastMessageIsIncomplete?: boolean;
 }): Promise<number> {
@@ -2325,6 +2372,23 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 	throw new Error(`BUG!! promptToOpenAIChatMessagesgot an invalid prompt`);
 }
 
+export function countMsgTokensFast_UNSAFE(message: ChatPromptMessage, tokenizer: UsableTokenizer): number {
+	if (message.role === 'function') {
+		// add an extra 2 tokens for good measure
+		return (estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(message.name, { tokenizer })) + (numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) + 2;
+	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
+		return (countFunctionCallMessageTokensFast_UNSAFE(message.functionCall, tokenizer)) + (message.content !== undefined ? (numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) : 0);
+	} else {
+		let numTokens = numTokensPromptStringFast_UNSAFE(message.content ?? "", tokenizer);
+		if (message.role === 'user' && message.images !== undefined) {
+			message.images.forEach(image => {
+				// numTokensForImage is synchronous and fast anyways, so nothing needed here
+				numTokens += numTokensForImage(image.image_url.dimensions, image.image_url.detail);
+			});
+		}
+		return numTokens;
+	}
+}
 export async function countMsgTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): Promise<number> {
 	if (message.role === 'function') {
 		// add an extra 2 tokens for good measure
@@ -2345,6 +2409,10 @@ export async function countMsgTokens(message: ChatPromptMessage, tokenizer: Usab
 async function countFunctionCallMessageTokens(functionCall: { name: string; arguments: string; }, tokenizer: UsableTokenizer): Promise<number> {
 	// add some constant factor here because who knows what's actually going on with functions
 	return (await numTokens(functionCall.name, { tokenizer })) + (await numTokens(functionCall.arguments, { tokenizer })) + 5;
+}
+function countFunctionCallMessageTokensFast_UNSAFE(functionCall: { name: string; arguments: string; }, tokenizer: UsableTokenizer): number {
+	// add some constant factor here because who knows what's actually going on with functions
+	return (estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.name, { tokenizer })) + (estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.arguments, { tokenizer })) + 5;
 }
 
 async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): Promise<number> {

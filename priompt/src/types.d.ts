@@ -247,6 +247,7 @@ export type RenderOptions = {
 	model?: UsableLanguageModel;
 	tokenLimit?: number;
 	tokenizer?: UsableTokenizer;
+	countTokensFast_UNSAFE?: boolean;
 
 	// if it is, then we need to count tokens differently
 	lastMessageIsIncomplete?: boolean;
