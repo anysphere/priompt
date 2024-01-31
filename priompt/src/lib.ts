@@ -2297,11 +2297,18 @@ const CL100K_SYSTEM_TOKENS = [100264, 9125, 100266];
 const CL100K_USER_TOKENS = [100264, 882, 100266];
 const CL100K_ASSISTANT_TOKENS = [100264, 78191, 100266];
 const CL100K_END_TOKEN = [100265];
+const CL100K_SYSTEM_TOKENS_STRING = "<|im_start|>system<|im_sep|>";
+const CL100K_USER_TOKENS_STRING = "<|im_start|>user<|im_sep|>";
+const CL100K_ASSISTANT_TOKENS_STRING = "<|im_start|>assistant<|im_sep|>";
+const CL100K_END_TOKEN_STRING = "<|im_end|>";
 
 async function injectName(tokens: number[], name: string): Promise<number[]> {
 	// i don't really know if this is the right way to format it....
 	const nameTokens = await tokenizerObject.encodeCl100KNoSpecialTokens(":" + name);
 	return [...tokens.slice(0, -1), ...nameTokens, tokens[tokens.length - 1]];
+}
+function injectNameString(tokens: string, name: string): string {
+	return tokens.replace("<|im_sep|>", ":" + name + "<|im_sep|>");
 }
 
 function contentArrayToStringContent(content: Array<string | PromptContent>): string[] {
@@ -2317,6 +2324,53 @@ function contentArrayToStringContent(content: Array<string | PromptContent>): st
 	});
 	return newContent;
 
+}
+
+// a piece of context, e.g. a scraped doc, could include <|im_end|> strings and mess up the prompt... so please don't use it unless necessary
+// it also does not have <breaktoken> support
+export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPrompt): string {
+	if (isPlainPrompt(prompt)) {
+		// we should just encode it as a plain prompt!
+		let s = "";
+		if (Array.isArray(prompt)) {
+			s = prompt.join('');
+		} else {
+			s = prompt;
+		}
+		return s;
+	} else if (isChatPrompt(prompt)) {
+		const parts = prompt.messages.map((msg) => {
+			if (msg.role === 'function') {
+				// let's just throw
+				throw new Error(`BUG!! promptToString got a chat prompt with a function message, which is not supported yet!`);
+			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
+				throw new Error(`BUG!! promptToString got a chat prompt with a function message, which is not supported yet!`);
+			} else {
+				let headerTokens =
+					msg.role === 'assistant' ? CL100K_ASSISTANT_TOKENS_STRING : msg.role === 'system' ? CL100K_SYSTEM_TOKENS_STRING : CL100K_USER_TOKENS_STRING;
+				if ('name' in msg && msg.name !== undefined) {
+					headerTokens = injectNameString(headerTokens, msg.name);
+				}
+				let newContent: string[] | string | undefined = undefined
+				if (Array.isArray(msg.content)) {
+					// We just combine the tokens to a string array to get around images
+					newContent = contentArrayToStringContent(msg.content);
+				} else {
+					newContent = msg.content;
+				}
+				return headerTokens + (newContent !== undefined ? (promptToString_VULNERABLE_TO_PROMPT_INJECTION(newContent)) : "");
+			}
+		});
+		let final: string = "";
+		for (const part of parts) {
+			if (final.length > 0) {
+				final += CL100K_END_TOKEN_STRING;
+			}
+			final += part;
+		}
+		return final;
+	}
+	throw new Error(`BUG!! promptToString got an invalid prompt`);
 }
 
 // always leaves the last message "open"
