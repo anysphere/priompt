@@ -395,7 +395,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 	validateUnrenderedPrompt(elem);
 	if (process.env.NODE_ENV === 'development') {
 		const endTimeValidating = performance.now();
-		console.log(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
+		console.debug(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
 	}
 
 	let startTimeComputingPriorityLevels = undefined;
@@ -410,7 +410,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 	const sortedPriorityLevels = Array.from(priorityLevels).sort((a, b) => a - b);
 	if (process.env.NODE_ENV === 'development') {
 		const endTimeComputingPriorityLevels = performance.now();
-		console.log(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
+		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
 
 	// now we hydrate the isolates
@@ -421,7 +421,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 	await hydrateIsolates(elem, tokenizer);
 	if (process.env.NODE_ENV === 'development') {
 		const endTimeHydratingIsolates = performance.now();
-		console.log(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
+		console.debug(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
 	}
 
 
@@ -443,7 +443,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		const candidateLevelIndex = Math.floor((exclusiveLowerBound + inclusiveUpperBound) / 2);
 		const candidateLevel = sortedPriorityLevels[candidateLevelIndex];
 		if (process.env.NODE_ENV === 'development') {
-			console.log(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
+			console.debug(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
 		}
 		let start: number | undefined;
 		if (process.env.NODE_ENV === 'development') {
@@ -471,14 +471,14 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		} finally {
 			if (process.env.NODE_ENV === 'development') {
 				const end = performance.now();
-				console.log(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - (start ?? 0)} ms and has ${tokenCount} tokens (-1 means early exit, counting took ${end - (countStart ?? 0)})`);
+				console.debug(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - (start ?? 0)} ms and has ${tokenCount} tokens (-1 means early exit, counting took ${end - (countStart ?? 0)})`);
 			}
 		}
 	}
 
 	if (process.env.NODE_ENV === 'development') {
 		const endTimeRendering = performance.now();
-		console.log(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
+		console.debug(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
 	}
 
 	let startExactTokenCount = undefined;
@@ -499,7 +499,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 
 	if (process.env.NODE_ENV === 'development') {
 		const endExactTokenCount = performance.now();
-		console.log(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
+		console.debug(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
 	}
 
 	let duration: number | undefined = undefined;
@@ -550,7 +550,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 		// only validate in debug
 		validateUnrenderedPrompt(elem);
 		const endTimeValidating = performance.now();
-		console.log(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
+		console.debug(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
 	}
 
 
@@ -576,10 +576,10 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 	const normalizedElem = normalizePrompt(elem);
 	if (process.env.NODE_ENV === 'development') {
 		const endTimeNormalizing = performance.now();
-		console.log(`Normalizing prompt took ${endTimeNormalizing - (startTimeNormalizing ?? 0)} ms`);
+		console.debug(`Normalizing prompt took ${endTimeNormalizing - (startTimeNormalizing ?? 0)} ms`);
 	}
 
-	console.log(normalizedElem, "normalizedElem");
+	console.debug(normalizedElem, "normalizedElem");
 
 
 	let startTimeComputingPriorityLevels = undefined;
@@ -594,7 +594,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 	const sortedPriorityLevels = Array.from(priorityLevels).sort((a, b) => b - a);
 	if (process.env.NODE_ENV === 'development') {
 		const endTimeComputingPriorityLevels = performance.now();
-		console.log(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
+		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
 
 	// if the first one is higher than the base priority, then print a warning because it will not have any effect
@@ -634,7 +634,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 
 	if (process.env.NODE_ENV === 'development') {
 		const endTimeRendering = performance.now();
-		console.log(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
+		console.debug(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
 	}
 
 	if (prevPrompt === undefined) {
@@ -659,7 +659,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 	// consider adding a mode that if this happens, backtracks
 	if (prevPrompt.prompt !== undefined) {
 		const exactTokenCount = await countTokensExact(tokenizer, prevPrompt.prompt, { lastMessageIsIncomplete });
-		console.log(`Discrepancy: (estimated token count) - (actual token count) = ${prevPrompt.tokenCount} - ${exactTokenCount} = ${prevPrompt.tokenCount - exactTokenCount}`);
+		console.debug(`Discrepancy: (estimated token count) - (actual token count) = ${prevPrompt.tokenCount} - ${exactTokenCount} = ${prevPrompt.tokenCount - exactTokenCount}`);
 		prevPrompt.tokenCount = exactTokenCount;
 		if (exactTokenCount + prevPrompt.emptyTokenCount > tokenLimit) {
 			console.warn(`Actual token count is ${exactTokenCount} with ${prevPrompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This can possibly happen in rare circumstances, but should never be a problem in practice.`)
@@ -668,7 +668,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 
 	if (process.env.NODE_ENV === 'development') {
 		const endExactTokenCount = performance.now();
-		console.log(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
+		console.debug(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
 	}
 
 	let duration: number | undefined = undefined;

@@ -224,7 +224,7 @@ class PreviewManagerImpl implements IPreviewManager {
   dump<T>(config: PreviewConfig<T>, props: T) {
     const dump = dumpProps(config, props);
     const priomptPath = path.join(getProjectRoot(), 'priompt', config.id);
-    console.log("PRIOMPT PATH: ", priomptPath);
+    console.debug("PRIOMPT PATH: ", priomptPath);
     const dumpsPath = path.join(priomptPath, 'dumps');
 
     if (!fs.existsSync(priomptPath)) {
