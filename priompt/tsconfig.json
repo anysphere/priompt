@@ -6,13 +6,16 @@
     "noImplicitAny": true,
     "declaration": true,
     "target": "ES2019",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    // we need this because vitest 1 requires nodenext, and vitest 0.33 and vitest 1 cannot coexist
+    "moduleResolution": "nodenext",
     "jsx": "react",
     "jsxFactory": "Priompt.createElement",
     "jsxFragmentFactory": "Priompt.Fragment",
     "sourceMap": true,
     "inlineSources": true,
+    // we need this to fix this weird vitest problem: https://github.com/vitejs/vite/issues/11552
+    "skipLibCheck": true,
     "strictPropertyInitialization": true,
     "declarationMap": true
   },
