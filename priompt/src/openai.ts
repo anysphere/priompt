@@ -57,7 +57,8 @@ export const GPT_3_5_1106 = "gpt-3.5-turbo-1106";
 export const GPT_3_5_FINETUNE_RERANKER = 'ft:gpt-3.5-turbo-0613:anysphere::8GgLaVNe'
 export const CODE_LLAMA_RERANKER = 'codellama_7b_reranker';
 export const MISTRAL_MEDIUM = 'mistral-medium';
-export const GPT_3_5_FINETUNE_CMDK = 'ft:gpt-3.5-turbo-1106:anysphere::8fOY9fCJ';
+export const DEEPSEEK_7B_CMDK = 'ft:deepseek-7b-cmdk';
+export const GPT_3_5_FINETUNE_CMDK = 'ft:gpt-3.5-turbo-1106:anysphere::8glsI2WY';
 
 export const AZURE_3_5_TURBO = 'azure-3.5-turbo';
 
@@ -99,6 +100,7 @@ export const usableModels = [
 	GPT_3_5_FINETUNE_RERANKER,
 	CODE_LLAMA_RERANKER,
 	MISTRAL_MEDIUM,
+	DEEPSEEK_7B_CMDK,
 	GPT_3_5_FINETUNE_CMDK
 ] as const;
 
@@ -127,6 +129,7 @@ export const usableLanguageModels = [
 	GPT_3_5_FINETUNE_RERANKER,
 	CODE_LLAMA_RERANKER,
 	MISTRAL_MEDIUM,
+	DEEPSEEK_7B_CMDK,
 	GPT_3_5_FINETUNE_CMDK,
 ] as const;
 
@@ -162,6 +165,7 @@ export const MODEL_CONTEXTS: {
 	[CODE_LLAMA_RERANKER]: 4_000,
 	// not sure about these...
 	[MISTRAL_MEDIUM]: 8_000,
+	[DEEPSEEK_7B_CMDK]: 16_000,
 	[GPT_3_5_FINETUNE_CMDK]: 16_000,
 };
 
@@ -186,6 +190,7 @@ export const MAX_TOKENS: {
 	[CODE_LLAMA_RERANKER]: 4_000,
 	// not sure about these...
 	[MISTRAL_MEDIUM]: 8_000,
+	[DEEPSEEK_7B_CMDK]: 4096,
 	[GPT_3_5_FINETUNE_CMDK]: 16_000,
 };
 
@@ -208,7 +213,8 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'gpt-3.5-turbo-instruct':
 		case 'azure-3.5-turbo':
 		case 'gpt-ft-cursor-0810':
-		case 'ft:gpt-3.5-turbo-1106:anysphere::8fOY9fCJ':
+		case 'ft:gpt-3.5-turbo-1106:anysphere::8glsI2WY':
+		case 'ft:deepseek-7b-cmdk':
 			return 'cl100k_base';
 		// i think this is wrong.... but it's what we have and probably ~ roughly correct
 		case 'mistral-medium':
