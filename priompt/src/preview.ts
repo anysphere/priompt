@@ -1,5 +1,5 @@
 import { render } from './lib';
-import { Prompt, PromptElement, PromptProps, RenderOutput } from './types';
+import { Prompt, PromptElement, PromptProps, RenderOutput, SynchronousPrompt } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -70,6 +70,12 @@ export function configFromPrompt<T, ReturnT = never>(prompt: Prompt<T, ReturnT>)
     prompt,
   };
 }
+export function configFromSynchronousPrompt<T, ReturnT = never>(prompt: SynchronousPrompt<T, ReturnT>): SynchronousPreviewConfig<T, ReturnT> {
+  return {
+    id: prompt.name,
+    prompt,
+  };
+}
 
 export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>, props: Omit<T, "onReturn">): string {
   let hasNoDump = false;
@@ -104,6 +110,14 @@ export type PreviewConfig<PropsT, ReturnT = never> = {
   prompt: Prompt<PropsT, ReturnT>;
   // defaults to yaml but can be overridden
   dump?: (props: Omit<PropsT, "onReturn">) => string; hydrate?: (dump: string) => PropsT;
+}
+
+export type SynchronousPreviewConfig<PropsT, ReturnT = never> = {
+  id: string;
+  prompt: SynchronousPrompt<PropsT, ReturnT>;
+  // defaults to yaml but can be overridden
+  dump?: (props: Omit<PropsT, "onReturn">) => string; hydrate?: (dump: string) => PropsT;
+
 }
 
 class PreviewManagerImpl implements IPreviewManager {
@@ -278,6 +292,9 @@ class PreviewManagerImpl implements IPreviewManager {
     this.registerConfig(config);
   }
 
+  configFromSynchronousPrompt<T, ReturnT = never>(prompt: SynchronousPrompt<T, ReturnT>): SynchronousPreviewConfig<T, ReturnT> {
+    return configFromSynchronousPrompt(prompt);
+  }
 
   hydrate<T>(config: PreviewConfig<T>, dump: string): T {
     if (config.hydrate) {
