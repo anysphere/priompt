@@ -469,6 +469,7 @@ const App = () => {
       setCompletion(undefined);
       setOutput(undefined);
       setInJsonMode(true);
+      setForceRerender((r) => r + 1);
     });
   }, []);
 
@@ -497,6 +498,7 @@ const App = () => {
         setErrorMessage("");
         setCompletion(undefined);
         setOutput(undefined);
+        setForceRerender((r) => r + 1);
       })
       .catch((error) => {
         setErrorMessage(error.message);
