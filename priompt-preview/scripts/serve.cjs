@@ -5,6 +5,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const url = require('url'); // Added this line
 
 const port = process.env.PRIOMPT_PREVIEW_PORT || 6283;
 const server_port = process.env.PRIOMPT_PREVIEW_SERVER_PORT;
@@ -15,7 +16,8 @@ if (!server_port) {
 const distPath = path.join(path.dirname(__dirname), 'dist');
 
 const requestListener = (req, res) => {
-	const filePath = path.join(distPath, req.url === '/' ? 'index.html' : req.url);
+	const parsedUrl = url.parse(req.url); // Parse the URL
+	const filePath = path.join(distPath, parsedUrl.pathname === '/' ? 'index.html' : parsedUrl.pathname); // Use parsedUrl.pathname instead of req.url
 	const extname = String(path.extname(filePath)).toLowerCase();
 	const mimeTypes = {
 		'.html': 'text/html',

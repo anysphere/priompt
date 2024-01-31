@@ -3,7 +3,10 @@ import { RenderedPrompt } from "@anysphere/priompt";
 import { streamChat, streamChatCompletion } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
-import { ChatCompletionResponseMessage } from "./openai_interfaces";
+import {
+  ChatCompletionRequestMessage,
+  ChatCompletionResponseMessage,
+} from "./openai_interfaces";
 // import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
@@ -393,6 +396,82 @@ const App = () => {
     []
   );
 
+  const [inJsonMode, setInJsonMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const jsonlParam = urlParams.get("json");
+
+    if (jsonlParam) {
+      const jsonl = decodeURIComponent(jsonlParam);
+
+      const jsonLine: { messages: Array<ChatCompletionRequestMessage> } =
+        JSON.parse(jsonl);
+
+      // convert to renderoutput
+      const data = {
+        prompt: {
+          type: "chat" as const,
+          messages: jsonLine.messages.map((m) => {
+            return m;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any[],
+        },
+        outputHandlers: [],
+        priorityCutoff: 100,
+        streamHandlers: [],
+        tokenCount: 100,
+        tokenizer: "cl100k_base",
+        tokenLimit: 100,
+        tokensReserved: 100,
+        durationMs: 100,
+      };
+      setTokenCountUsed(data.tokenCount);
+      setTokenCountReserved(data.tokensReserved);
+      setDurationMs(data.durationMs);
+      setPriorityCutoff(data.priorityCutoff);
+      setPrompt(data.prompt);
+      setErrorMessage("");
+      setCompletion(undefined);
+      setOutput(undefined);
+      setInJsonMode(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("message", (event) => {
+      const jsonLine: Array<ChatCompletionRequestMessage> = event.data;
+
+      // convert to renderoutput
+      const data = {
+        prompt: {
+          type: "chat" as const,
+          messages: jsonLine.map((m) => {
+            return m;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any[],
+        },
+        outputHandlers: [],
+        priorityCutoff: 100,
+        streamHandlers: [],
+        tokenCount: 100,
+        tokenizer: "cl100k_base",
+        tokenLimit: 100,
+        tokensReserved: 100,
+        durationMs: 100,
+      };
+      setTokenCountUsed(data.tokenCount);
+      setTokenCountReserved(data.tokensReserved);
+      setDurationMs(data.durationMs);
+      setPriorityCutoff(data.priorityCutoff);
+      setPrompt(data.prompt);
+      setErrorMessage("");
+      setCompletion(undefined);
+      setOutput(undefined);
+      setInJsonMode(true);
+    });
+  }, []);
+
   const fetchJsonL = useCallback((path: string, index: number) => {
     console.log("fetching jsonL", path, index);
     const query = {
@@ -426,21 +505,6 @@ const App = () => {
         setOutput(undefined);
       });
   }, []);
-
-  useEffect(() => {
-    if (selectedPrompt) {
-      fetchPrompt(selectedPrompt, selectedPropsId, derivedTokenCount);
-    } else if (selectedRemotePrompt) {
-      fetchRemotePrompt(selectedRemotePrompt, derivedTokenCount);
-    }
-  }, [
-    selectedPrompt,
-    selectedRemotePrompt,
-    fetchPrompt,
-    fetchRemotePrompt,
-    selectedPropsId,
-    derivedTokenCount,
-  ]);
 
   // Add event listener for keydown events
   useEffect(() => {
@@ -849,6 +913,23 @@ const App = () => {
 
   const [filterText, setFilterText] = useState("");
 
+  useEffect(() => {
+    if (inJsonMode) return;
+    if (selectedPrompt) {
+      fetchPrompt(selectedPrompt, selectedPropsId, derivedTokenCount);
+    } else if (selectedRemotePrompt) {
+      fetchRemotePrompt(selectedRemotePrompt, derivedTokenCount);
+    }
+  }, [
+    inJsonMode,
+    selectedPrompt,
+    selectedRemotePrompt,
+    fetchPrompt,
+    fetchRemotePrompt,
+    selectedPropsId,
+    derivedTokenCount,
+  ]);
+
   return (
     <>
       <CommandMenu
@@ -858,156 +939,167 @@ const App = () => {
         }))}
       />
       <div>
-        <h1>Welcome to Priompt</h1>
-        <div>
-          <b>r</b> to reload, <b>left</b> and <b>right</b> arrows to adjust
-          token count, <b>shift-left</b> and <b>shift-right</b> arrows to adjust
-          token count by 128.
-          <div className="text-blue-800">
-            new feature: cmd+k to open the command menu and quickly switch
-            prompts.
-          </div>
-        </div>
-        <br />
-        <form
-          onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-            e.preventDefault();
-            const currentText = (e.currentTarget[0] as HTMLInputElement).value;
-            setSelectedPrompt("");
-            setSelectedRemotePrompt(currentText);
-          }}
-        >
-          <input
-            type="text"
-            style={{
-              width: "500px",
-            }}
-            placeholder="Enter remote prompt URL"
-          />
-          <button type="submit">Fetch Remote Prompt</button>
-        </form>
-        <form
-          onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-            e.preventDefault();
-            const currentText = (e.currentTarget[0] as HTMLInputElement).value;
-            setSelectedPrompt("");
-            const currentIndex = (e.currentTarget[1] as HTMLInputElement)
-              .valueAsNumber;
-            fetchJsonL(currentText, currentIndex);
-          }}
-        >
-          <input
-            style={{
-              width: "500px",
-            }}
-            type="text"
-            placeholder="Enter JSONL path"
-          />
-          <input type="number" defaultValue={0} />
-          <button type="submit">Fetch local JSONL</button>
-        </form>
-        <input
-          type="text"
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          placeholder="Filter prompts"
-        />
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            flexDirection: "row",
-            gap: "6px",
-            maxWidth: "100%",
-            overflowX: "auto",
-            padding: "1rem 0",
-          }}
-        >
-          <Button
-            className="tab border-none h-8 whitespace-nowrap"
-            onClick={() => handleSelectPrompt("liveModePromptId")}
-            variant={
-              "liveModePromptId" === selectedPrompt ? "ghost" : "outline"
-            }
-            style={{
-              border:
-                "liveModePromptId" === selectedPrompt
-                  ? "1px solid black"
-                  : "none",
-              cursor: "pointer",
-            }}
-          >
-            live mode
-          </Button>
-          {promptsls
-            .filter((prompt) =>
-              prompt.toLowerCase().includes(filterText.toLowerCase())
-            )
-            .map((prompt) => (
+        {!inJsonMode && (
+          <div>
+            <h1>Welcome to Priompt</h1>
+            <div>
+              <b>r</b> to reload, <b>left</b> and <b>right</b> arrows to adjust
+              token count, <b>shift-left</b> and <b>shift-right</b> arrows to
+              adjust token count by 128.
+              <div className="text-blue-800">
+                new feature: cmd+k to open the command menu and quickly switch
+                prompts.
+              </div>
+            </div>
+            <br />
+            <form
+              onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                const currentText = (e.currentTarget[0] as HTMLInputElement)
+                  .value;
+                setSelectedPrompt("");
+                setSelectedRemotePrompt(currentText);
+              }}
+            >
+              <input
+                type="text"
+                style={{
+                  width: "500px",
+                }}
+                placeholder="Enter remote prompt URL"
+              />
+              <button type="submit">Fetch Remote Prompt</button>
+            </form>
+            <form
+              onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                const currentText = (e.currentTarget[0] as HTMLInputElement)
+                  .value;
+                setSelectedPrompt("");
+                const currentIndex = (e.currentTarget[1] as HTMLInputElement)
+                  .valueAsNumber;
+                fetchJsonL(currentText, currentIndex);
+              }}
+            >
+              <input
+                style={{
+                  width: "500px",
+                }}
+                type="text"
+                placeholder="Enter JSONL path"
+              />
+              <input type="number" defaultValue={0} />
+              <button type="submit">Fetch local JSONL</button>
+            </form>
+            <input
+              type="text"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="Filter prompts"
+            />
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                flexDirection: "row",
+                gap: "6px",
+                maxWidth: "100%",
+                overflowX: "auto",
+                padding: "1rem 0",
+              }}
+            >
               <Button
-                variant={prompt === selectedPrompt ? "ghost" : "outline"}
-                key={prompt}
-                className="tab border-none outline-none shadow-none h-8"
-                onClick={() => handleSelectPrompt(prompt)}
+                className="tab border-none h-8 whitespace-nowrap"
+                onClick={() => handleSelectPrompt("liveModePromptId")}
+                variant={
+                  "liveModePromptId" === selectedPrompt ? "ghost" : "outline"
+                }
                 style={{
                   border:
-                    prompt === selectedPrompt ? "1px solid black" : "none",
+                    "liveModePromptId" === selectedPrompt
+                      ? "1px solid black"
+                      : "none",
                   cursor: "pointer",
                 }}
               >
-                {prompt}
+                live mode
               </Button>
-            ))}
-        </div>
-        <PropsSelector
-          prompt={prompts[selectedPrompt]}
-          selectedPropsId={selectedPropsId}
-          setSelectedPropsId={setSelectedPropsId}
-        />
-        <div>
-          <label htmlFor="token-count-slider">
-            Token count: <span>{tokenCount}</span>
-          </label>
-          <button onClick={() => setTokenCount(4096)}>4096 (press 4)</button>
-          <button onClick={() => setTokenCount(8192)}>8192 (press 8)</button>
-          <br />
-          <input
-            type="range"
-            id="token-count-slider"
-            min="1"
-            max="32768"
-            value={tokenCount}
-            onChange={handleTokenCountChange}
-            style={{
-              width: "100%",
-            }}
-          />
-        </div>
-        <div>
-          Used tokens: {tokenCountUsed} ({tokenCountReserved} reserved for
-          generation, {priorityCutoff} cutoff)
-          <button
-            onClick={() => {
-              if (selectedPrompt) {
-                fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
-              } else if (selectedRemotePrompt) {
-                fetchRemotePrompt(selectedRemotePrompt, tokenCount);
-              }
-            }}
-          >
-            rerender
-          </button>
-        </div>
-        <div>
-          Render time: {durationMs}ms (don't trust too much because caching)
-        </div>
-        <div>
-          {/* we should ideally make this generic, but that's a tiny bit annoying */}
-          Prompt dump file name:{" "}
-          <code style={{ userSelect: "all" }}>
-            backend/server/priompt/{selectedPrompt}/dumps/{selectedPropsId}.yaml
-          </code>
-        </div>
+              {promptsls
+                .filter((prompt) =>
+                  prompt.toLowerCase().includes(filterText.toLowerCase())
+                )
+                .map((prompt) => (
+                  <Button
+                    variant={prompt === selectedPrompt ? "ghost" : "outline"}
+                    key={prompt}
+                    className="tab border-none outline-none shadow-none h-8"
+                    onClick={() => handleSelectPrompt(prompt)}
+                    style={{
+                      border:
+                        prompt === selectedPrompt ? "1px solid black" : "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {prompt}
+                  </Button>
+                ))}
+            </div>
+            <PropsSelector
+              prompt={prompts[selectedPrompt]}
+              selectedPropsId={selectedPropsId}
+              setSelectedPropsId={setSelectedPropsId}
+            />
+            <div>
+              <label htmlFor="token-count-slider">
+                Token count: <span>{tokenCount}</span>
+              </label>
+              <button onClick={() => setTokenCount(4096)}>
+                4096 (press 4)
+              </button>
+              <button onClick={() => setTokenCount(8192)}>
+                8192 (press 8)
+              </button>
+              <br />
+              <input
+                type="range"
+                id="token-count-slider"
+                min="1"
+                max="32768"
+                value={tokenCount}
+                onChange={handleTokenCountChange}
+                style={{
+                  width: "100%",
+                }}
+              />
+            </div>
+            <div>
+              Used tokens: {tokenCountUsed} ({tokenCountReserved} reserved for
+              generation, {priorityCutoff} cutoff)
+              <button
+                onClick={() => {
+                  if (selectedPrompt) {
+                    fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
+                  } else if (selectedRemotePrompt) {
+                    fetchRemotePrompt(selectedRemotePrompt, tokenCount);
+                  }
+                }}
+              >
+                rerender
+              </button>
+            </div>
+            <div>
+              Render time: {durationMs}ms (don't trust too much because caching)
+            </div>
+            <div>
+              {/* we should ideally make this generic, but that's a tiny bit annoying */}
+              Prompt dump file name:{" "}
+              <code style={{ userSelect: "all" }}>
+                backend/server/priompt/{selectedPrompt}/dumps/{selectedPropsId}
+                .yaml
+              </code>
+            </div>
+          </div>
+        )}
         {errorMessage.length > 0 && (
           <>
             <div
@@ -1079,8 +1171,8 @@ const App = () => {
                                 msg.role === "user"
                                   ? "rgba(0, 0, 255, 0.2)"
                                   : msg.role === "system"
-                                  ? "rgba(100, 100, 100, 0.1)"
-                                  : "rgba(180,100,0,0.5)",
+                                    ? "rgba(100, 100, 100, 0.1)"
+                                    : "rgba(180,100,0,0.5)",
                               width: "100%",
                               // height: "fit-content",
                             }}
