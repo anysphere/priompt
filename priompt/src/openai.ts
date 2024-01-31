@@ -131,8 +131,6 @@ export function isDedcapModel(model: UsableLanguageModel | DedcapModel): boolean
 	return model.includes('gpt-4-cursor');
 }
 
-// (arvid) why do these not correspond to reality?
-// (aman) Because we want to make it cheaper lol
 export const MODEL_CONTEXTS: {
 	[key in UsableLanguageModel]: number;
 } = {
