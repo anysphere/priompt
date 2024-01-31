@@ -76,6 +76,7 @@ export const GPT_4_NIGHTLY_0613 = 'gpt-4-0613';
 
 export const GPT_4_32K = 'gpt-4-32k';
 export const GPT_4_TURBO = 'gpt-4-1106-preview';
+export const GPT_4_TURBO_0125 = 'gpt-4-0125-preview';
 export const GPT_4_32K_NIGHTLY_0613 = 'gpt-4-32k-0613';
 
 export const TEXT_EMBEDDING_ADA_002 = 'text-embedding-ada-002';
@@ -94,6 +95,7 @@ export const usableModels = [
 	GPT_4_NIGHTLY_0613,
 	GPT_3_5_TURBO_16K,
 	GPT_4_TURBO,
+	GPT_4_TURBO_0125,
 	GPT_3_5_1106,
 	GPT_4_32K,
 	GPT_4_32K_NIGHTLY_0613,
@@ -129,6 +131,7 @@ export const usableLanguageModels = [
 	GPT_4_VISION_PREVIEW,
 	GPT_4_NIGHTLY_0613,
 	GPT_4_TURBO,
+	GPT_4_TURBO_0125,
 	GPT_3_5_1106,
 	GPT_4_32K,
 	GPT_4_32K_NIGHTLY_0613,
@@ -165,6 +168,7 @@ export const MODEL_CONTEXTS: {
 	[GPT_3_5_TURBO_16K]: 10_000,
 	[GPT_3_5_TURBO_DOTHISFORME]: 4_000,
 	[GPT_4_TURBO]: 128_000,
+	[GPT_4_TURBO_0125]: 128_000,
 	[GPT_3_5_1106]: 16_000,
 	[AZURE_3_5_TURBO]: 2_000,
 	[GPT_3_5_TURBO_INSTRUCT]: 4_000,
@@ -194,6 +198,7 @@ export const MAX_TOKENS: {
 	[GPT_3_5_TURBO_16K]: 16_384,
 	[GPT_3_5_TURBO_DOTHISFORME]: 4_000,
 	[GPT_4_TURBO]: 128_000,
+	[GPT_4_TURBO_0125]: 128_000,
 	[GPT_3_5_1106]: 16_000,
 	[AZURE_3_5_TURBO]: 4096,
 	[GPT_3_5_TURBO_INSTRUCT]: 4096,
@@ -220,6 +225,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'gpt-4-0613':
 		case 'gpt-4-32k':
 		case 'gpt-4-1106-preview':
+		case 'gpt-4-0125-preview':
 		case 'gpt-3.5-turbo-1106':
 		case 'gpt-4-32k-0613':
 		case 'gpt-4-vision-preview':

@@ -93,6 +93,7 @@ const TOKEN_LIMIT: Record<string, number> = {
 	"gpt-4-0314": 8192,
 	"gpt-4-32k": 32000,
 	"gpt-4-1106-preview": 128000,
+	"gpt-4-0125-preview": 128000,
 	"gpt-3.5-turbo-1106": 16000,
 	"text-davinci-003": 4096,
 	"code-davinci-002": 4096,
