@@ -391,6 +391,40 @@ const App = () => {
     []
   );
 
+  const fetchJsonL = useCallback((path: string, index: number) => {
+    console.log("fetching jsonL", path, index);
+    const query = {
+      path,
+      index: `${index}`,
+    };
+
+    fetch(
+      `http://localhost:7999/priompt/displayJSONL?${new URLSearchParams(query)}`
+    )
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Error fetching jsoonL: " + response.statusText);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setTokenCountUsed(data.tokenCount);
+        setTokenCountReserved(data.tokensReserved);
+        setDurationMs(data.durationMs);
+        setPriorityCutoff(data.priorityCutoff);
+        setPrompt(data.prompt);
+        setErrorMessage("");
+        setCompletion(undefined);
+        setOutput(undefined);
+      })
+      .catch((error) => {
+        setErrorMessage(error.message);
+        setPrompt(undefined);
+        setCompletion(undefined);
+        setOutput(undefined);
+      });
+  }, []);
+
   useEffect(() => {
     if (selectedPrompt) {
       fetchPrompt(selectedPrompt, selectedPropsId, derivedTokenCount);
@@ -841,8 +875,34 @@ const App = () => {
             setSelectedRemotePrompt(currentText);
           }}
         >
-          <input type="text" placeholder="Enter remote prompt URL" />
+          <input
+            type="text"
+            style={{
+              width: "500px",
+            }}
+            placeholder="Enter remote prompt URL"
+          />
           <button type="submit">Fetch Remote Prompt</button>
+        </form>
+        <form
+          onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            const currentText = (e.currentTarget[0] as HTMLInputElement).value;
+            setSelectedPrompt("");
+            const currentIndex = (e.currentTarget[1] as HTMLInputElement)
+              .valueAsNumber;
+            fetchJsonL(currentText, currentIndex);
+          }}
+        >
+          <input
+            style={{
+              width: "500px",
+            }}
+            type="text"
+            placeholder="Enter JSONL path"
+          />
+          <input type="number" defaultValue={0} />
+          <button type="submit">Fetch local JSONL</button>
         </form>
         <input
           type="text"
