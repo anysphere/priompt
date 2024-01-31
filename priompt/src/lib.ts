@@ -5,7 +5,7 @@
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, CreateChatCompletionRequest } from 'openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
-import { estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
+import { estimateNumTokensFast, estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
 import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
@@ -366,6 +366,132 @@ export async function renderun<
 	} else {
 		return firstOutput;
 	}
+}
+
+export function renderCumulativeSum(
+	elem: PromptElement,
+	{ model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions
+): Omit<RenderOutput, "tokenCount"> {
+	let startTime: number | undefined;
+	if (process.env.NODE_ENV === 'development') {
+		startTime = performance.now();
+	}
+
+	// set the tokenLimit to the max number of tokens per model
+	if (tokenLimit === undefined) {
+		if (!model) {
+			throw new Error("Must specify model or tokenLimit");
+		}
+		tokenLimit = MAX_TOKENS[model];
+	}
+	if (tokenizer === undefined) {
+		if (!model) {
+			throw new Error("Must specify model or tokenizer");
+		}
+		tokenizer = getTokenizerName(model);
+	}
+
+	if (tokenizer === undefined) {
+		throw new Error("Must specify tokenizer or model!");
+	}
+	const definedTokenizer = tokenizer;
+
+	let startTimeValidating: number | undefined;
+	if (process.env.NODE_ENV === 'development') {
+		startTimeValidating = performance.now();
+	}
+	validateUnrenderedPrompt(elem);
+	// Cumulative sum cannot uses firsts
+
+	validateNoUnhandledTypes(elem)
+	if (process.env.NODE_ENV === 'development') {
+		const endTimeValidating = performance.now();
+		console.debug(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
+	}
+
+	let startTimeComputingPriorityLevels = undefined;
+	if (process.env.NODE_ENV === 'development') {
+		startTimeComputingPriorityLevels = performance.now();
+	}
+	// for now, we do a much simple thing, which is just to render the whole thing every time
+	const priorityLevelsTokensMapping: Record<number, Countables[]> = {};
+	computePriorityLevelsTokensMapping(elem, BASE_PRIORITY, priorityLevelsTokensMapping);
+	// convert to array and sort them from highest to lowest
+	const priorityLevelKeys = Object.keys(priorityLevelsTokensMapping).map((x) => parseInt(x));
+	const sortedPriorityLevels = priorityLevelKeys.sort((a, b) => b - a);
+	if (process.env.NODE_ENV === 'development') {
+		const endTimeComputingPriorityLevels = performance.now();
+		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
+	}
+
+	// Then, we traverse in reverse order
+	let runningTokenSum = 0;
+	let bestTokenLevel = BASE_PRIORITY;
+	for (const priorityLevel of sortedPriorityLevels) {
+		const newCountables = priorityLevelsTokensMapping[priorityLevel];
+		let newTokens = 0;
+		newCountables.forEach((countable) => {
+			if (typeof countable === 'number') {
+				newTokens += countable;
+			} else if (typeof countable === 'string') {
+				newTokens += estimateNumTokensFast(countable, { tokenizer });
+			} else {
+				newTokens += countFunctionTokensApprox(countable, definedTokenizer);
+			}
+		});
+		runningTokenSum += newTokens;
+		if (runningTokenSum > tokenLimit) {
+			break;
+		}
+		bestTokenLevel = priorityLevel;
+	}
+
+
+	let startExactTokenCount = undefined;
+	if (process.env.NODE_ENV === 'development') {
+		startExactTokenCount = performance.now();
+	}
+
+	const prompt = renderWithLevel(elem, bestTokenLevel, tokenizer, true);
+
+	if (prompt.prompt === undefined) {
+		throw new Error(`renderWithLevel returned undefined`);
+	}
+	// const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
+
+	// if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
+	// this means that the base level prompt is too big
+	// we could either return an empty string or we could throw an error here
+	// this is never desirable behavior, and indicates a bug with the prompt
+	// hence we throw an error
+	// throw new Error(`Base prompt estimated token count is ${tokenCount} with ${prompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
+	// }
+
+	if (process.env.NODE_ENV === 'development') {
+		const endExactTokenCount = performance.now();
+		console.debug(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
+	}
+
+	let duration: number | undefined = undefined;
+	if (startTime !== undefined) {
+		const endTime = performance.now();
+		duration = endTime - startTime;
+		if (duration > 100) {
+			console.warn(`Priompt WARNING: rendering prompt took ${duration} ms, which is longer than the recommended maximum of 100 ms. Consider reducing the number of scopes you have.`)
+		}
+	}
+	return {
+		prompt: prompt.prompt,
+		// tokenCount: 0,
+		tokensReserved: prompt.emptyTokenCount,
+		tokenLimit: tokenLimit,
+		tokenizer,
+		durationMs: duration,
+		outputHandlers: prompt.outputHandlers,
+		streamHandlers: prompt.streamHandlers,
+		priorityCutoff: bestTokenLevel
+	};
+
 }
 
 export async function renderBinarySearch(elem: PromptElement, { model, tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
@@ -1413,6 +1539,45 @@ function validateUnrenderedPrompt(elem: PromptElement): void {
 	validateNotBothAbsoluteAndRelativePriority(elem);
 }
 
+function validateNoUnhandledTypes(elem: PromptElement): void {
+	if (Array.isArray(elem)) {
+		for (const child of elem) {
+			validateNoUnhandledTypes(child);
+		}
+		return;
+	}
+
+	if (elem === undefined || elem === null || elem === false) {
+		return;
+	}
+
+	if (typeof elem === 'string') {
+		return;
+	}
+	if (typeof elem === 'number') {
+		return;
+	}
+
+	switch (elem.type) {
+		case 'functionDefinition':
+		case 'empty': {
+			return;
+		}
+		case 'chat':
+		case 'scope': {
+			validateNoUnhandledTypes(elem.children);
+			return;
+		}
+		case 'isolate':
+		case 'breaktoken':
+		case 'capture':
+		case 'first': {
+			throw new Error(`Priompt ERROR: prompt element type ${elem.type} is not handled`);
+		}
+	}
+
+}
+
 
 function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 	if (Array.isArray(elem)) {
@@ -1581,6 +1746,84 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 	throw new Error(`BUG!! computePriorityLevels got an invalid node of type ${typeof elem} (see the console log above)`);
 }
 
+type Countables = FunctionDefinition | NormalizedFunctionDefinition | string | number
+function computePriorityLevelsTokensMapping(elem: AnyNode[] | AnyNode, parentPriority: number, mapping: Record<number, Countables[]>): void {
+
+	if (Array.isArray(elem)) {
+		for (const child of elem) {
+			computePriorityLevelsTokensMapping(child, parentPriority, mapping);
+		}
+		return;
+	}
+
+	if (elem === undefined || elem === null || elem === false) {
+		return;
+	}
+
+	if (typeof elem === 'string') {
+		return;
+	}
+
+	if (typeof elem === 'number') {
+		return;
+	}
+
+	switch (elem.type) {
+		case 'empty': {
+			if (!(parentPriority in mapping)) {
+				mapping[parentPriority] = [];
+			}
+			mapping[parentPriority].push(elem.tokenCount);
+			return
+		}
+		case 'functionDefinition': {
+			if (!(parentPriority in mapping)) {
+				mapping[parentPriority] = [];
+			}
+			mapping[parentPriority].push(elem);
+			return;
+		}
+		case 'chat': {
+			if (!(parentPriority in mapping)) {
+				mapping[parentPriority] = [];
+			}
+			mapping[parentPriority].push(CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT);
+			for (const child of elem.children) {
+				computePriorityLevelsTokensMapping(child, parentPriority, mapping);
+			}
+			return;
+
+		}
+		case 'scope': {
+			const priority = computePriority(elem, parentPriority);
+			elem.absolutePriority = priority;
+
+			if (!(priority in mapping)) {
+				mapping[priority] = [];
+			}
+
+			for (const child of elem.children) {
+				computePriorityLevelsTokensMapping(child, priority, mapping);
+			}
+			return;
+		}
+		case 'normalizedString': {
+			if (!(parentPriority in mapping)) {
+				mapping[parentPriority] = [];
+			}
+
+			mapping[parentPriority].push(elem.s);
+			return;
+		}
+		case 'isolate':
+		case 'breaktoken':
+		case 'capture':
+		case 'first': {
+			throw new Error(`BUG!! computePriorityLevelsTokensMapping should not be called on a ${elem.type}!`);
+		}
+	}
+}
+
 async function numTokensPromptString(p: PromptString, tokenizer: UsableTokenizer): Promise<number> {
 	if (Array.isArray(p)) {
 		// should be tokenized independently!!!!!!!
@@ -1744,6 +1987,20 @@ async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunc
 	const raw = await numTokens(stringifiedFunction, { tokenizer });
 	return Math.ceil(raw * 1.5) + 10;
 }
+
+function countFunctionTokensApprox(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): number {
+	// hmmmm how do we count these tokens? openai has been quite unclear
+	// for now we JSON stringify and count tokens, and hope that that is reasonably close
+	const stringifiedFunction = JSON.stringify({
+		name: functionDefinition.name,
+		description: functionDefinition.description,
+		parameters: functionDefinition.parameters,
+	}, null, 2);
+	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
+	const raw = estimateNumTokensFast(stringifiedFunction, { tokenizer });
+	return Math.ceil(raw * 1.5) + 10;
+}
+
 
 function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): [number, number] {
 	const stringifiedFunction = JSON.stringify({

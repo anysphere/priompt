@@ -19,7 +19,12 @@ export class Tokenizer {
   exactNumTokensCl100KNoSpecialTokens(text: string): Promise<number>
   exactNumTokens(text: string, encoding: SupportedEncoding, specialTokenDefaultAction: SpecialTokenAction, specialTokenOverrides: Record<string, SpecialTokenAction>): Promise<number>
   encodeCl100KNoSpecialTokens(text: string): Promise<Array<number>>
+  approxNumTokens(text: string, encoding: SupportedEncoding): Promise<number>
   encode(text: string, encoding: SupportedEncoding, specialTokenDefaultAction: SpecialTokenAction, specialTokenOverrides: Record<string, SpecialTokenAction>): Promise<Array<number>>
   encodeSingleToken(bytes: Uint8Array, encoding: SupportedEncoding): Promise<number>
   decodeCl100K(encodedTokens: Array<number>): Promise<string>
+}
+export class SyncTokenizer {
+  constructor()
+  approxNumTokens(text: string, encoding: SupportedEncoding): number
 }
