@@ -11,7 +11,6 @@ import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
 import { normalize } from 'path';
-export { RenderedPrompt } from './types';
 
 
 
