@@ -11,6 +11,8 @@ export const GPT3_3_5_TURBO_DOTHISFORME = 'gpt-ft-cursor-0810';
 export const GPT_3_5_TURBO_INSTRUCT = 'gpt-3.5-turbo-instruct';
 export const GPT_4 = 'gpt-4';
 export const GPT_4_NIGHTLY_0613 = 'gpt-4-0613';
+export const GPT_4_TURBO = 'gpt-4-1106-preview';
+export const GPT_3_5_1106 = 'gpt-3.5-turbo-1106';
 export const GPT_4_32K = 'gpt-4-32k';
 export const GPT_4_32K_NIGHTLY_0613 = 'gpt-4-32k-0613';
 export const AZURE_3_5_TURBO = 'azure-3.5-turbo';
@@ -33,6 +35,8 @@ export const usableModels = [
 	GPT_4_NIGHTLY_0613,
 	GPT_3_5_TURBO_16K,
 	GPT_4_32K,
+	GPT_4_TURBO,
+	GPT_3_5_1106,
 	GPT_4_32K_NIGHTLY_0613,
 	AZURE_3_5_TURBO,
 	TEXT_EMBEDDING_ADA_002,
@@ -51,6 +55,8 @@ export const usableLanguageModels = [
 	GPT_4,
 	GPT_4_NIGHTLY_0613,
 	GPT_4_32K,
+	GPT_4_TURBO,
+	GPT_3_5_1106,
 	GPT_4_32K_NIGHTLY_0613,
 	AZURE_3_5_TURBO,
 	GPT_3_5_FINETUNE_CPP,
@@ -80,11 +86,13 @@ export const MODEL_CONTEXTS: {
 	[GPT_3_5_FINETUNE_RERANKER]: 2_000,
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 2_000,
 	[GPT_3_5_TURBO_16K]: 10_000,
+	[GPT_3_5_1106]: 16_000,
 	[GPT3_3_5_TURBO_DOTHISFORME]: 4_000,
 	[AZURE_3_5_TURBO]: 2_000,
 	[GPT_3_5_TURBO_INSTRUCT]: 4_000,
 	[GPT_4]: 4_000,
 	[GPT_4_32K]: 32_000,
+	[GPT_4_TURBO]: 128_000,
 	[GPT_4_NIGHTLY_0613]: 4_000,
 	[GPT_4_32K_NIGHTLY_0613]: 32_000,
 	[CODE_LLAMA_RERANKER]: 4_000,
@@ -99,11 +107,13 @@ export const MAX_TOKENS: {
 	[GPT_3_5_TURBO_NIGHTLY_0613]: 4096,
 	[GPT_3_5_TURBO_16K]: 16_384,
 	[GPT_3_5_TURBO_INSTRUCT]: 4096,
+	[GPT_3_5_1106]: 16_000,
 	[GPT3_3_5_TURBO_DOTHISFORME]: 4_000,
 	[AZURE_3_5_TURBO]: 4096,
 	[GPT_4]: 8000,
 	[GPT_4_NIGHTLY_0613]: 8000,
 	[GPT_4_32K]: 32000,
+	[GPT_4_TURBO]: 128_000,
 	[GPT_4_32K_NIGHTLY_0613]: 32000,
 	[CODE_LLAMA_RERANKER]: 4_000,
 };
