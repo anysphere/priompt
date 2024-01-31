@@ -16,7 +16,7 @@ export type PreviewManagerGetRemotePromptQuery = {
   promptId: string;
   promptDump: string;
   modelName: UsableLanguageModel;
-  tokenLimit: number;
+  tokenLimit?: number;
 };
 
 export type PreviewManagerGetPromptOutputQuery = {
