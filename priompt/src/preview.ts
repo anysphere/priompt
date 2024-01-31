@@ -67,9 +67,27 @@ export function configFromPrompt<T, ReturnT = never>(prompt: Prompt<T, ReturnT>)
 }
 
 export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>, props: Omit<T, "onReturn">) {
+  let hasNoDump = false;
+  for (const key in props) {
+    if (key.startsWith('DO_NOT_DUMP')) {
+      hasNoDump = true;
+    }
+  }
+  let objectToDump = props;
+  if (hasNoDump) {
+    objectToDump = {} as Omit<T, "onReturn">;
+    for (const key in props) {
+      if (!key.startsWith('DO_NOT_DUMP')) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        objectToDump[key] = props[key];
+      }
+    }
+  }
+
   const dump = config.dump
-    ? config.dump(props)
-    : yaml.dump(props, {
+    ? config.dump(objectToDump)
+    : yaml.dump(objectToDump, {
       indent: 2,
       lineWidth: -1,
     });
