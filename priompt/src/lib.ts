@@ -54,6 +54,12 @@ export function promptGetText(prompt: RenderedPrompt | undefined): string | unde
 }
 
 function sumPromptStrings(a: PromptString, b: PromptString): PromptString {
+	if (Array.isArray(a) && a.length === 0) {
+		return b;
+	}
+	if (Array.isArray(b) && b.length === 0) {
+		return a;
+	}
 	if (Array.isArray(a) && Array.isArray(b)) {
 		return [...a.slice(0, -1), a[a.length - 1] + b[0], ...b.slice(1)];
 	}
