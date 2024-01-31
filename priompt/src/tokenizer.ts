@@ -6,32 +6,8 @@
 // and we probably want to compile our own tiktoken because i'm slightly worried about
 // supply-chain attacks here
 import tiktoken, { getTokenizer, SyncTokenizer } from '@anysphere/tiktoken-node';
-import { GPT_3_5_FINETUNE_RERANKER, UsableModel, UsableTokenizer } from './openai';
+import { getTokenizerName, GPT_3_5_FINETUNE_RERANKER, UsableModel, UsableTokenizer } from './openai';
 
-export function getTokenizerName(model: UsableModel): UsableTokenizer {
-	switch (model) {
-		case 'gpt-4':
-		case 'gpt-4-vision-preview':
-		case 'gpt-4-0613':
-		case 'gpt-4-32k':
-		case 'gpt-4-1106-preview':
-		case 'gpt-3.5-turbo-1106':
-		case 'gpt-4-32k-0613':
-		case 'text-embedding-ada-002':
-		case 'ft:gpt-3.5-turbo-0613:anysphere::8ERu98np':
-		case 'ft:gpt-3.5-turbo-0613:anysphere::8GgLaVNe':
-		case 'gpt-3.5-turbo':
-		case 'gpt-3.5-turbo-0613':
-		case 'gpt-3.5-turbo-16k':
-		case 'codellama_7b_reranker': // pretty sure this is wrong
-		case 'gpt-3.5-turbo-instruct':
-		case 'azure-3.5-turbo':
-		case 'gpt-ft-cursor-0810':
-			return 'cl100k_base';
-		case 'text-davinci-003':
-			return 'p50k_base';
-	}
-}
 
 export const tokenizerObject = tiktoken.getTokenizer();
 export const syncTokenizer = new SyncTokenizer();

@@ -30,6 +30,19 @@ export {
 	ChatCompletionRequestMessageFunctionCall,
 } from 'openai';
 
+// tokenizers
+export const CL100K_BASE = 'cl100k_base';
+export const R50K_BASE = 'r50k_base';
+export const P50K_BASE = 'p50k_base';
+export const GPT2_TOKENIZER = 'gpt2';
+
+export const usableTokenizers = [
+	CL100K_BASE,
+	R50K_BASE,
+	P50K_BASE,
+	GPT2_TOKENIZER
+] as const;
+
 
 export const GPT_3_5_TURBO = 'gpt-3.5-turbo';
 export const GPT_3_5_TURBO_NIGHTLY_0613 = 'gpt-3.5-turbo-0613';
@@ -43,6 +56,7 @@ export const GPT_3_5_FINETUNE_CPP = 'ft:gpt-3.5-turbo-0613:anysphere::8ERu98np';
 export const GPT_3_5_1106 = "gpt-3.5-turbo-1106";
 export const GPT_3_5_FINETUNE_RERANKER = 'ft:gpt-3.5-turbo-0613:anysphere::8GgLaVNe'
 export const CODE_LLAMA_RERANKER = 'codellama_7b_reranker';
+export const MISTRAL_MEDIUM = 'mistral-medium';
 
 export const AZURE_3_5_TURBO = 'azure-3.5-turbo';
 
@@ -61,12 +75,8 @@ export const GPT_4_32K_NIGHTLY_0613 = 'gpt-4-32k-0613';
 export const TEXT_EMBEDDING_ADA_002 = 'text-embedding-ada-002';
 export const TEXT_EMBEDDING_ADA_DEDCAP = 'text-embedding-ada-002-cursor';
 export const TEXT_DAVINCI_003 = 'text-davinci-003';
+export const EMBEDDING_MODEL = 'text-embedding-ada-002';
 
-// tokenizers
-export const CL100K_BASE = 'cl100k_base';
-export const R50K_BASE = 'r50k_base';
-export const P50K_BASE = 'p50k_base';
-export const GPT2_TOKENIZER = 'gpt2';
 
 export const usableModels = [
 	GPT_3_5_TURBO,
@@ -86,7 +96,8 @@ export const usableModels = [
 	TEXT_DAVINCI_003,
 	GPT_3_5_FINETUNE_CPP,
 	GPT_3_5_FINETUNE_RERANKER,
-	CODE_LLAMA_RERANKER
+	CODE_LLAMA_RERANKER,
+	MISTRAL_MEDIUM
 ] as const;
 
 export const dedcapModels = [
@@ -112,7 +123,8 @@ export const usableLanguageModels = [
 	AZURE_3_5_TURBO,
 	GPT_3_5_FINETUNE_CPP,
 	GPT_3_5_FINETUNE_RERANKER,
-	CODE_LLAMA_RERANKER
+	CODE_LLAMA_RERANKER,
+	MISTRAL_MEDIUM
 ] as const;
 
 export function isUsableLanguageModel(s: string): s is UsableLanguageModel {
@@ -120,17 +132,12 @@ export function isUsableLanguageModel(s: string): s is UsableLanguageModel {
 	return usableLanguageModels.includes(s as any);
 }
 
-export const usableTokenizers = [
-	CL100K_BASE,
-	R50K_BASE,
-	P50K_BASE,
-	GPT2_TOKENIZER
-] as const;
-
 export function isDedcapModel(model: UsableLanguageModel | DedcapModel): boolean {
 	return model.includes('gpt-4-cursor');
 }
 
+// (arvid) why do these not correspond to reality?
+// (aman) Because we want to make it cheaper lol
 export const MODEL_CONTEXTS: {
 	[key in UsableLanguageModel]: number;
 } = {
@@ -150,6 +157,8 @@ export const MODEL_CONTEXTS: {
 	[GPT_4_NIGHTLY_0613]: 4_000,
 	[GPT_4_32K_NIGHTLY_0613]: 32_000,
 	[CODE_LLAMA_RERANKER]: 4_000,
+	// not sure about these...
+	[MISTRAL_MEDIUM]: 8_000,
 };
 
 export const MAX_TOKENS: {
@@ -171,8 +180,37 @@ export const MAX_TOKENS: {
 	[GPT_4_32K]: 32000,
 	[GPT_4_32K_NIGHTLY_0613]: 32000,
 	[CODE_LLAMA_RERANKER]: 4_000,
+	// not sure about these...
+	[MISTRAL_MEDIUM]: 8_000,
 };
 
+export function getTokenizerName(model: UsableModel): UsableTokenizer {
+	switch (model) {
+		case 'gpt-4':
+		case 'gpt-4-0613':
+		case 'gpt-4-32k':
+		case 'gpt-4-1106-preview':
+		case 'gpt-3.5-turbo-1106':
+		case 'gpt-4-32k-0613':
+		case 'gpt-4-vision-preview':
+		case 'text-embedding-ada-002':
+		case 'ft:gpt-3.5-turbo-0613:anysphere::8ERu98np':
+		case 'ft:gpt-3.5-turbo-0613:anysphere::8GgLaVNe':
+		case 'gpt-3.5-turbo':
+		case 'gpt-3.5-turbo-0613':
+		case 'gpt-3.5-turbo-16k':
+		case 'codellama_7b_reranker': // pretty sure this is wrong
+		case 'gpt-3.5-turbo-instruct':
+		case 'azure-3.5-turbo':
+		case 'gpt-ft-cursor-0810':
+			return 'cl100k_base';
+		// i think this is wrong.... but it's what we have and probably ~ roughly correct
+		case 'mistral-medium':
+			return 'cl100k_base';
+		case 'text-davinci-003':
+			return 'p50k_base';
+	}
+}
 
 // Specify the UsableModel type, which is one of usableModels
 export type UsableModel = typeof usableModels[number];
@@ -198,8 +236,6 @@ export const modelToDedcapSlowMap = {
 	[GPT_4]: GPT_4_DEDCAP_SLOW_VIRTUAL,
 	[GPT_3_5_TURBO]: GPT_3_5_DEDCAP_VIRTUAL
 }
-
-export const EMBEDDING_MODEL = 'text-embedding-ada-002';
 
 export function isGpt4(model: UsableLanguageModel): boolean {
 	return model.includes('gpt-4');

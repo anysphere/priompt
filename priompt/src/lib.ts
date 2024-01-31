@@ -3,9 +3,9 @@
 
 // TODO: add an IDE plugin or something that renders the prompt when you hover over it (and has a slider for the priority)
 
-import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
+import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, getTokenizerName, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
-import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, getTokenizerName, numTokens, tokenizerObject } from './tokenizer';
+import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
 import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
