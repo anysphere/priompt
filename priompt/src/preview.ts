@@ -66,7 +66,7 @@ export function configFromPrompt<T, ReturnT = never>(prompt: Prompt<T, ReturnT>)
   };
 }
 
-export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>, props: Omit<T, "onReturn">) {
+export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>, props: Omit<T, "onReturn">): string {
   let hasNoDump = false;
   for (const key in props) {
     if (key.startsWith('DO_NOT_DUMP')) {
