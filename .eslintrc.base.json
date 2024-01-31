@@ -10,7 +10,7 @@
   "rules": {
     "@typescript-eslint/require-array-sort-compare": "error",
     "@typescript-eslint/strict-boolean-expressions": ["error"],
-    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-floating-promises": ["error", {"ignoreVoid": false}],
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/no-misused-promises": "error",
     "constructor-super": "error",
@@ -63,7 +63,8 @@
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module",
-    "project": "./tsconfig.json"
+    "project": "./tsconfig.json",
+    "extraFileExtensions": ["ipynb"]
   },
   "ignorePatterns": ["node_modules/"],
   "plugins": ["@typescript-eslint", "sonarjs"]
