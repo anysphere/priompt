@@ -205,6 +205,14 @@ class PreviewManagerImpl implements IPreviewManager {
     return this.getPromptFromRemoteElement(query, element);
   }
 
+  async getPropsFromRemote(query: PreviewManagerGetRemotePromptQuery) {
+    const promptId = query.promptId;
+    const promptDump = query.promptDump;
+    const config = this.previews[promptId];
+    const baseProps = this.hydrate(config, promptDump);
+    return baseProps;
+  }
+
   async getPromptFromRemoteElement(query: Omit<PreviewManagerGetRemotePromptQuery, "promptId" | "promptDump">, element: PromptElement) {
     const rendered = await render(element, { model: query.modelName, tokenLimit: query.tokenLimit });
     return rendered
