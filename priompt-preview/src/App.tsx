@@ -452,9 +452,11 @@ const App = () => {
             s3Url: string;
           } = event.data;
 
+      console.log("GOT MESSAGE", t);
+
       switch (t.case) {
         case "messages": {
-          const jsonLine: Array<ChatCompletionRequestMessage> = event.data;
+          const jsonLine: Array<ChatCompletionRequestMessage> = t.messages;
 
           // convert to renderoutput
           const data = {
