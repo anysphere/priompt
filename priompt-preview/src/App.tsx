@@ -137,7 +137,7 @@ const App = () => {
         function_call: (m as ChatPromptAssistantMessage).functionCall,
       };
 
-      const query = {
+      const body = {
         tokenLimit: tokenCount,
         promptId: selectedPrompt,
         propsId: selectedPropsId,
@@ -145,11 +145,13 @@ const App = () => {
         stream,
       };
 
-      fetch(
-        `http://localhost:3000/priompt/getPromptOutput?${new URLSearchParams({
-          v: JSON.stringify(query),
-        })}`
-      )
+      fetch(`http://localhost:3000/priompt/getPromptOutput`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      })
         .then((response) => {
           if (!response.ok) {
             throw new Error("Error getting output: " + response.statusText);
