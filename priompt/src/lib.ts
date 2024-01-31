@@ -2142,6 +2142,7 @@ function contentArrayToStringContent(content: Array<string | PromptContent>): st
 
 }
 
+// always leaves the last message "open"
 export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTokenizer): Promise<number[]> {
 	if (tokenizer !== 'cl100k_base') {
 		throw new Error("promptToTokens only supports the cl100k_base tokenizer for now!")

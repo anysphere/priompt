@@ -678,7 +678,7 @@ const App = () => {
               functions.some((f) => f.name === forceFunctionCall)
                 ? { name: forceFunctionCall }
                 : undefined,
-            max_tokens: model.includes("vision") ? 500 : undefined,
+            ...(model.includes("vision") ? { max_tokens: 500 } : {}),
             user: userId,
           },
           undefined,
