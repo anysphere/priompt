@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, getTokenizerName, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, MAX_TOKENS, UsableLanguageModel, UsableTokenizer, isUsableLanguageModel, usableLanguageModels } from './openai';
 import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
@@ -98,6 +98,17 @@ function sumPromptStrings(a: PromptString, b: PromptString): PromptString {
 		return [a + b[0], ...b.slice(1)];
 	}
 	return a + b;
+}
+
+// TODO: we probably want to merge based on depth-in-tree (not priority, i think)
+// so that things higher up in the tree take precedence
+// this is just to make sure that a component cannot affect a parent component unexpectedly
+function mergeConfigs(a: ConfigProps, b: ConfigProps): ConfigProps {
+	return Object.keys(b).reduce((result, key) => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		result[key as keyof ConfigProps] = (a[key as keyof ConfigProps] === undefined ? b[key as keyof ConfigProps] : a[key as keyof ConfigProps]) as any;
+		return result;
+	}, { ...a });
 }
 
 function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined): RenderedPrompt | undefined {
@@ -221,6 +232,42 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 				return {
 					type: 'scope',
 					children: ['\n'],
+					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
+					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
+				};
+			}
+		case 'config':
+			{
+				if (children.length > 0) {
+					throw new Error(`config tag must have no children, got ${children}`);
+				}
+				if (props && typeof props !== 'object') {
+					throw new Error(`props must be an object, got ${props}`);
+				}
+				let maxResponseTokens: number | 'tokensReserved' | 'tokensRemaining' | undefined = undefined;
+				if (props && 'maxResponseTokens' in props && props.maxResponseTokens !== null && props.maxResponseTokens !== undefined) {
+					if (typeof props.maxResponseTokens !== 'number' && props.maxResponseTokens !== 'tokensReserved' && props.maxResponseTokens !== 'tokensRemaining') {
+						throw new Error(`maxResponseTokens must be a number, 'tokensReserved', or 'tokensRemaining', got ${props.maxResponseTokens}`);
+					}
+					maxResponseTokens = props.maxResponseTokens;
+				}
+				let stop: string | string[] | undefined = undefined;
+				if (props && 'stop' in props && props.stop !== null && props.stop !== undefined) {
+					if (!Array.isArray(props.stop) && typeof props.stop !== 'string') {
+						throw new Error(`stop must be a string or an array of strings, got ${props.stop}`);
+					}
+					if (Array.isArray(props.stop) && props.stop.some(s => typeof s !== 'string')) {
+						throw new Error(`stop must be a string or an array of strings, got ${props.stop}`);
+					}
+					stop = props.stop;
+				}
+				return {
+					type: 'scope',
+					children: [{
+						type: 'config',
+						maxResponseTokens: maxResponseTokens,
+						stop: stop,
+					}],
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
 				};
@@ -623,7 +670,8 @@ export function renderCumulativeSum(
 		durationMs: duration,
 		outputHandlers: prompt.outputHandlers,
 		streamHandlers: prompt.streamHandlers,
-		priorityCutoff: bestTokenLevel
+		priorityCutoff: bestTokenLevel,
+		config: prompt.config,
 	};
 
 }
@@ -792,6 +840,7 @@ export async function renderBinarySearch(elem: PromptElement, { model, tokenLimi
 		outputHandlers: prompt.outputHandlers,
 		streamHandlers: prompt.streamHandlers,
 		priorityCutoff: sortedPriorityLevels[inclusiveUpperBound],
+		config: prompt.config,
 	};
 
 }
@@ -877,21 +926,9 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 	}
 
 	// naive version: just render the whole thing for every priority level, and pick the first one that is below the limit
-	let prevPrompt: {
-		prompt: RenderedPrompt | undefined;
-		tokenCount: number;
-		emptyTokenCount: number;
-		outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
-		streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-	} | undefined = undefined;
+	let prevPrompt: RenderWithLevelPartialTypeWithCount | undefined = undefined;
 	let prevLevel: number | undefined = undefined;
-	let thisPrompt: {
-		prompt: RenderedPrompt | undefined;
-		tokenCount: number;
-		emptyTokenCount: number;
-		outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
-		streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-	} | undefined = undefined;
+	let thisPrompt: RenderWithLevelPartialTypeWithCount | undefined = undefined;
 	for (const level of sortedPriorityLevels) {
 		thisPrompt = await renderWithLevelAndCountTokens(normalizedElem, level, tokenizer);
 		if (isChatPrompt(thisPrompt.prompt)) {
@@ -958,6 +995,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { model, 
 		streamHandlers: prevPrompt.streamHandlers,
 		durationMs: duration,
 		priorityCutoff: prevLevel ?? BASE_PRIORITY,
+		config: prevPrompt.config,
 	};
 
 }
@@ -986,7 +1024,7 @@ type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAss
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
-type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | ChatImage | NormalizedFunctionDefinition;
+type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Config | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | ChatImage | NormalizedFunctionDefinition;
 type NormalizedPromptElement = NormalizedNode[];
 function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	// we want to merge all the strings together
@@ -1015,6 +1053,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 			pushCurrentString();
 			let newNode: NormalizedNode;
 			switch (node.type) {
+				case 'config':
 				case 'capture':
 				case 'isolate':
 				case 'breaktoken':
@@ -1061,14 +1100,17 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	return result;
 }
 
-// if chat prompt, the token count will be missing the constant factor
-async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: UsableTokenizer): Promise<{
+type RenderWithLevelPartialType = {
 	prompt: RenderedPrompt | undefined;
-	tokenCount: number;
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-}> {
+	config: ConfigProps;
+};
+type RenderWithLevelPartialTypeWithCount = RenderWithLevelPartialType & { tokenCount: number; };
+
+// if chat prompt, the token count will be missing the constant factor
+async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: UsableTokenizer): Promise<RenderWithLevelPartialTypeWithCount> {
 	if (Array.isArray(elem)) {
 		return (await Promise.all(elem.map(e => renderWithLevelAndCountTokens(e, level, tokenizer)))).reduce((a, b) => {
 			return {
@@ -1076,14 +1118,16 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: a.tokenCount + b.tokenCount,
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
 				outputHandlers: [...a.outputHandlers, ...b.outputHandlers],
-				streamHandlers: [...a.streamHandlers, ...b.streamHandlers]
+				streamHandlers: [...a.streamHandlers, ...b.streamHandlers],
+				config: mergeConfigs(a.config, b.config),
 			};
 		}, {
 			prompt: undefined,
 			tokenCount: 0,
 			emptyTokenCount: 0,
 			outputHandlers: [],
-			streamHandlers: []
+			streamHandlers: [],
+			config: {},
 		});
 	}
 	switch (elem.type) {
@@ -1102,7 +1146,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: 0,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {},
 			};
 		}
 		case 'image': {
@@ -1126,6 +1171,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: numTokensForImage(elem.dimensions, elem.detail),
 				outputHandlers: [],
 				streamHandlers: [],
+				config: {},
 			}
 		}
 		case 'capture': {
@@ -1134,7 +1180,18 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: 0,
 				emptyTokenCount: 0,
 				outputHandlers: elem.onOutput !== undefined ? [elem.onOutput] : [],
-				streamHandlers: elem.onStream !== undefined ? [elem.onStream] : []
+				streamHandlers: elem.onStream !== undefined ? [elem.onStream] : [],
+				config: {},
+			}
+		}
+		case 'config': {
+			return {
+				prompt: undefined,
+				tokenCount: 0,
+				emptyTokenCount: 0,
+				outputHandlers: [],
+				streamHandlers: [],
+				config: elem
 			}
 		}
 		case 'breaktoken': {
@@ -1144,7 +1201,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: 0,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {},
 			}
 		}
 		case 'empty': {
@@ -1153,7 +1211,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: 0,
 				emptyTokenCount: elem.tokenCount,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {},
 			}
 		}
 		case 'functionDefinition': {
@@ -1176,7 +1235,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: elem.cachedCount,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {},
 			}
 		}
 		case 'isolate': {
@@ -1192,7 +1252,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: elem.cachedRenderOutput.tokenCount,
 				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
 				outputHandlers: elem.cachedRenderOutput.outputHandlers,
-				streamHandlers: elem.cachedRenderOutput.streamHandlers
+				streamHandlers: elem.cachedRenderOutput.streamHandlers,
+				config: {}
 			}
 		}
 		case 'chat': {
@@ -1268,7 +1329,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: p.tokenCount + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR + extraTokenCount,
 				emptyTokenCount: p.emptyTokenCount,
 				outputHandlers: p.outputHandlers,
-				streamHandlers: p.streamHandlers
+				streamHandlers: p.streamHandlers,
+				config: {}
 			}
 		}
 		case 'scope': {
@@ -1283,7 +1345,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: 0,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			}
 		}
 		case 'normalizedString': {
@@ -1295,7 +1358,8 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: elem.cachedCount,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			};
 		}
 	}
@@ -1359,6 +1423,13 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 		}
 		case 'capture': {
 			// we're not rendering the capture here
+			return {
+				prompt: undefined,
+				emptyTokenCount: 0
+			}
+		}
+		case 'config': {
+			// we're not rendering the config here
 			return {
 				prompt: undefined,
 				emptyTokenCount: 0
@@ -1549,6 +1620,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promi
 		case 'empty':
 		case 'image':
 		case 'breaktoken':
+		case 'config':
 		case 'functionDefinition': {
 			return;
 		}
@@ -1575,18 +1647,14 @@ function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promi
 }
 
 // WARNING: do not attempt to make this function async!!! it will make it a lot slower!
-function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): {
-	prompt: RenderedPrompt | undefined;
-	emptyTokenCount: number;
-	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
-	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
-} {
+function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): RenderWithLevelPartialType {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
 			emptyTokenCount: 0,
 			outputHandlers: [],
-			streamHandlers: []
+			streamHandlers: [],
+			config: {}
 		};
 	}
 	if (Array.isArray(elem)) {
@@ -1596,13 +1664,15 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				prompt: sumPrompts(a.prompt, b.prompt),
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
 				outputHandlers: a.outputHandlers.concat(b.outputHandlers),
-				streamHandlers: a.streamHandlers.concat(b.streamHandlers)
+				streamHandlers: a.streamHandlers.concat(b.streamHandlers),
+				config: mergeConfigs(a.config, b.config),
 			};
 		}, {
 			prompt: undefined,
 			emptyTokenCount: 0,
 			outputHandlers: [],
-			streamHandlers: []
+			streamHandlers: [],
+			config: {}
 		});
 	}
 	if (typeof elem === 'string') {
@@ -1610,7 +1680,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 			prompt: elem,
 			emptyTokenCount: 0,
 			outputHandlers: [],
-			streamHandlers: []
+			streamHandlers: [],
+			config: {}
 		};
 	}
 	if (typeof elem === 'number') {
@@ -1618,7 +1689,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 			prompt: elem.toString(),
 			emptyTokenCount: 0,
 			outputHandlers: [],
-			streamHandlers: []
+			streamHandlers: [],
+			config: {}
 		};
 	}
 	switch (elem.type) {
@@ -1639,7 +1711,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				prompt: undefined,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			};
 		}
 		case 'capture': {
@@ -1651,7 +1724,17 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				] : [],
 				streamHandlers: elem.onStream ? [
 					elem.onStream
-				] : []
+				] : [],
+				config: {}
+			}
+		}
+		case 'config': {
+			return {
+				prompt: undefined,
+				emptyTokenCount: 0,
+				outputHandlers: [],
+				streamHandlers: [],
+				config: elem
 			}
 		}
 		case 'breaktoken': {
@@ -1659,7 +1742,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				prompt: ['', ''],
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			}
 		}
 		case 'empty': {
@@ -1667,7 +1751,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				prompt: undefined,
 				emptyTokenCount: elem.tokenCount,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			}
 		}
 		case 'functionDefinition': {
@@ -1686,7 +1771,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				prompt,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			}
 		}
 		case 'isolate': {
@@ -1699,7 +1785,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				prompt: elem.cachedRenderOutput.prompt,
 				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
 				outputHandlers: elem.cachedRenderOutput.outputHandlers,
-				streamHandlers: elem.cachedRenderOutput.streamHandlers
+				streamHandlers: elem.cachedRenderOutput.streamHandlers,
+				config: {}
 			}
 		}
 		case 'chat': {
@@ -1770,7 +1857,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				},
 				emptyTokenCount: p.emptyTokenCount,
 				outputHandlers: p.outputHandlers,
-				streamHandlers: p.streamHandlers
+				streamHandlers: p.streamHandlers,
+				config: {}
 			}
 		}
 		case 'scope': {
@@ -1788,7 +1876,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				prompt: undefined,
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			}
 		}
 		case 'image': {
@@ -1809,7 +1898,8 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				// Count the number of tokens for the image
 				emptyTokenCount: 0,
 				outputHandlers: [],
-				streamHandlers: []
+				streamHandlers: [],
+				config: {}
 			}
 		}
 	}
@@ -1855,6 +1945,7 @@ function validateNoUnhandledTypes(elem: PromptElement): void {
 		}
 		case 'isolate':
 		case 'breaktoken':
+		case 'config':
 		case 'capture':
 		case 'first': {
 			throw new Error(`Priompt ERROR: prompt element type ${elem.type} is not handled`);
@@ -1896,6 +1987,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 		case 'breaktoken':
 		case 'functionDefinition':
 		case 'image':
+		case 'config':
 		case 'empty': {
 			return;
 		}
@@ -1947,7 +2039,8 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 		case 'image':
 		case 'breaktoken':
 		case 'functionDefinition':
-		case 'empty': {
+		case 'empty':
+		case 'config': {
 			return;
 		}
 		case 'scope': {
@@ -2002,6 +2095,7 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 		case 'capture':
 		case 'functionDefinition':
 		case 'breaktoken':
+		case 'config':
 		case 'empty': {
 			// nothing happens
 			return;
@@ -2094,6 +2188,7 @@ function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedN
 		case 'isolate':
 		case 'breaktoken':
 		case 'capture':
+		case 'config':
 		case 'image':
 		case 'first': {
 			throw new Error(`BUG!! computePriorityLevelsTokensMapping should not be called on a ${elem.type}!`);

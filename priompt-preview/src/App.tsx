@@ -29,6 +29,7 @@ import {
   ChatPrompt,
   ChatPromptAssistantMessage,
   ChatPromptMessage,
+  Config,
   FunctionPrompt,
   ImagePromptContent,
   PromptString,
@@ -231,6 +232,9 @@ const App = () => {
   const [tokenCountUsed, setTokenCountUsed] = useState(0);
   const [tokenCountReserved, setTokenCountReserved] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
+  const [promptConfig, setPromptConfig] = useState<Config | undefined>(
+    undefined
+  );
   const [priorityCutoff, setPriorityCutoff] = useState<number | undefined>(
     undefined
   );
@@ -351,9 +355,11 @@ const App = () => {
         tokenLimit: 100,
         tokensReserved: 100,
         durationMs: 100,
+        config: undefined,
       };
       setTokenCountUsed(data.tokenCount);
       setTokenCountReserved(data.tokensReserved);
+      setPromptConfig(data.config);
       setDurationMs(data.durationMs);
       setPriorityCutoff(data.priorityCutoff);
       setPrompt(data.prompt);
@@ -502,6 +508,7 @@ const App = () => {
           console.log("completion", completion);
           setTokenCountUsed(data.tokenCount);
           setTokenCountReserved(data.tokensReserved);
+          setPromptConfig(data.config);
           setDurationMs(data.durationMs);
           setPriorityCutoff(data.priorityCutoff);
           // setPrompt(data.prompt);
@@ -580,6 +587,7 @@ const App = () => {
         .then((data) => {
           setTokenCountUsed(data.tokenCount);
           setTokenCountReserved(data.tokensReserved);
+          setPromptConfig(data.config);
           setDurationMs(data.durationMs);
           setPriorityCutoff(data.priorityCutoff);
           setPrompt(data.prompt);
@@ -632,9 +640,11 @@ const App = () => {
             tokenLimit: 100,
             tokensReserved: 100,
             durationMs: 100,
+            config: undefined,
           };
           setTokenCountUsed(data.tokenCount);
           setTokenCountReserved(data.tokensReserved);
+          setPromptConfig(data.config);
           setDurationMs(data.durationMs);
           setPriorityCutoff(data.priorityCutoff);
           setPrompt(data.prompt);
@@ -677,6 +687,7 @@ const App = () => {
       .then((data) => {
         setTokenCountUsed(data.tokenCount);
         setTokenCountReserved(data.tokensReserved);
+        setPromptConfig(data.config);
         setDurationMs(data.durationMs);
         setPriorityCutoff(data.priorityCutoff);
         setPrompt(data.prompt);
@@ -1278,6 +1289,27 @@ const App = () => {
             </div>
             <div>
               Render time: {durationMs}ms (don't trust too much because caching)
+            </div>
+            <div>
+              Stop token(s):{" "}
+              <code
+                style={{
+                  backgroundColor: "lightgrey",
+                }}
+              >
+                {promptConfig?.stop
+                  ? JSON.stringify(promptConfig?.stop)
+                  : "(not set)"}
+              </code>
+              . Max response tokens:{" "}
+              <code
+                style={{
+                  backgroundColor: "lightgrey",
+                }}
+              >
+                {promptConfig?.maxResponseTokens ?? "(not set)"}
+              </code>
+              .
             </div>
             <div>
               {/* we should ideally make this generic, but that's a tiny bit annoying */}

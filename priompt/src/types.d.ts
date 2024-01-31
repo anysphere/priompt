@@ -32,6 +32,16 @@ export type Capture = {
 	type: 'capture';
 } & CaptureProps;
 
+export type Config = {
+	type: 'config';
+} & ConfigProps;
+
+export type ConfigProps = {
+	maxResponseTokens?: number | "tokensReserved" | "tokensRemaining";
+	// at most 4 of these
+	stop?: string | string[];
+}
+
 export type Isolate = {
 	type: 'isolate';
 	children: Node[];
@@ -111,7 +121,7 @@ export type FunctionDefinition = {
 	parameters: JSONSchema7;
 }
 
-export type Node = FunctionDefinition | BreakToken | First | Isolate | Capture | Scope | Empty | ChatMessage | ChatImage | string | null | undefined | number | false;
+export type Node = FunctionDefinition | BreakToken | First | Isolate | Capture | Config | Scope | Empty | ChatMessage | ChatImage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -146,6 +156,7 @@ export namespace JSX {
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
 		capture: Omit<BaseProps, 'children'> & CaptureProps;
 		isolate: BaseProps & IsolateProps;
+		config: Omit<BaseProps, 'children'> & ConfigProps;
 	}
 	type Element = PromptElement;
 	interface ElementAttributesProperty {
@@ -261,5 +272,6 @@ export type RenderOutput = {
 	priorityCutoff: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
+	config: ConfigProps;
 	durationMs?: number;
 };

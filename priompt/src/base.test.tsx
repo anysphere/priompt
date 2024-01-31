@@ -243,3 +243,32 @@ describe("isolate", () => {
     expect(specialTokens.tokenCount).toBe(toTokens.length);
   });
 });
+
+describe("config", () => {
+  function TestConfig(
+    props: PromptProps<{ numConfigs: number }>
+  ): PromptElement {
+    return (
+      <>
+        This is the start of the prompt.
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+        <config stop={"\n"} />
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+        <config maxResponseTokens="tokensReserved" />
+      </>
+    );
+  }
+
+  it("should have config work", async () => {
+    const rendered = await render(TestConfig({ numConfigs: 1 }), {
+      tokenLimit: 1000,
+      tokenizer: "cl100k_base",
+    });
+    expect(rendered.tokenCount).toBeLessThanOrEqual(1000);
+    expect(isPlainPrompt(rendered.prompt)).toBe(true);
+    expect(rendered.config.stop).toBe("\n");
+    expect(rendered.config.maxResponseTokens).toBe("tokensReserved");
+  });
+});
