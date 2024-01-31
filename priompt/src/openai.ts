@@ -57,7 +57,7 @@ export const GPT_3_5_1106 = "gpt-3.5-turbo-1106";
 export const GPT_3_5_FINETUNE_RERANKER = 'ft:gpt-3.5-turbo-0613:anysphere::8GgLaVNe'
 export const CODE_LLAMA_RERANKER = 'codellama_7b_reranker';
 export const MISTRAL_MEDIUM = 'mistral-medium';
-export const GPT_3_5_FINETUNE_CMDK = 'ft:gpt-3.5-turbo-1106:anysphere::8fDcUweE';
+export const GPT_3_5_FINETUNE_CMDK = 'ft:gpt-3.5-turbo-1106:anysphere::8fOY9fCJ';
 
 export const AZURE_3_5_TURBO = 'azure-3.5-turbo';
 
@@ -208,7 +208,7 @@ export function getTokenizerName(model: UsableModel): UsableTokenizer {
 		case 'gpt-3.5-turbo-instruct':
 		case 'azure-3.5-turbo':
 		case 'gpt-ft-cursor-0810':
-		case 'ft:gpt-3.5-turbo-1106:anysphere::8fDcUweE':
+		case 'ft:gpt-3.5-turbo-1106:anysphere::8fOY9fCJ':
 			return 'cl100k_base';
 		// i think this is wrong.... but it's what we have and probably ~ roughly correct
 		case 'mistral-medium':
