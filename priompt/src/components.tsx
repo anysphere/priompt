@@ -1,6 +1,11 @@
 import { ChatCompletionResponseMessage } from "openai";
 import * as Priompt from "./lib";
-import { BasePromptProps, PromptElement, PromptProps } from "./types";
+import {
+  BasePromptProps,
+  ImageProps,
+  PromptElement,
+  PromptProps,
+} from "./types";
 import { JSONSchema7 } from "json-schema";
 import { z } from "zod";
 import zodToJsonSchemaImpl from "zod-to-json-schema";
@@ -59,6 +64,15 @@ export function AssistantMessage(
           ? props.children.flat()
           : [props.children]
         : [],
+  };
+}
+
+export function ImageComponent(props: PromptProps<ImageProps>): PromptElement {
+  return {
+    type: "image",
+    bytes: props.bytes,
+    dimensions: props.dimensions,
+    detail: props.detail,
   };
 }
 

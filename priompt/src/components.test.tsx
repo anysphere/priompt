@@ -38,12 +38,18 @@ describe("SystemMessage", () => {
     // @ts-ignore
     return (
       <>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <SystemMessage name={props.systemName}>
           hi this is a system message
         </SystemMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <UserMessage name={props.userName}>
           hi this is a user message
         </UserMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
         <UserMessage>hi this is a user message</UserMessage>
       </>
     );

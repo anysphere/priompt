@@ -38,6 +38,10 @@ export type Isolate = {
 	cachedRenderOutput?: RenderOutput;
 } & IsolateProps;
 
+export type ChatImage = {
+	type: 'image';
+} & ImageProps;
+
 // TODO: make the Capture work for other kinds of completions that aren't chat and aren't openai
 export type CaptureProps = {
 	onOutput?: OutputHandler<ChatCompletionResponseMessage>;
@@ -46,6 +50,16 @@ export type CaptureProps = {
 
 export type IsolateProps = {
 	tokenLimit: number;
+}
+
+export type ImageProps = {
+	bytes: Uint8Array;
+	detail: 'low' | 'high' | 'auto';
+	dimensions: {
+		width: number;
+		height: number;
+	};
+
 }
 
 // the scope will exist iff the final priority is lower than the priority here
@@ -97,7 +111,7 @@ export type FunctionDefinition = {
 	parameters: JSONSchema7;
 }
 
-export type Node = FunctionDefinition | BreakToken | First | Isolate | Capture | Scope | Empty | ChatMessage | string | null | undefined | number | false;
+export type Node = FunctionDefinition | BreakToken | First | Isolate | Capture | Scope | Empty | ChatMessage | ChatImage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -144,10 +158,40 @@ export namespace JSX {
 // need exact copying
 export type PromptString = string | string[];
 
-export type ChatPromptUserSystemMessage = {
-	role: 'user' | 'system';
+export type PromptContentWrapper = {
+	type: 'prompt_content',
+	content: PromptString;
+	images?: ImagePromptContent[];
+}
+
+export type TextPromptContent = {
+	type: 'text',
+	text: string
+}
+export type ImagePromptContent = {
+	type: 'image',
+	image_url: {
+		url: string;
+		detail: 'low' | 'high' | 'auto';
+		dimensions: {
+			width: number;
+			height: number;
+		}
+	}
+}
+export type PromptContent = TextPromptContent | ImagePromptContent;
+
+export type ChatPromptSystemMessage = {
+	role: 'system';
 	name?: string;
 	content: PromptString;
+}
+
+export type ChatPromptUserMessage = {
+	role: 'user';
+	name?: string;
+	content: PromptString;
+	images?: ImagePromptContent[];
 }
 
 export type ChatPromptAssistantMessage = {
@@ -165,7 +209,7 @@ export type ChatPromptFunctionResultMessage = {
 	content: PromptString;
 };
 
-export type ChatPromptMessage = ChatPromptUserSystemMessage | ChatPromptAssistantMessage | ChatPromptFunctionResultMessage;
+export type ChatPromptMessage = ChatPromptSystemMessage | ChatPromptUserMessage | ChatPromptAssistantMessage | ChatPromptFunctionResultMessage;
 
 export type ChatPrompt = {
 	type: 'chat';
@@ -191,7 +235,7 @@ export type FunctionPrompt = {
 // higher priority handler will be called first in case there are multiple
 export type OutputHandler<T> = (output: T, options?: { p?: number }) => Promise<void>;
 
-export type RenderedPrompt = PromptString | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt);
+export type RenderedPrompt = PromptString | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt) | PromptContentWrapper;
 
 export type Prompt<PropsT, ReturnT = never> = (props: PromptProps<PropsT, ReturnT>) => PromptElement;
 
