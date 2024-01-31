@@ -10,6 +10,7 @@ import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt,
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
+import { normalize } from 'path';
 
 
 
@@ -415,9 +416,17 @@ export function renderCumulativeSum(
 	if (process.env.NODE_ENV === 'development') {
 		startTimeComputingPriorityLevels = performance.now();
 	}
+
+	// We normalize the node first
+	const normalizedNode = normalizePrompt(elem);
 	// for now, we do a much simple thing, which is just to render the whole thing every time
 	const priorityLevelsTokensMapping: Record<number, Countables[]> = {};
-	computePriorityLevelsTokensMapping(elem, BASE_PRIORITY, priorityLevelsTokensMapping);
+	computePriorityLevelsTokensMapping(normalizedNode, BASE_PRIORITY, priorityLevelsTokensMapping);
+
+	// We also just compute the priority levels the normal way for rendering later
+	const priorityLevels = new Set<number>();
+	computePriorityLevels(elem, BASE_PRIORITY, priorityLevels);
+
 	// convert to array and sort them from highest to lowest
 	const priorityLevelKeys = Object.keys(priorityLevelsTokensMapping).map((x) => parseInt(x));
 	const sortedPriorityLevels = priorityLevelKeys.sort((a, b) => b - a);
@@ -1749,24 +1758,12 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 }
 
 type Countables = FunctionDefinition | NormalizedFunctionDefinition | string | number
-function computePriorityLevelsTokensMapping(elem: AnyNode[] | AnyNode, parentPriority: number, mapping: Record<number, Countables[]>): void {
+function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedNode, parentPriority: number, mapping: Record<number, Countables[]>): void {
 
 	if (Array.isArray(elem)) {
 		for (const child of elem) {
 			computePriorityLevelsTokensMapping(child, parentPriority, mapping);
 		}
-		return;
-	}
-
-	if (elem === undefined || elem === null || elem === false) {
-		return;
-	}
-
-	if (typeof elem === 'string') {
-		return;
-	}
-
-	if (typeof elem === 'number') {
 		return;
 	}
 
