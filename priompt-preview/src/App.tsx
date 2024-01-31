@@ -7,11 +7,7 @@ import {
   useLayoutEffect,
 } from "react";
 import { RenderedPrompt } from "@anysphere/priompt";
-import {
-  OSS_MODELS,
-  streamChat,
-  streamChatCompletion,
-} from "./openai";
+import { OSS_MODELS, streamChat, streamChatCompletion } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
 import {
@@ -227,6 +223,7 @@ const App = () => {
   >();
   const [selectedPrompt, setSelectedPrompt] = useState("");
   const [selectedRemotePrompt, setSelectedRemotePrompt] = useState<string>("");
+  const [selectedRequestId, setSelectedRequestId] = useState<string>("");
   const [selectedPropsId, setSelectedPropsId] = useState("");
   const [tokenCount, setTokenCount] = useState(8192);
   const [temperature, setTemperature] = useState(0);
@@ -478,6 +475,80 @@ const App = () => {
     100
   );
 
+  const fetchRemoteRequestId = useCallback(
+    (requestId: string, tokenCount: number) => {
+      // Remove https
+
+      const query = {
+        requestId,
+        modelName: "gpt-4",
+        numTokens: tokenCount.toString(),
+      };
+      console.log(query);
+      const urlParams = new URLSearchParams(query);
+      const fullUrl = `http://localhost:7999/priompt/getRequestDump?${urlParams}`;
+
+      console.log("fetching remote prompt", fullUrl);
+
+      fetch(fullUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((res) => res.json())
+        .then(({ data, completion }) => {
+          console.log("completion", completion);
+          setTokenCountUsed(data.tokenCount);
+          setTokenCountReserved(data.tokensReserved);
+          setPromptConfig(data.config);
+          setDurationMs(data.durationMs);
+          setPriorityCutoff(data.priorityCutoff);
+          // setPrompt(data.prompt);
+          const dataPrompt = data.prompt as
+            | ChatPrompt
+            | (ChatPrompt & FunctionPrompt);
+
+          if ("functions" in dataPrompt) {
+            console.log("setting to this!!!");
+            setPrompt(data.prompt);
+          } else {
+            setPrompt({
+              ...dataPrompt,
+              messages: [
+                ...dataPrompt.messages,
+                {
+                  role: "assistant",
+                  content: completion,
+                },
+              ],
+            });
+          }
+          // const origPrompt = data.prompt as ChatPrompt;
+          // setPrompt({
+          //   type: "chat",
+          //   messages: [
+          //     ...origPrompt.messages,
+          //     {
+          //       role: "assistant",
+          //       content: completion,
+          //     },
+          //   ],
+          // });
+          setErrorMessage("");
+          setCompletion(undefined);
+          setOutput(undefined);
+          setForceRerender((r) => r + 1);
+        })
+        .catch((error) => {
+          setErrorMessage(error.message);
+          setPrompt(undefined);
+          setCompletion(undefined);
+          setOutput(undefined);
+        });
+    },
+    []
+  );
   const fetchRemotePrompt = useCallback(
     (promptUrl: string, tokenCount: number) => {
       // Remove https
@@ -935,9 +1006,8 @@ const App = () => {
         let start = performance.now();
         setTimeToFirstToken(undefined);
         setTimeToRemainingTokens(undefined);
-        const f = options?.completionModel === true
-          ? streamChatCompletion
-          : streamChat;
+        const f =
+          options?.completionModel === true ? streamChatCompletion : streamChat;
 
         const stream = f(
           {
@@ -1146,13 +1216,17 @@ const App = () => {
       fetchPrompt(selectedPrompt, selectedPropsId, derivedTokenCount);
     } else if (selectedRemotePrompt) {
       fetchRemotePrompt(selectedRemotePrompt, derivedTokenCount);
+    } else if (selectedRequestId) {
+      fetchRemoteRequestId(selectedRequestId, derivedTokenCount);
     }
   }, [
     inJsonMode,
     selectedPrompt,
     selectedRemotePrompt,
+    selectedRequestId,
     fetchPrompt,
     fetchRemotePrompt,
+    fetchRemoteRequestId,
     selectedPropsId,
     derivedTokenCount,
   ]);
@@ -1186,6 +1260,7 @@ const App = () => {
                   .value;
                 setSelectedPrompt("");
                 setSelectedRemotePrompt(currentText);
+                setSelectedRequestId("");
               }}
             >
               <input
@@ -1203,6 +1278,28 @@ const App = () => {
                 const currentText = (e.currentTarget[0] as HTMLInputElement)
                   .value;
                 setSelectedPrompt("");
+                setSelectedRemotePrompt("");
+                console.log("set request id");
+                setSelectedRequestId(currentText);
+              }}
+            >
+              <input
+                type="text"
+                style={{
+                  width: "500px",
+                }}
+                placeholder="Enter request id"
+              />
+              <button type="submit">Fetch Request Id</button>
+            </form>
+            <form
+              onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                const currentText = (e.currentTarget[0] as HTMLInputElement)
+                  .value;
+                setSelectedPrompt("");
+                setSelectedRemotePrompt("");
+                setSelectedRequestId("");
                 const currentIndex = (e.currentTarget[1] as HTMLInputElement)
                   .valueAsNumber;
                 fetchJsonL(currentText, currentIndex);
@@ -1308,6 +1405,8 @@ const App = () => {
                     fetchPrompt(selectedPrompt, selectedPropsId, tokenCount);
                   } else if (selectedRemotePrompt) {
                     fetchRemotePrompt(selectedRemotePrompt, tokenCount);
+                  } else if (selectedRequestId) {
+                    fetchRemoteRequestId(selectedRequestId, tokenCount);
                   }
                 }}
               >
@@ -1410,9 +1509,10 @@ const App = () => {
                           setFullText={(newText: string) => {
                             debouncedSetFullPrompts(i, newText);
                           }}
-                          extraModels={
-                            (lastPassedInModel ? [lastPassedInModel] : []).concat(...OSS_MODELS)
-                          }
+                          extraModels={(lastPassedInModel
+                            ? [lastPassedInModel]
+                            : []
+                          ).concat(...OSS_MODELS)}
                         />
                       ) : (
                         <>
@@ -1497,9 +1597,10 @@ const App = () => {
                               setFullText={(_: string) => {
                                 // intentionally empty
                               }}
-                              extraModels={
-                                (lastPassedInModel ? [lastPassedInModel] : []).concat(...OSS_MODELS)
-                              }
+                              extraModels={(lastPassedInModel
+                                ? [lastPassedInModel]
+                                : []
+                              ).concat(...OSS_MODELS)}
                             />
                           )}
                         </>
