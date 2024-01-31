@@ -14,6 +14,17 @@ import { normalize } from 'path';
 
 
 
+export function chatPromptToString(prompt: ChatPrompt): string {
+	return prompt.messages.map((message) => {
+		return `<|im_start|>${message.role}<|im_sep|>${message.content}<|im_end|>`;
+	}).join('\n');
+}
+export function functionPromptToString(prompt: FunctionPrompt): string {
+	return prompt.functions.map((func) => {
+		JSON.stringify(func);
+	}).join('\n');
+}
+
 export function isChatPrompt(prompt: RenderedPrompt | undefined): prompt is ChatPrompt {
 	return typeof prompt === 'object' && !Array.isArray(prompt) && prompt.type === 'chat';
 }
@@ -29,7 +40,7 @@ export function promptHasFunctions(prompt: RenderedPrompt | undefined): prompt i
 export function promptStringToString(promptString: PromptString): string {
 	return Array.isArray(promptString) ? promptString.join('') : promptString;
 }
-function promptGetText(prompt: RenderedPrompt | undefined): string | undefined {
+export function promptGetText(prompt: RenderedPrompt | undefined): string | undefined {
 	if (!isTextPromptPotentiallyWithFunctions(prompt)) {
 		return undefined;
 	}
