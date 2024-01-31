@@ -447,7 +447,7 @@ export async function renderun<
 	loggingOptions,
 	renderedMessagesCallback = (messages: ChatCompletionRequestMessage[]) => { },
 }: {
-	prompt: (props: PromptProps<PropsT, ReturnT>) => PromptElement;
+	prompt: Prompt<PropsT, ReturnT>;
 	props: Omit<PropsT, "onReturn">;
 	renderOptions: RenderOptions;
 	renderedMessagesCallback?: (messages: ChatCompletionRequestMessage[]) => void
@@ -478,7 +478,10 @@ export async function renderun<
 	PreviewManager.maybeDump<PropsT, ReturnT>(prompt, props);
 
 	// first render
-	const promptElement = prompt(realProps);
+	let promptElement = prompt(realProps);
+	if (promptElement instanceof Promise) {
+		promptElement = await promptElement;
+	}
 	if (loggingOptions?.promptElementRef !== undefined) {
 		loggingOptions.promptElementRef.current = promptElement;
 	}

@@ -231,6 +231,11 @@ class PreviewManagerImpl implements IPreviewManager {
     const baseProps = this.hydrate(config, promptDump);
     return baseProps;
   }
+  getPromptFunctionFromRemote(query: PreviewManagerGetRemotePropsQuery) {
+    const promptId = query.promptId;
+    const config = this.previews[promptId];
+    return config.prompt;
+  }
 
   async getPromptFromRemoteElement(query: Omit<PreviewManagerGetRemotePromptQuery, "promptId" | "promptDump">, element: PromptElement) {
     const rendered = await render(element, { model: query.modelName, tokenLimit: query.tokenLimit });
@@ -305,7 +310,7 @@ class PreviewManagerImpl implements IPreviewManager {
     return props;
   }
 
-  maybeDump<T, ReturnT = never>(prompt: (props: PromptProps<T, ReturnT>) => PromptElement, props: Omit<T, "onReturn">) {
+  maybeDump<T, ReturnT = never>(prompt: Prompt<T, ReturnT>, props: Omit<T, "onReturn">) {
     if (!this.shouldDump) {
       return;
     }
