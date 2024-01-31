@@ -252,7 +252,11 @@ class PreviewManagerImpl implements IPreviewManager {
     if (Object.keys(this.previews).includes(config.id)) {
       // sort of sketchy, but may be fine if we're in esm hmr land...
       // we just overwrite
-      console.warn(`preview id ${config.id} already registered`);
+      if (process.env.ALLOW_PROMPT_REREGISTRATION === "true") {
+        console.warn(`preview id ${config.id} already registered`);
+      } else {
+        throw new Error(`preview id ${config.id} already registered`);
+      }
     }
     this.previews[config.id] = config;
   }
