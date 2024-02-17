@@ -22,8 +22,16 @@ esac
 # Change to the priompt directory, increment the version, and publish the package
 cd $SCRIPT_DIR/priompt
 npm version $1
-npm publish
-
 cd $SCRIPT_DIR/priompt-preview
 npm version $1
-npm publish
+cd $SCRIPT_DIR/tiktoken-node
+npm version $1
+
+cd $SCRIPT_DIR/priompt
+pnpm publish-to-npm
+
+cd $SCRIPT_DIR/priompt-preview
+pnpm publish-to-npm
+
+cd $SCRIPT_DIR/tiktoken-node
+pnpm publish-to-npm

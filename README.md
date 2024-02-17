@@ -18,6 +18,12 @@ or
 yarn add @anysphere/priompt && yarn add @anysphere/priompt-preview --dev
 ```
 
+or
+
+```bash
+pnpm add @anysphere/priompt && pnpm add -D @anysphere/priompt-preview
+```
+
 ## Examples
 
 Read [examples/README.md](examples/README.md) to run the examples.
