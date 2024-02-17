@@ -37,7 +37,7 @@
   },
   "wireit": {
     "build": {
-      "command": "napi build --platform --release",
+      "command": "napi build --platform --release ./dist",
       "files": [
         "src/**",
         "Cargo.toml",
@@ -45,7 +45,7 @@
         "build.rs"
       ],
       "output": [
-        "tiktoken-node.*.node"
+        "dist/tiktoken-node.*.node"
       ]
     }
   }
