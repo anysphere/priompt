@@ -106,7 +106,6 @@ jobs:
       - name: Download build
         uses: actions/download-artifact@v3
         with:
-          name: OS specific binaries
           path: tiktoken-node/artifacts
 
       - name: LS artifacts
