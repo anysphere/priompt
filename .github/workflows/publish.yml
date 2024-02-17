@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: OS specific binaries
-          path: tiktoken-node/dist
+          path: tiktoken-node/tiktoken-node.*.node
           if-no-files-found: error
 
   publish:
@@ -107,7 +107,10 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: OS specific binaries
-          path: tiktoken-node/dist/
+          path: dist/
+
+      - name: Copy .node file
+        run: cp dist/tiktoken-node.*.node tiktoken-node
 
       - name: Publish to npm
         uses: JS-DevTools/npm-publish@v1
