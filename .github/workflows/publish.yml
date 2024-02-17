@@ -134,4 +134,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Publish to npm
-        run: pnpm publish --recursive --access=public --no-git-checks
+        working-directory: tiktoken-node
+        run: pnpm publish --access=public --no-git-checks
+
+      - name: Publish to npm
+        working-directory: priompt
+        run: pnpm publish --access=public --no-git-checks
+
+      - name: Publish to npm
+        working-directory: priompt-preview
+        run: pnpm publish --access=public --no-git-checks
