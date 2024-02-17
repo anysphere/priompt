@@ -1,8 +1,14 @@
 #!/bin/bash
 
+set -e
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$SCRIPT_DIR"
 
+if [[ -n $(git status --porcelain) ]]; then
+  echo -e "${RED}Your git state is not empty. Aborting the script...${NC}"
+  exit 1
+fi
 
 # Check if a version bumping flag is provided
 if [ $# -ne 1 ]; then
@@ -27,11 +33,12 @@ npm version $1
 cd $SCRIPT_DIR/tiktoken-node
 npm version $1
 
-cd $SCRIPT_DIR/priompt
-pnpm publish-to-npm
+git commit -am "update version"
 
-cd $SCRIPT_DIR/priompt-preview
-pnpm publish-to-npm
+git push
 
-cd $SCRIPT_DIR/tiktoken-node
-pnpm publish-to-npm
+DEPLOY_BRANCH=publish
+git branch -D $DEPLOY_BRANCH || true
+git checkout -b $DEPLOY_BRANCH
+git push origin $DEPLOY_BRANCH -f
+git checkout $CURRENT_BRANCH
