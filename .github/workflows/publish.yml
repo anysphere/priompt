@@ -134,4 +134,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Publish to npm
-        run: pnpm publish --recursive --access=public
+        run: pnpm publish --recursive --access=public --no-git-checks
