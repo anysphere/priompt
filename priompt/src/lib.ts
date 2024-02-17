@@ -1878,7 +1878,7 @@ function validateUnrenderedPrompt(elem: PromptElement): void {
 function validateNoUnhandledTypes(elem: PromptElement): void {
 	if (Array.isArray(elem)) {
 		for (const child of elem) {
-			validateNoUnhandledTypes(child);
+			validateNotBothAbsoluteAndRelativePriority(child);
 		}
 		return;
 	}
