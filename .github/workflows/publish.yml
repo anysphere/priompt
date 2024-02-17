@@ -76,7 +76,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: OS specific binaries
+          name: bindings-${{ matrix.target }}
           path: tiktoken-node/tiktoken-node.*.node
           if-no-files-found: error
 
