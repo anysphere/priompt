@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as Priompt from "./lib";
+import * as Priompt from "./index";
 import {
   isChatPrompt,
   isPlainPrompt,
@@ -17,24 +17,16 @@ describe("isolate", () => {
     if (props.isolate) {
       return (
         <>
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <isolate p={props.p} prel={props.prel} tokenLimit={props.tokenLimit}>
             {props.children}
-            {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           </isolate>
         </>
       );
     } else {
       return (
         <>
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <scope p={props.p} prel={props.prel}>
             {props.children}
-            {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           </scope>
         </>
       );
@@ -45,41 +37,27 @@ describe("isolate", () => {
     return (
       <>
         This is the start of the prompt.
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <Isolate tokenLimit={100} isolate={props.isolate}>
           {Array.from({ length: 1000 }, (_, i) => (
             <>
-              {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
               <scope prel={-i - 2000}>
                 This is an SHOULDBEINCLUDEDONLYIFISOLATED user message number{" "}
                 {i}
-                {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
               </scope>
             </>
           ))}
         </Isolate>
         {Array.from({ length: 1000 }, (_, i) => (
           <>
-            {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
             <scope prel={-i - 1000}>This is user message number {i}</scope>
           </>
         ))}
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <Isolate tokenLimit={100} isolate={props.isolate}>
           {Array.from({ length: 1000 }, (_, i) => (
             <>
-              {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
               <scope prel={-i}>
                 {i},xl,x,,
                 {i > 100 ? "SHOULDBEINCLUDEDONLYIFNOTISOLATED" : ""}
-                {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
               </scope>
             </>
           ))}
@@ -123,10 +101,7 @@ describe("isolate", () => {
   ): PromptElement {
     return (
       <>
-        This is the start of the p
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
-        {props.breaktoken ? <breaktoken /> : <></>}
+        This is the start of the p{props.breaktoken ? <breaktoken /> : <></>}
         rompt. This is the second part of the prompt.
       </>
     );
@@ -162,23 +137,13 @@ describe("isolate", () => {
   ): PromptElement {
     return (
       <>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <SystemMessage>
           This is the start of the prompt.
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <br />
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           {props.breaktoken ? <breaktoken /> : <></>}
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <br />
           This is the second part of the prompt.
         </SystemMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>hi!</UserMessage>
       </>
     );
@@ -219,14 +184,8 @@ describe("isolate", () => {
   function SpecialTokensPrompt(): PromptElement {
     return (
       <>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <SystemMessage>{"<|im_start|>"}</SystemMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>{"<|diff_marker|>"}</UserMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <AssistantMessage>{"<|endoftext|>"}</AssistantMessage>
       </>
     );
@@ -251,11 +210,7 @@ describe("config", () => {
     return (
       <>
         This is the start of the prompt.
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <config stop={"\n"} />
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <config maxResponseTokens="tokensReserved" />
       </>
     );

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as Priompt from "./lib";
+import * as Priompt from "./index";
 import {
   isChatPrompt,
   isPlainPrompt,
@@ -20,8 +20,6 @@ import { PromptElement, PromptProps } from "./types";
 
 describe("SystemMessage", () => {
   function TestSystemMessage(props: PromptProps): PromptElement {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     return <SystemMessage>hi this is a system message</SystemMessage>;
   }
 
@@ -36,22 +34,14 @@ describe("SystemMessage", () => {
   function TestSystemMessageWithName(
     props: PromptProps<{ systemName?: string; userName?: string }>
   ): PromptElement {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     return (
       <>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <SystemMessage name={props.systemName}>
           hi this is a system message
         </SystemMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage name={props.userName}>
           hi this is a user message
         </UserMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>hi this is a user message</UserMessage>
       </>
     );
@@ -92,12 +82,8 @@ describe("SystemMessage", () => {
 
 describe("Function", () => {
   function TestFunction(props: PromptProps): PromptElement {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     return (
       <>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <Function
           name={"echo"}
           description={"Echo a message to the user."}
@@ -112,8 +98,6 @@ describe("Function", () => {
             required: ["message"],
           }}
         />
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>say hi</UserMessage>
       </>
     );
@@ -148,12 +132,8 @@ describe("Function", () => {
 
 describe("All kinds of messages", () => {
   function TestAllMessages(props: PromptProps): PromptElement {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     return (
       <>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <Function
           name={"echo"}
           description={"Echo a message to the user."}
@@ -168,22 +148,14 @@ describe("All kinds of messages", () => {
             required: ["message"],
           }}
         />
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <SystemMessage>System message</SystemMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>User message</UserMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <AssistantMessage
           functionCall={{
             name: "echo",
             arguments: '{"message": "this is a test echo"}',
           }}
         ></AssistantMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <FunctionMessage name={"echo"}>this is a test echo</FunctionMessage>
         {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore */}
@@ -272,15 +244,9 @@ describe("All kinds of messages", () => {
 
 describe("Images", () => {
   function TestImageMessage(props: PromptProps): PromptElement {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     return (
       <>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <SystemMessage>System message</SystemMessage>
-        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
         <UserMessage>
           {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore */}
@@ -289,25 +255,15 @@ describe("Images", () => {
             dimensions={{ width: 10, height: 10 }}
             detail="auto"
           />
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <br />
           If the instructions mention this image, use it to help you write the
           code with the utmost precision and detail.
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <br />
           {"<instructions>"}
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <br />
           TEST, THIS IS A TEST,
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <br />
           {"</instructions>"}
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <br />
         </UserMessage>
       </>
