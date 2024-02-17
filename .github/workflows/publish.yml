@@ -107,12 +107,29 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: OS specific binaries
-          path: dist/
+          path: tiktoken-node/artifacts
 
-      - name: Copy .node file
-        run: cp dist/tiktoken-node.*.node tiktoken-node
+      - name: LS artifacts
+        run: ls -R tiktoken-node/artifacts
+        shell: bash
+
+      - name: Move artifacts
+        working-directory: tiktoken-node
+        run: pnpm artifacts
+
+      - name: LS post-move
+        run: ls -R tiktoken-node/npm
+        shell: bash
+
+      - name: Build priompt
+        working-directory: priompt
+        run: pnpm build
+
+      - name: Build priompt-preview
+        working-directory: priompt-preview
+        run: pnpm build
 
       - name: Publish to npm
-        run: pnpm publish --recursive
+        run: pnpm publish --recursive --access=public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

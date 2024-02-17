@@ -13,7 +13,6 @@
   "scripts": {
     "dev": "vite",
     "build": "wireit",
-    "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "wireit",
     "tsc-build": "wireit",
