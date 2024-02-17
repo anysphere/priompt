@@ -49,12 +49,5 @@
         "index.d.ts"
       ]
     }
-  },
-  "optionalDependencies": {
-    "@anysphere/tiktoken-node-win32-x64-msvc": "0.1.2",
-    "@anysphere/tiktoken-node-darwin-x64": "0.1.2",
-    "@anysphere/tiktoken-node-linux-x64-gnu": "0.1.2",
-    "@anysphere/tiktoken-node-linux-arm64-gnu": "0.1.2",
-    "@anysphere/tiktoken-node-darwin-arm64": "0.1.2"
   }
 }
