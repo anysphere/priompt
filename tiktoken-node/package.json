@@ -1,6 +1,6 @@
 {
   "name": "@anysphere/tiktoken-node",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
