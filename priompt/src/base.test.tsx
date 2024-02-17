@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as Priompt from "./lib";
+import * as Priompt from "./index";
 import {
   isChatPrompt,
   isPlainPrompt,

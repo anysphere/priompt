@@ -145,24 +145,22 @@ export type ReturnProps<T> = {
 type BasePromptProps<T = Record<never, never>> = (keyof T extends never ? BaseProps : BaseProps & T);
 export type PromptProps<T = Record<never, never>, ReturnT = never> = ([ReturnT] extends [never] ? BasePromptProps<T> : BasePromptProps<T> & ReturnProps<ReturnT>);
 
-declare global {
-	namespace JSX {
-		interface IntrinsicElements {
-			scope: BaseProps;
-			br: Omit<BaseProps, 'children'>;
-			hr: Omit<BaseProps, 'children'>;
-			breaktoken: Omit<BaseProps, 'children'>;
-			// automatically use a certain number of tokens (useful for leaving space for the model to give its answer)
-			empty: BaseProps & { tokens: number; };
-			first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
-			capture: Omit<BaseProps, 'children'> & CaptureProps;
-			isolate: BaseProps & IsolateProps;
-			config: Omit<BaseProps, 'children'> & ConfigProps;
-		}
-		type Element = PromptElement;
-		interface ElementAttributesProperty {
-			props: BaseProps; // specify the property name to use
-		}
+export namespace JSX {
+	interface IntrinsicElements {
+		scope: BaseProps;
+		br: Omit<BaseProps, 'children'>;
+		hr: Omit<BaseProps, 'children'>;
+		breaktoken: Omit<BaseProps, 'children'>;
+		// automatically use a certain number of tokens (useful for leaving space for the model to give its answer)
+		empty: BaseProps & { tokens: number; };
+		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
+		capture: Omit<BaseProps, 'children'> & CaptureProps;
+		isolate: BaseProps & IsolateProps;
+		config: Omit<BaseProps, 'children'> & ConfigProps;
+	}
+	type Element = PromptElement;
+	interface ElementAttributesProperty {
+		props: BaseProps; // specify the property name to use
 	}
 }
 
