@@ -63,21 +63,21 @@ jobs:
         run: cargo fmt --all --check
 
       - name: Node install
-        run: npm i
+        run: pnpm i
 
       - name: Build Mac and Linux
         if: matrix.target != 'x86_64-pc-windows-msvc'
-        run: npm run build -- --zig --target ${{ matrix.target }}
+        run: pnpm run build -- --zig --target ${{ matrix.target }}
 
       - name: Build Windows
         if: matrix.target == 'x86_64-pc-windows-msvc'
-        run: npm run build -- --target ${{ matrix.target }}
+        run: pnpm run build -- --target ${{ matrix.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: OS specific binaries
-          path: dist
+          path: tiktoken-node/dist
           if-no-files-found: error
 
   publish:
@@ -107,7 +107,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: OS specific binaries
-          path: dist/
+          path: tiktoken-node/dist/
 
       - name: Publish to npm
         uses: JS-DevTools/npm-publish@v1
