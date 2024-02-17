@@ -1,7 +1,7 @@
 {
   "name": "@anysphere/priompt",
   "license": "MIT",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A JSX-based prompt design library.",
   "keywords": [
     "prompting",
