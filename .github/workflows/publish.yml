@@ -113,19 +113,6 @@ jobs:
         run: cp dist/tiktoken-node.*.node tiktoken-node
 
       - name: Publish to npm
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          package: tiktoken-node
-          token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to npm
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          package: priompt
-          token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to npm
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          package: priompt-preview
-          token: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --recursive
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
