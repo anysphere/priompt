@@ -28,7 +28,7 @@
     "build": "wireit",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "tsc --noEmit && eslint .",
-    "test": "vitest",
+    "test": "wireit",
     "test:nowatch": "vitest run",
     "coverage": "vitest run --coverage"
   },
@@ -45,6 +45,10 @@
       "dependencies": [
         "../tiktoken-node:build"
       ]
+    },
+    "test": {
+      "command": "vitest",
+      "dependencies": ["build"]
     }
   },
   "devDependencies": {

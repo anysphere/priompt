@@ -1,7 +1,13 @@
-pnpm-workspace.yaml
 dist
-pnpm-lock.yaml
 node_modules
 priompt-opensource
 commit.patch
 commit.template
+.wireit
+target/
+
+# todo: we should figure out a good way to sync these with the internal repo instead of having to generate them with the init script
+Cargo.lock
+Cargo.toml
+pnpm-workspace.yaml
+pnpm-lock.yaml
