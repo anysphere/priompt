@@ -20,6 +20,7 @@ jobs:
       matrix:
         target:
           - x86_64-pc-windows-msvc
+          # TODO: we should figure out how to build linux
           #   - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
           - x86_64-apple-darwin
