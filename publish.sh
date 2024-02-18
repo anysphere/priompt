@@ -37,6 +37,7 @@ git commit -am "update version"
 
 git push
 
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 DEPLOY_BRANCH=publish
 git branch -D $DEPLOY_BRANCH || true
 git checkout -b $DEPLOY_BRANCH
