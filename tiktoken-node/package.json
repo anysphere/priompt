@@ -1,6 +1,6 @@
 {
   "name": "@anysphere/tiktoken-node",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
@@ -30,7 +30,7 @@
     "artifacts": "napi artifacts",
     "build": "wireit",
     "build:debug": "napi build --platform",
-    "prepublishOnly": "napi prepublish -t npm",
+    "prepublishOnly": "napi prepublish -t npm --skip-gh-release",
     "universal": "napi universal",
     "version": "napi version"
   },
