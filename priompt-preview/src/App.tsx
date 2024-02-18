@@ -69,6 +69,14 @@ function promptToOpenAIChatMessages(
           name: msg.name,
           content: promptStringToString(msg.content),
         };
+      } else if (msg.role === "tool") {
+        // openai chat messages do not support the tool role... (i think)
+        // so we put it in a system message instead!
+        return {
+          role: "system",
+          name: msg.name,
+          content: promptStringToString(msg.content),
+        };
       } else if (msg.role === "assistant" && msg.functionCall !== undefined) {
         return {
           role: msg.role,
@@ -135,6 +143,7 @@ function openAIChatMessagesToPrompt(
         if (m.role === "function") {
           c = {
             role: "function",
+            to: undefined,
             content: m.content
               .map((c) => (c.type === "text" ? c.text : ""))
               .join(""),
@@ -144,6 +153,7 @@ function openAIChatMessagesToPrompt(
         }
         c = {
           role: m.role,
+          to: undefined,
           content: m.content
             .map((c) => (c.type === "text" ? c.text : ""))
             .join(""),
@@ -156,6 +166,7 @@ function openAIChatMessagesToPrompt(
         if (m.role === "function") {
           c = {
             role: "function",
+            to: undefined,
             content: m.content ?? "",
             name: m.name ?? "",
           };
@@ -163,6 +174,7 @@ function openAIChatMessagesToPrompt(
         }
         c = {
           role: m.role,
+          to: undefined,
           content: m.content ?? "",
         };
         return c;
@@ -520,6 +532,7 @@ const App = () => {
                 ...dataPrompt.messages,
                 {
                   role: "assistant",
+                  to: undefined,
                   content: completion,
                 },
               ],
@@ -603,6 +616,7 @@ const App = () => {
                 ...dataPrompt.messages,
                 {
                   role: "assistant",
+                  to: undefined,
                   content: completion,
                 },
               ],
@@ -976,6 +990,7 @@ const App = () => {
               {
                 role: "assistant",
                 content: "",
+                to: undefined,
                 functionCall: undefined,
               },
               ...prev.messages.slice(i),
@@ -1106,6 +1121,7 @@ const App = () => {
                   {
                     role: "assistant",
                     content: text,
+                    to: undefined,
                     functionCall:
                       function_call !== undefined
                         ? {
@@ -1623,6 +1639,7 @@ const App = () => {
                   ...prev.messages,
                   {
                     role: "user",
+                    to: undefined,
                     content: "New user message",
                   },
                 ],
@@ -1642,6 +1659,7 @@ const App = () => {
                   ...prev.messages,
                   {
                     role: "system",
+                    to: undefined,
                     content: "New system message",
                   },
                 ],
@@ -1661,6 +1679,7 @@ const App = () => {
                   ...prev.messages,
                   {
                     role: "assistant",
+                    to: undefined,
                     content: "New assistant message",
                   },
                 ],
