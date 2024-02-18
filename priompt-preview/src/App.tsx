@@ -296,6 +296,7 @@ const App = () => {
         propsId: selectedPropsId,
         completion: stream ? streamify(x) : x,
         stream,
+        tokenizer: "cl100k_base",
       };
 
       fetch(`http://localhost:3000/priompt/getPromptOutput`, {
@@ -640,7 +641,7 @@ const App = () => {
         promptId,
         propsId,
         tokenLimit: tokenCount.toString(),
-        tokenizer: "cl100k_base"
+        tokenizer: "cl100k_base",
       };
 
       if (promptId === "liveModePromptId" && propsId === "") {
@@ -1523,8 +1524,8 @@ const App = () => {
                                 msg.role === "user"
                                   ? "rgba(0, 0, 255, 0.2)"
                                   : msg.role === "system"
-                                  ? "rgba(100, 100, 100, 0.1)"
-                                  : "rgba(180,100,0,0.5)",
+                                    ? "rgba(100, 100, 100, 0.1)"
+                                    : "rgba(180,100,0,0.5)",
                               width: "100%",
                               // height: "fit-content",
                             }}
