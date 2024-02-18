@@ -90,12 +90,14 @@ export type ChatUserSystemMessage = {
 	type: 'chat';
 	role: 'user' | 'system';
 	name?: string;
+	to?: string;
 	children: Node[];
 }
 
 export type ChatAssistantMessage = {
 	type: 'chat';
 	role: 'assistant';
+	to?: string;
 	children: Node[]; // can be empty!
 
 	// the functionCall is provided by the assistant
@@ -109,10 +111,19 @@ export type ChatFunctionResultMessage = {
 	type: 'chat';
 	role: 'function';
 	name: string;
+	to?: string;
 	children: Node[];
 }
 
-export type ChatMessage = ChatUserSystemMessage | ChatFunctionResultMessage | ChatAssistantMessage;
+export type ChatToolResultMessage = {
+	type: 'chat';
+	role: 'tool';
+	name: string;
+	to?: string;
+	children: Node[];
+}
+
+export type ChatMessage = ChatUserSystemMessage | ChatFunctionResultMessage | ChatToolResultMessage | ChatAssistantMessage;
 
 export type FunctionDefinition = {
 	type: 'functionDefinition';
@@ -195,18 +206,21 @@ export type PromptContent = TextPromptContent | ImagePromptContent;
 export type ChatPromptSystemMessage = {
 	role: 'system';
 	name?: string;
+	to: string | undefined;
 	content: PromptString;
 }
 
 export type ChatPromptUserMessage = {
 	role: 'user';
 	name?: string;
+	to: string | undefined;
 	content: PromptString;
 	images?: ImagePromptContent[];
 }
 
 export type ChatPromptAssistantMessage = {
 	role: 'assistant';
+	to: string | undefined;
 	content?: PromptString;
 	functionCall?: {
 		name: string;
@@ -217,10 +231,18 @@ export type ChatPromptAssistantMessage = {
 export type ChatPromptFunctionResultMessage = {
 	role: 'function';
 	name: string;
+	to: string | undefined;
 	content: PromptString;
 };
 
-export type ChatPromptMessage = ChatPromptSystemMessage | ChatPromptUserMessage | ChatPromptAssistantMessage | ChatPromptFunctionResultMessage;
+export type ChatPromptToolResultMessage = {
+	role: 'tool';
+	name: string;
+	to: string | undefined;
+	content: PromptString;
+};
+
+export type ChatPromptMessage = ChatPromptSystemMessage | ChatPromptUserMessage | ChatPromptAssistantMessage | ChatPromptFunctionResultMessage | ChatPromptToolResultMessage;
 
 export type ChatPrompt = {
 	type: 'chat';

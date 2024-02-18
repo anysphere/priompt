@@ -13,12 +13,14 @@ import zodToJsonSchemaImpl from "zod-to-json-schema";
 export function SystemMessage(
   props: PromptProps<{
     name?: string;
+    to?: string;
   }>
 ): PromptElement {
   return {
     type: "chat",
     role: "system",
     name: props.name,
+    to: props.to,
     children:
       props.children !== undefined
         ? Array.isArray(props.children)
@@ -31,12 +33,14 @@ export function SystemMessage(
 export function UserMessage(
   props: PromptProps<{
     name?: string;
+    to?: string;
   }>
 ): PromptElement {
   return {
     type: "chat",
     role: "user",
     name: props.name,
+    to: props.to,
     children:
       props.children !== undefined
         ? Array.isArray(props.children)
@@ -52,12 +56,14 @@ export function AssistantMessage(
       name: string;
       arguments: string; // json string
     };
+    to?: string;
   }>
 ): PromptElement {
   return {
     type: "chat",
     role: "assistant",
     functionCall: props.functionCall,
+    to: props.to,
     children:
       props.children !== undefined
         ? Array.isArray(props.children)
@@ -79,12 +85,34 @@ export function ImageComponent(props: PromptProps<ImageProps>): PromptElement {
 export function FunctionMessage(
   props: PromptProps<{
     name: string;
+    to?: string;
   }>
 ): PromptElement {
   return {
     type: "chat",
     role: "function",
     name: props.name,
+    to: props.to,
+    children:
+      props.children !== undefined
+        ? Array.isArray(props.children)
+          ? props.children.flat()
+          : [props.children]
+        : [],
+  };
+}
+
+export function ToolResultMessage(
+  props: PromptProps<{
+    name: string;
+    to?: string;
+  }>
+): PromptElement {
+  return {
+    type: "chat",
+    role: "tool",
+    name: props.name,
+    to: props.to,
     children:
       props.children !== undefined
         ? Array.isArray(props.children)

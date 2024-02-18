@@ -11,6 +11,7 @@ import {
   AssistantMessage,
   Function,
   FunctionMessage,
+  ToolResultMessage,
   ImageComponent,
   SystemMessage,
   UserMessage,
@@ -184,6 +185,14 @@ describe("All kinds of messages", () => {
         {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore */}
         <FunctionMessage name={"echo"}>this is a test echo</FunctionMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+        <AssistantMessage to="python">print("Hello world!")</AssistantMessage>
+        {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore */}
+        <ToolResultMessage name={"python"} to="all">
+          Hello world!
+        </ToolResultMessage>
       </>
     );
   }
@@ -234,7 +243,30 @@ describe("All kinds of messages", () => {
         name: "echo",
         content: "this is a test echo",
       },
+      {
+        role: "assistant",
+        to: "python",
+        content: 'print("Hello world!")',
+      },
+      {
+        role: "tool",
+        name: "python",
+        to: "all",
+        content: "Hello world!",
+      },
     ]);
+    const openaiMessage = promptToOpenAIChatMessages(rendered.prompt);
+    expect(openaiMessage.length).toBe(6);
+    expect(openaiMessage[0].role).toBe("system");
+    expect(openaiMessage[1].role).toBe("user");
+    expect(openaiMessage[2].role).toBe("assistant");
+    expect(openaiMessage[3].role).toBe("function");
+    expect(openaiMessage[4].role).toBe("assistant");
+    // the tool shall not be sent to openai! it's unsupported
+    expect(openaiMessage[5].role).toBe("system");
+    // assert none of them contain "to"
+    expect("to" in openaiMessage[4]).toBe(false);
+    expect("to" in openaiMessage[5]).toBe(false);
   });
 });
 

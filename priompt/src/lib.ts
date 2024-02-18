@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, UsableTokenizer } from './openai';
 import { encodeTokens, estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps } from './types';
+import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
@@ -982,7 +982,10 @@ type NormalizedChatAssistantMessage = Omit<ChatAssistantMessage, 'children'> & {
 type NormalizedChatFunctionResultMessage = Omit<ChatFunctionResultMessage, 'children'> & {
 	children: NormalizedNode[];
 };
-type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAssistantMessage | NormalizedChatFunctionResultMessage;
+type NormalizedChatToolResultMessage = Omit<ChatToolResultMessage, 'children'> & {
+	children: NormalizedNode[];
+};
+type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAssistantMessage | NormalizedChatFunctionResultMessage | NormalizedChatToolResultMessage;
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
@@ -1231,6 +1234,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					message = {
 						role: elem.role,
 						name: elem.name,
+						to: elem.to,
 						content: p.prompt.content,
 						images: p.prompt.images,
 					};
@@ -1238,6 +1242,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					message = {
 						role: elem.role,
 						name: elem.name,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					};
 				}
@@ -1248,6 +1253,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					message = {
 						role: elem.role,
 						name: elem.name,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					};
 				}
@@ -1258,13 +1264,16 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				if (elem.functionCall !== undefined) {
 					message = {
 						role: elem.role,
+						// intentionally can be undefined because an assistant message can, for example, contain only a function call
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+						to: elem.to,
 						functionCall: elem.functionCall,
 					}
 					extraTokenCount += await countFunctionCallMessageTokens(elem.functionCall, tokenizer);
 				} else {
 					message = {
 						role: elem.role,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					}
 				}
@@ -1275,10 +1284,23 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				message = {
 					role: elem.role,
 					name: elem.name,
+					to: elem.to,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				}
+				extraTokenCount += await numTokens(elem.name, { tokenizer });
+			} else if (elem.role === 'tool') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in tool message')
+				}
+				message = {
+					role: elem.role,
+					name: elem.name,
+					to: elem.to,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				}
 				extraTokenCount += await numTokens(elem.name, { tokenizer });
 			} else {
+				const x: never = elem.role;
 				throw new Error(`BUG!! Invalid role ${elem.role}`);
 			}
 
@@ -1468,12 +1490,14 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 					message = {
 						role: elem.role,
 						name: elem.name,
+						to: elem.to,
 						content: p.prompt.content,
 						images: p.prompt.images,
 					};
 				} else {
 					message = {
 						role: elem.role,
+						to: elem.to,
 						name: elem.name,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					};
@@ -1484,6 +1508,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				}
 				message = {
 					role: elem.role,
+					to: elem.to,
 					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				};
@@ -1494,12 +1519,14 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				if (elem.functionCall !== undefined) {
 					message = {
 						role: elem.role,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
 						functionCall: elem.functionCall,
 					}
 				} else {
 					message = {
 						role: elem.role,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					}
 				}
@@ -1510,9 +1537,21 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				message = {
 					role: elem.role,
 					name: elem.name,
+					to: elem.to,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				}
+			} else if (elem.role === 'tool') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in tool message')
+				}
+				message = {
+					role: elem.role,
+					name: elem.name,
+					to: elem.to,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				}
 			} else {
+				const x: never = elem.role;
 				throw new Error(`BUG!! Invalid role ${elem.role}`);
 			}
 
@@ -1763,6 +1802,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 					message = {
 						role: elem.role,
 						name: elem.name,
+						to: elem.to,
 						content: p.prompt.content,
 						images: p.prompt.images
 					};
@@ -1770,6 +1810,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 					message = {
 						role: elem.role,
 						name: elem.name,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					};
 				}
@@ -1779,6 +1820,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				}
 				message = {
 					role: elem.role,
+					to: elem.to,
 					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				};
@@ -1789,12 +1831,14 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				if (elem.functionCall !== undefined) {
 					message = {
 						role: elem.role,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
 						functionCall: elem.functionCall,
 					}
 				} else {
 					message = {
 						role: elem.role,
+						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					}
 				}
@@ -1804,10 +1848,22 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTo
 				}
 				message = {
 					role: elem.role,
+					to: elem.to,
 					name: elem.name,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				}
+			} else if (elem.role === 'tool') {
+				if (isPromptContent(p.prompt)) {
+					throw new Error('Did not expect images in tool message')
+				}
+				message = {
+					role: elem.role,
+					name: elem.name,
+					to: elem.to,
+					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+				}
 			} else {
+				const x: never = elem.role;
 				throw new Error(`BUG!! Invalid role ${elem.role}`);
 			}
 
@@ -2257,6 +2313,7 @@ export function promptToOpenAIChatRequest(prompt: RenderedPrompt): { messages: A
 
 const CL100K_SYSTEM_TOKENS = [100264, 9125, 100266];
 const CL100K_USER_TOKENS = [100264, 882, 100266];
+const CL100K_TOOL_TOKENS = [100264, 14506, 100266];
 const CL100K_ASSISTANT_TOKENS = [100264, 78191, 100266];
 const CL100K_END_TOKEN = [100265];
 const CL100K_SYSTEM_TOKENS_STRING = "<|im_start|>system<|im_sep|>";
@@ -2268,6 +2325,11 @@ async function injectName(tokens: number[], name: string): Promise<number[]> {
 	// i don't really know if this is the right way to format it....
 	const nameTokens = await tokenizerObject.encodeCl100KNoSpecialTokens(":" + name);
 	return [...tokens.slice(0, -1), ...nameTokens, tokens[tokens.length - 1]];
+}
+async function injectTo(tokens: number[], to: string): Promise<number[]> {
+	// Adjusting the function to handle 'to' parameter injection
+	const toTokens = await tokenizerObject.encodeCl100KNoSpecialTokens(" to=" + to);
+	return [...tokens.slice(0, -1), ...toTokens, tokens[tokens.length - 1]];
 }
 function injectNameString(tokens: string, name: string): string {
 	return tokens.replace("<|im_sep|>", ":" + name + "<|im_sep|>");
@@ -2357,10 +2419,26 @@ export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTo
 			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
 				throw new Error(`BUG!! promptToTokens got a chat prompt with a function message, which is not supported yet!`);
 			} else {
-				let headerTokens =
-					msg.role === 'assistant' ? CL100K_ASSISTANT_TOKENS : msg.role === 'system' ? CL100K_SYSTEM_TOKENS : CL100K_USER_TOKENS;
+				let headerTokens: number[];
+				switch (msg.role) {
+					case 'assistant':
+						headerTokens = CL100K_ASSISTANT_TOKENS;
+						break;
+					case 'system':
+						headerTokens = CL100K_SYSTEM_TOKENS;
+						break;
+					case 'user':
+						headerTokens = CL100K_USER_TOKENS;
+						break;
+					case 'tool':
+						headerTokens = CL100K_TOOL_TOKENS;
+						break;
+				}
 				if ('name' in msg && msg.name !== undefined) {
 					headerTokens = await injectName(headerTokens, msg.name);
+				}
+				if ('to' in msg && msg.to !== undefined) {
+					headerTokens = await injectTo(headerTokens, msg.to);
 				}
 				let newContent: string[] | string | undefined = undefined
 				if (Array.isArray(msg.content)) {
@@ -2396,6 +2474,7 @@ export function openAIChatMessagesToPrompt(messages: ChatCompletionRequestMessag
 				if (m.role === "function") {
 					c = {
 						role: "function",
+						to: undefined,
 						content: m.content.map(c => c.type === 'text' ? c.text : "").join(""),
 						name: m.name ?? "",
 					}
@@ -2403,6 +2482,7 @@ export function openAIChatMessagesToPrompt(messages: ChatCompletionRequestMessag
 				}
 				c = {
 					role: m.role,
+					to: undefined,
 					content: m.content.map(c => c.type === 'text' ? c.text : "").join(""),
 					images: m.content.filter(c => c.type === 'image') as ImagePromptContent[],
 				}
@@ -2411,6 +2491,7 @@ export function openAIChatMessagesToPrompt(messages: ChatCompletionRequestMessag
 				if (m.role === "function") {
 					c = {
 						role: "function",
+						to: undefined,
 						content: m.content ?? "",
 						name: m.name ?? "",
 					}
@@ -2418,6 +2499,7 @@ export function openAIChatMessagesToPrompt(messages: ChatCompletionRequestMessag
 				}
 				c = {
 					role: m.role,
+					to: undefined,
 					content: m.content ?? ""
 				}
 				return c;
@@ -2439,6 +2521,14 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 			if (msg.role === 'function') {
 				return {
 					role: msg.role,
+					name: msg.name,
+					content: promptStringToString(msg.content),
+				}
+			} else if (msg.role === 'tool') {
+				// openai chat messages do not support the tool role... (i think)
+				// so we put it in a system message instead!
+				return {
+					role: "system",
 					name: msg.name,
 					content: promptStringToString(msg.content),
 				}
