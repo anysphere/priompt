@@ -24,7 +24,6 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "watch": "tsx watch --clear-screen=false src",
-    "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build": "wireit",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "tsc --noEmit && eslint .",
