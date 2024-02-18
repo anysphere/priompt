@@ -1,6 +1,6 @@
 {
   "name": "@anysphere/tiktoken-node-win32-x64-msvc",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "os": [
     "win32"
   ],

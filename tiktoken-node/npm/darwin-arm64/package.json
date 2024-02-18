@@ -1,6 +1,6 @@
 {
   "name": "@anysphere/tiktoken-node-darwin-arm64",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "os": [
     "darwin"
   ],
