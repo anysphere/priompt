@@ -42,6 +42,11 @@ enum TokenizerMessage {
     tokens: Vec<u32>,
     encoding: SupportedEncoding,
   },
+  DecodeTokenBytes {
+    respond_to: oneshot::Sender<anyhow::Result<Vec<u8>>>,
+    token: u32,
+    encoding: SupportedEncoding,
+  },
   ApproximateNumTokens {
     respond_to: oneshot::Sender<anyhow::Result<i32>>,
     text: String,
@@ -102,6 +107,17 @@ impl TokenizerActor {
 
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(token);
+      }
+      TokenizerMessage::DecodeTokenBytes { respond_to, token, encoding } => {
+        let enc = match encoding {
+          SupportedEncoding::Cl100k => &self.cl100k_encoding,
+        };
+        let bytes = enc.decode_single_token_bytes(token as usize);
+        let bytes = match bytes {
+          Ok(b) => Ok(b),
+          Err(e) => Err(anyhow::anyhow!(e)),
+        };
+        let _ = respond_to.send(bytes);
       }
       TokenizerMessage::DecodeTokens { respond_to, tokens, encoding } => {
         let enc = match encoding {
@@ -321,6 +337,29 @@ impl Tokenizer {
     let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
+      Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
+    }
+  }
+  #[napi]
+  pub async fn decode_cl100k_byte(
+    &self,
+    token: u32,
+  ) -> Result<napi::bindgen_prelude::Uint8Array, Error> {
+    let (send, recv) = oneshot::channel();
+    let msg = TokenizerMessage::DecodeTokenBytes {
+      respond_to: send,
+      token,
+      encoding: SupportedEncoding::Cl100k,
+    };
+
+    // Ignore send errors. If this send fails, so does the
+    // recv.await below. There's no reason to check for the
+    // same failure twice.
+    let _ = self.sender.send(msg).await;
+    match recv.await {
+      Ok(result) => result
+        .map_err(|e| napi::Error::from_reason(e.to_string()))
+        .map(|v| napi::bindgen_prelude::Uint8Array::new(v.into())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
     }
   }
