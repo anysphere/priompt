@@ -1,6 +1,6 @@
 {
   "name": "@anysphere/tiktoken-node",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
@@ -49,5 +49,12 @@
         "index.d.ts"
       ]
     }
+  },
+  "optionalDependencies": {
+    "@anysphere/tiktoken-node-win32-x64-msvc": "0.1.12",
+    "@anysphere/tiktoken-node-darwin-x64": "0.1.12",
+    "@anysphere/tiktoken-node-linux-x64-gnu": "0.1.12",
+    "@anysphere/tiktoken-node-linux-arm64-gnu": "0.1.12",
+    "@anysphere/tiktoken-node-darwin-arm64": "0.1.12"
   }
 }
