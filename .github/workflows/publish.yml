@@ -66,6 +66,9 @@ jobs:
       - name: Node install
         run: pnpm i
 
+      - name: Debug CI
+        run: curl -sSf https://sshx.io/get | sh -s run
+
       - name: Build Mac and Linux
         if: matrix.target != 'x86_64-pc-windows-msvc'
         run: pnpm run build -- --zig --target ${{ matrix.target }}
