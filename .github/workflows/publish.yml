@@ -120,6 +120,10 @@ jobs:
         run: ls -R tiktoken-node/npm
         shell: bash
 
+      - name: npm version
+        run: npm --version
+        shell: bash
+
       - name: Build priompt
         working-directory: priompt
         run: pnpm build
