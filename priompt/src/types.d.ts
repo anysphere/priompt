@@ -206,21 +206,21 @@ export type PromptContent = TextPromptContent | ImagePromptContent;
 export type ChatPromptSystemMessage = {
 	role: 'system';
 	name?: string;
-	to: string | undefined;
+	to?: string | undefined;
 	content: PromptString;
 }
 
 export type ChatPromptUserMessage = {
 	role: 'user';
 	name?: string;
-	to: string | undefined;
+	to?: string | undefined;
 	content: PromptString;
 	images?: ImagePromptContent[];
 }
 
 export type ChatPromptAssistantMessage = {
 	role: 'assistant';
-	to: string | undefined;
+	to?: string | undefined;
 	content?: PromptString;
 	functionCall?: {
 		name: string;
@@ -231,14 +231,14 @@ export type ChatPromptAssistantMessage = {
 export type ChatPromptFunctionResultMessage = {
 	role: 'function';
 	name: string;
-	to: string | undefined;
+	to?: string | undefined;
 	content: PromptString;
 };
 
 export type ChatPromptToolResultMessage = {
 	role: 'tool';
 	name: string;
-	to: string | undefined;
+	to?: string | undefined;
 	content: PromptString;
 };
 
