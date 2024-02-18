@@ -61,7 +61,7 @@ const requestListener = (req, res) => {
 				data = data.toString().replace(/PRIOMPT_PREVIEW_OPENAI_KEY/g, `${process.env.PRIOMPT_PREVIEW_OPENAI_KEY}`);
 			}
 			if ((extname === '.html' || extname === '.js') && data.toString().includes('PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING')) {
-				data = data.toString().replace(/PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING/g, `${process.env.PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING}`);
+				data = data.toString().replace(/PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING/g, `${process.env.PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING ?? "PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING"}`);
 			}
 			res.end(data);
 		}
