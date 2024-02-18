@@ -132,6 +132,9 @@ jobs:
         working-directory: priompt-preview
         run: pnpm build
 
+      - name: globally install napi-rs
+        run: npm install -g @napi-rs/cli
+
       - name: Set publishing config
         run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
         env:
