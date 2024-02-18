@@ -415,6 +415,7 @@ export function Fragment({ children }: { children: PromptElement[]; }): PromptEl
 
 
 
+const getIsDevelopment = () => process.env.NODE_ENV === 'development';
 // priority level if it is not set becomes 1e9, i.e. it is always rendered
 const BASE_PRIORITY = 1e9;
 
@@ -551,7 +552,7 @@ export function renderCumulativeSum(
 	{ tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions
 ): Omit<RenderOutput, "tokenCount"> {
 	let startTime: number | undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTime = performance.now();
 	}
 
@@ -562,14 +563,14 @@ export function renderCumulativeSum(
 	const definedTokenizer = tokenizer;
 
 	let startTimeValidating: number | undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeValidating = performance.now();
 	}
 	validateUnrenderedPrompt(elem);
 	// Cumulative sum cannot uses firsts
 
 	validateNoUnhandledTypes(elem)
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeValidating = performance.now();
 		console.debug(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
 	}
@@ -590,7 +591,7 @@ export function renderCumulativeSum(
 	// convert to array and sort them from highest to lowest
 	const priorityLevelKeys = Object.keys(priorityLevelsTokensMapping).map((x) => parseInt(x));
 	const sortedPriorityLevels = priorityLevelKeys.sort((a, b) => b - a);
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeComputingPriorityLevels = performance.now();
 		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
@@ -619,7 +620,7 @@ export function renderCumulativeSum(
 
 
 	let startExactTokenCount = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startExactTokenCount = performance.now();
 	}
 
@@ -638,7 +639,7 @@ export function renderCumulativeSum(
 	// throw new Error(`Base prompt estimated token count is ${tokenCount} with ${prompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
 	// }
 
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endExactTokenCount = performance.now();
 		console.debug(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
 	}
@@ -668,22 +669,22 @@ export function renderCumulativeSum(
 
 export async function renderBinarySearch(elem: PromptElement, { tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTime = performance.now();
 	}
 
 	let startTimeValidating: number | undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeValidating = performance.now();
 	}
 	validateUnrenderedPrompt(elem);
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeValidating = performance.now();
 		console.debug(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
 	}
 
 	let startTimeComputingPriorityLevels = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeComputingPriorityLevels = performance.now();
 	}
 	// for now, we do a much simple thing, which is just to render the whole thing every time
@@ -692,7 +693,7 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 	priorityLevels.add(BASE_PRIORITY);
 	// convert to array and sort them from lowest to highest
 	const sortedPriorityLevels = Array.from(priorityLevels).sort((a, b) => a - b);
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeComputingPriorityLevels = performance.now();
 		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
@@ -707,11 +708,11 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 
 	// now we hydrate the isolates
 	let startTimeHydratingIsolates = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeHydratingIsolates = performance.now();
 	}
 	await hydrateIsolates(elem, tokenizer);
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeHydratingIsolates = performance.now();
 		console.debug(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
 	}
@@ -720,7 +721,7 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 	// if the first one is higher than the base priority, then print a warning because it will not have any effect
 
 	let startTimeRendering = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeRendering = performance.now();
 	}
 
@@ -734,18 +735,18 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 	while (exclusiveLowerBound < inclusiveUpperBound - 1) {
 		const candidateLevelIndex = Math.floor((exclusiveLowerBound + inclusiveUpperBound) / 2);
 		const candidateLevel = sortedPriorityLevels[candidateLevelIndex];
-		if (process.env.NODE_ENV === 'development') {
+		if (getIsDevelopment()) {
 			console.debug(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
 		}
 		let start: number | undefined;
-		if (process.env.NODE_ENV === 'development') {
+		if (getIsDevelopment()) {
 			start = performance.now();
 		}
 		let countStart: number | undefined;
 		let tokenCount = -1;
 		try {
 			const prompt = renderWithLevelAndEarlyExitWithTokenEstimation(elem, candidateLevel, tokenizer, tokenLimit);
-			if (process.env.NODE_ENV === 'development') {
+			if (getIsDevelopment()) {
 				countStart = performance.now();
 			}
 			// const prompt = renderWithLevel(elem, candidateLevel);
@@ -765,20 +766,20 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 			// this means the candidate level is too low
 			exclusiveLowerBound = candidateLevelIndex;
 		} finally {
-			if (process.env.NODE_ENV === 'development') {
+			if (getIsDevelopment()) {
 				const end = performance.now();
 				console.debug(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - (start ?? 0)} ms and has ${tokenCount} tokens (-1 means early exit, counting took ${end - (countStart ?? 0)})`);
 			}
 		}
 	}
 
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeRendering = performance.now();
 		console.debug(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
 	}
 
 	let startExactTokenCount = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startExactTokenCount = performance.now();
 	}
 
@@ -793,7 +794,7 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 		throw new TooManyTokensForBasePriority(`Base prompt estimated token count is ${tokenCount} with ${prompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
 	}
 
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endExactTokenCount = performance.now();
 		console.debug(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
 	}
@@ -823,12 +824,12 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 
 export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLimit, tokenizer, lastMessageIsIncomplete }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTime = performance.now();
 	}
 
 	let startTimeValidating: number | undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeValidating = performance.now();
 		// only validate in debug
 		validateUnrenderedPrompt(elem);
@@ -853,11 +854,11 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 	// TODO: come up with a better algorithm here. this one is fine for now. just doesn't work if someone creates really low-character scopes but why would they
 
 	let startTimeNormalizing = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeNormalizing = performance.now();
 	}
 	const normalizedElem = normalizePrompt(elem);
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeNormalizing = performance.now();
 		console.debug(`Normalizing prompt took ${endTimeNormalizing - (startTimeNormalizing ?? 0)} ms`);
 	}
@@ -866,7 +867,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 
 
 	let startTimeComputingPriorityLevels = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeComputingPriorityLevels = performance.now();
 	}
 	// for now, we do a much simple thing, which is just to render the whole thing every time
@@ -875,7 +876,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 	priorityLevels.add(BASE_PRIORITY);
 	// convert to array and sort them from highest to lowest
 	const sortedPriorityLevels = Array.from(priorityLevels).sort((a, b) => b - a);
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeComputingPriorityLevels = performance.now();
 		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
 	}
@@ -883,7 +884,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 	// if the first one is higher than the base priority, then print a warning because it will not have any effect
 
 	let startTimeRendering = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startTimeRendering = performance.now();
 	}
 
@@ -903,7 +904,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 		prevLevel = level;
 	}
 
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endTimeRendering = performance.now();
 		console.debug(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
 	}
@@ -917,7 +918,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 	}
 
 	let startExactTokenCount = undefined;
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		startExactTokenCount = performance.now();
 	}
 
@@ -937,7 +938,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 		}
 	}
 
-	if (process.env.NODE_ENV === 'development') {
+	if (getIsDevelopment()) {
 		const endExactTokenCount = performance.now();
 		console.debug(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
 	}
