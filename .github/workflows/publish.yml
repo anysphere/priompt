@@ -19,12 +19,11 @@ jobs:
     strategy:
       matrix:
         target:
-          #   - x86_64-pc-windows-msvc
-          # TODO: we should figure out how to build linux
+          - x86_64-pc-windows-msvc
           - x86_64-unknown-linux-gnu
-        #   - aarch64-unknown-linux-gnu
-        #   - x86_64-apple-darwin
-        #   - aarch64-apple-darwin
+          - aarch64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
 
     steps:
       - uses: actions/checkout@v3
@@ -66,15 +65,12 @@ jobs:
       - name: Node install
         run: pnpm i
 
-      - name: Debug CI
-        run: curl -sSf https://sshx.io/get | sh -s run
-
       - name: Build Mac and Linux
-        if: matrix.target != 'x86_64-pc-windows-msvc'
+        if: matrix.target != 'x86_64-pc-windows-msvc' && matrix.target != 'x86_64-unknown-linux-gnu'
         run: pnpm run build -- --zig --target ${{ matrix.target }}
 
       - name: Build Windows
-        if: matrix.target == 'x86_64-pc-windows-msvc'
+        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-unknown-linux-gnu'
         run: pnpm run build -- --target ${{ matrix.target }}
 
       - name: Upload artifact
