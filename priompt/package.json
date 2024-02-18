@@ -1,7 +1,7 @@
 {
   "name": "@anysphere/priompt",
   "license": "MIT",
-  "version": "0.1.1",
+  "version": "0.1.26",
   "description": "A JSX-based prompt design library.",
   "keywords": [
     "prompting",
@@ -24,7 +24,6 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "watch": "tsx watch --clear-screen=false src",
-    "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build": "wireit",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "tsc --noEmit && eslint .",
@@ -48,7 +47,9 @@
     },
     "test": {
       "command": "vitest",
-      "dependencies": ["build"]
+      "dependencies": [
+        "build"
+      ]
     }
   },
   "devDependencies": {

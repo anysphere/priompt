@@ -1977,7 +1977,7 @@ function validateNoUnhandledTypes(elem: PromptElement): void {
 function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 	if (Array.isArray(elem)) {
 		for (const child of elem) {
-			validateUnrenderedPrompt(child);
+			validateNotBothAbsoluteAndRelativePriority(child);
 		}
 		return;
 	}

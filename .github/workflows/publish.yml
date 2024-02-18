@@ -20,7 +20,7 @@ jobs:
       matrix:
         target:
           - x86_64-pc-windows-msvc
-          #   - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
           - x86_64-apple-darwin
           - aarch64-apple-darwin
@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: 18.x
+          node-version: 20.6.1
 
       - uses: anysphere/action-setup@c3b53f6a16e57305370b4ae5a540c2077a1d50dd
         name: Install pnpm
@@ -66,17 +66,17 @@ jobs:
         run: pnpm i
 
       - name: Build Mac and Linux
-        if: matrix.target != 'x86_64-pc-windows-msvc'
+        if: matrix.target != 'x86_64-pc-windows-msvc' && matrix.target != 'x86_64-unknown-linux-gnu'
         run: pnpm run build -- --zig --target ${{ matrix.target }}
 
       - name: Build Windows
-        if: matrix.target == 'x86_64-pc-windows-msvc'
+        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-unknown-linux-gnu'
         run: pnpm run build -- --target ${{ matrix.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: OS specific binaries
+          name: bindings-${{ matrix.target }}
           path: tiktoken-node/tiktoken-node.*.node
           if-no-files-found: error
 
@@ -91,7 +91,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: 18.x
+          node-version: 20.6.1
 
       - uses: anysphere/action-setup@c3b53f6a16e57305370b4ae5a540c2077a1d50dd
         name: Install pnpm
@@ -106,26 +106,39 @@ jobs:
       - name: Download build
         uses: actions/download-artifact@v3
         with:
-          name: OS specific binaries
-          path: dist/
+          path: tiktoken-node/artifacts
 
-      - name: Copy .node file
-        run: cp dist/tiktoken-node.*.node tiktoken-node
+      - name: LS artifacts
+        run: ls -R tiktoken-node/artifacts
+        shell: bash
+
+      - name: Move artifacts
+        working-directory: tiktoken-node
+        run: pnpm artifacts
+
+      - name: LS post-move
+        run: ls -R tiktoken-node/npm
+        shell: bash
+
+      - name: npm version
+        run: npm --version
+        shell: bash
+
+      - name: Build priompt
+        working-directory: priompt
+        run: pnpm build
+
+      - name: Build priompt-preview
+        working-directory: priompt-preview
+        run: pnpm build
+
+      - name: globally install napi-rs
+        run: npm install -g @napi-rs/cli
+
+      - name: Set publishing config
+        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Publish to npm
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          package: tiktoken-node
-          token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to npm
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          package: priompt
-          token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to npm
-        uses: JS-DevTools/npm-publish@v1
-        with:
-          package: priompt-preview
-          token: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --recursive --access=public --no-git-checks

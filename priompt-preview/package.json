@@ -1,7 +1,7 @@
 {
   "name": "@anysphere/priompt-preview",
   "license": "MIT",
-  "version": "0.1.1",
+  "version": "0.1.26",
   "description": "An interactive preview of priompt prompts.",
   "repository": {
     "type": "git",
@@ -13,7 +13,6 @@
   "scripts": {
     "dev": "vite",
     "build": "wireit",
-    "publish-to-npm": "pnpm build && pnpm publish --access=public",
     "build-watch": "nodemon --watch 'src/**/*' --ext '*' --exec 'pnpm build'",
     "lint": "wireit",
     "tsc-build": "wireit",
