@@ -62,6 +62,9 @@ type LiveModeData = {
 };
 
 function getProjectRoot(): string {
+  if (process.env.PRIOMPT_PREVIEW_BASE_RELATIVE_PATH !== undefined) {
+    return path.join(process.cwd(), process.env.PRIOMPT_PREVIEW_BASE_RELATIVE_PATH);
+  }
   // just do cwd / priompt for now
   return process.cwd();
 }
@@ -252,7 +255,7 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
 
-  private getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement | Promise<PromptElement> {
+  getElement(promptId: string, propsId: string, outputCatcher?: OutputCatcher<unknown>): PromptElement | Promise<PromptElement> {
     if (promptId === 'liveModePromptId') {
       if (this.lastLiveModeData === null) {
         throw new Error('live mode prompt not found');
