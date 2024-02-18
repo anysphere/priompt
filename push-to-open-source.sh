@@ -32,7 +32,7 @@ git checkout -- . || true
 git restore --staged . || true
 git checkout -- . || true
 git clean -fd . || true
-git pull
+# git pull
 if [[ -n $(git status --porcelain) ]]; then
   echo -e "${RED}Your git state inside priompt-opensource is not empty. Aborting the script...${NC}"
   exit 1
