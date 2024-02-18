@@ -28,8 +28,6 @@ export {
 	// Function
 	CreateChatCompletionRequestFunctionCall,
 	ChatCompletionRequestMessageFunctionCall,
-	// Misc
-	CreateCompletionResponseChoicesInnerLogprobs
 } from 'openai';
 
 // tokenizers

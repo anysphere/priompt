@@ -250,8 +250,6 @@ describe("Images", () => {
         {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore */}
         <UserMessage>
-          {/* // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore */}
           <ImageComponent
             bytes={new Uint8Array([0, 0, 0, 0, 0])}
             dimensions={{ width: 10, height: 10 }}
