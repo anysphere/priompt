@@ -40,6 +40,7 @@ export const GPT2_TOKENIZER = 'gpt2';
 
 export const usableTokenizers = [
 	CL100K_BASE,
+	'cl100k_base_special_tokens',
 	R50K_BASE,
 	P50K_BASE,
 	GPT2_TOKENIZER

@@ -20,6 +20,8 @@ export async function numTokens(text: string, opts: {
 	switch (tokenizerName) {
 		case 'cl100k_base':
 			return await tokenizerObject.exactNumTokensCl100KNoSpecialTokens(text);
+		case 'cl100k_base_special_tokens':
+			return await tokenizerObject.exactNumTokens(text, tiktoken.SupportedEncoding.Cl100k, tiktoken.SpecialTokenAction.Special, {});
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
@@ -34,6 +36,7 @@ export function estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text: string, opts:
 
 	switch (tokenizerName) {
 		case 'cl100k_base':
+		case 'cl100k_base_special_tokens':
 			return syncTokenizer.approxNumTokens(text, tiktoken.SupportedEncoding.Cl100k);
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
@@ -49,6 +52,8 @@ export async function encodeTokens(text: string, opts: {
 	switch (tokenizerName) {
 		case 'cl100k_base':
 			return await tokenizerObject.encodeCl100KNoSpecialTokens(text);
+		case 'cl100k_base_special_tokens':
+			return await tokenizerObject.encode(text, tiktoken.SupportedEncoding.Cl100k, tiktoken.SpecialTokenAction.Special, {});
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
@@ -61,6 +66,8 @@ export function estimateTokensUsingBytecount(text: string, tokenizer: UsableToke
 	switch (tokenizer) {
 		case 'cl100k_base':
 			return [byteLength / 10, byteLength / 2.5];
+		case 'cl100k_base_special_tokens':
+			return [byteLength / 10, byteLength / 2.5];
 		default:
 			// conservative!
 			return [byteLength / 10, byteLength / 2];
@@ -70,6 +77,8 @@ export function estimateTokensUsingCharcount(text: string, tokenizer: UsableToke
 	const length = text.length;
 	switch (tokenizer) {
 		case 'cl100k_base':
+			return [length / 10, length / 1.5];
+		case 'cl100k_base_special_tokens':
 			return [length / 10, length / 1.5];
 		default:
 			// conservative!

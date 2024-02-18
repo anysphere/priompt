@@ -5,7 +5,7 @@
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, UsableTokenizer } from './openai';
-import { estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
+import { encodeTokens, estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
 import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
@@ -2337,16 +2337,16 @@ export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPr
 
 // always leaves the last message "open"
 export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTokenizer): Promise<number[]> {
-	if (tokenizer !== 'cl100k_base') {
+	if (tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens') {
 		throw new Error("promptToTokens only supports the cl100k_base tokenizer for now!")
 	}
 	if (isPlainPrompt(prompt)) {
 		// we should just encode it as a plain prompt!
 		if (Array.isArray(prompt)) {
-			const tokens = await Promise.all(prompt.map(s => tokenizerObject.encodeCl100KNoSpecialTokens(s)));
+			const tokens = await Promise.all(prompt.map(s => encodeTokens(s, { tokenizer })));
 			return tokens.reduce((a, b) => a.concat(b), []);
 		}
-		return tokenizerObject.encodeCl100KNoSpecialTokens(prompt);
+		return encodeTokens(prompt, { tokenizer });
 	} else if (isChatPrompt(prompt)) {
 		// THIS IS HYPERSPECIFIC TO CL100K
 
