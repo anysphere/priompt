@@ -1524,8 +1524,8 @@ const App = () => {
                                 msg.role === "user"
                                   ? "rgba(0, 0, 255, 0.2)"
                                   : msg.role === "system"
-                                  ? "rgba(100, 100, 100, 0.1)"
-                                  : "rgba(180,100,0,0.5)",
+                                    ? "rgba(100, 100, 100, 0.1)"
+                                    : "rgba(180,100,0,0.5)",
                               width: "100%",
                               // height: "fit-content",
                             }}
