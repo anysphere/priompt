@@ -1,6 +1,6 @@
 {
   "name": "@anysphere/tiktoken-node-linux-arm64-gnu",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "os": [
     "linux"
   ],
