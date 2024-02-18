@@ -13,6 +13,11 @@
       "changeProcessCWD": true
     }
   ],
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.insertSpaces": false,
+    "editor.formatOnSave": true
+  },
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features",
     "editor.insertSpaces": false,

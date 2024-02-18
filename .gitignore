@@ -5,6 +5,7 @@ commit.patch
 commit.template
 .wireit
 target/
+*.tsbuildinfo
 
 # todo: we should figure out a good way to sync these with the internal repo instead of having to generate them with the init script
 Cargo.lock
