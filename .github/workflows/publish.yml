@@ -135,7 +135,7 @@ jobs:
 
       - name: Publish to npm
         working-directory: tiktoken-node
-        run: pnpm publish --access=public --no-git-checks
+        run: npm publish --access=public
 
       - name: Publish to npm
         working-directory: priompt
