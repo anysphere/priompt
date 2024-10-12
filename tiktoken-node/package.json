@@ -34,6 +34,7 @@
   },
   "wireit": {
     "build": {
+      "clean": false,
       "command": "napi build --platform --release",
       "files": [
         "src/**",
