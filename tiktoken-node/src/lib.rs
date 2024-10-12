@@ -14,7 +14,7 @@ use std::sync::Arc;
 // we use the actor pattern to have good cache locality
 // this means that no tokenization requests will ever run in parallel, but i think that's almost certainly fine
 use base64::engine::general_purpose::STANDARD;
-use napi::tokio::sync::{mpsc, oneshot};
+use napi::tokio::sync::oneshot;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -42,7 +42,7 @@ pub enum SupportedEncoding {
 }
 
 struct TokenizerActor {
-  receiver: mpsc::Receiver<TokenizerMessage>,
+  receiver: crossbeam_channel::Receiver<TokenizerMessage>,
   encodings: Arc<Encodings>,
 }
 
@@ -162,7 +162,7 @@ fn llama_tokenizer() -> Result<tiktoken::Encoding, anyhow::Error> {
 
 impl TokenizerActor {
   fn new(
-    receiver: mpsc::Receiver<TokenizerMessage>,
+    receiver: crossbeam_channel::Receiver<TokenizerMessage>,
     encodings: Arc<Encodings>,
   ) -> Self {
     TokenizerActor { receiver, encodings }
@@ -262,8 +262,8 @@ impl TokenizerActor {
   }
 }
 
-fn run_tokenizer_actor(mut actor: TokenizerActor) {
-  while let Some(msg) = actor.receiver.blocking_recv() {
+fn run_tokenizer_actor(actor: TokenizerActor) {
+  while let Ok(msg) = actor.receiver.recv() {
     actor.handle_message(msg);
   }
 }
@@ -271,7 +271,7 @@ fn run_tokenizer_actor(mut actor: TokenizerActor) {
 #[napi]
 #[derive(Clone)]
 pub struct Tokenizer {
-  sender: mpsc::Sender<TokenizerMessage>,
+  sender: crossbeam_channel::Sender<TokenizerMessage>,
 }
 
 #[napi]
@@ -299,9 +299,14 @@ impl Tokenizer {
   pub fn new() -> Result<Self, tiktoken::EncodingFactoryError> {
     // we allow 100 outstanding requests before we fail
     // ideally we should never hit this limit... queueing up would be bad
-    let (sender, receiver) = mpsc::channel(100);
-    let actor = TokenizerActor::new(receiver, ENCODINGS.clone().unwrap());
-    napi::tokio::task::spawn_blocking(move || run_tokenizer_actor(actor));
+    let (sender, receiver) = crossbeam_channel::bounded(100);
+    for i in 0..3 {
+      let actor = TokenizerActor::new(receiver.clone(), ENCODINGS.clone().unwrap());
+      std::thread::Builder::new()
+        .name(format!("tokenizer-actor-{}", i))
+        .spawn(move || run_tokenizer_actor(actor))
+        .unwrap();
+    }
 
     Ok(Self { sender })
   }
@@ -325,10 +330,8 @@ impl Tokenizer {
       },
     };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -356,10 +359,8 @@ impl Tokenizer {
       },
     };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -381,10 +382,8 @@ impl Tokenizer {
       },
     };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -400,10 +399,8 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::ApproximateNumTokens { respond_to: send, text, encoding };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -431,10 +428,8 @@ impl Tokenizer {
       },
     };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -451,10 +446,8 @@ impl Tokenizer {
     let msg =
       TokenizerMessage::EncodeSingleToken { respond_to: send, bytes: bytes.to_vec(), encoding };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -469,10 +462,8 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::DecodeTokenBytes { respond_to: send, token, encoding };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result
         .map_err(|e| napi::Error::from_reason(e.to_string()))
@@ -490,10 +481,8 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::DecodeTokens { respond_to: send, tokens: encoded_tokens, encoding };
 
-    // Ignore send errors. If this send fails, so does the
-    // recv.await below. There's no reason to check for the
-    // same failure twice.
-    let _ = self.sender.send(msg).await;
+    self.sender.try_send(msg).map_err(|e|
+      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
