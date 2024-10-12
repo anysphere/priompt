@@ -35,6 +35,7 @@ import {
   PromptString,
 } from "@anysphere/priompt/dist/types";
 import { Content } from "@anysphere/priompt/dist/openai";
+import { PreviewManagerGetPromptOutputQuery } from '@anysphere/priompt/dist/preview';
 
 const userId = uuidv4();
 
@@ -302,15 +303,18 @@ const App = () => {
         function_call: (m as ChatPromptAssistantMessage).functionCall,
       };
 
-      const body = {
+      const body: PreviewManagerGetPromptOutputQuery = {
         tokenLimit: tokenCount,
         promptId: selectedPrompt,
         propsId: selectedPropsId,
         completion: stream ? streamify(x) : x,
         stream,
         tokenizer: "cl100k_base",
+        shouldBuildSourceMap: false,
       };
 
+      // You can set the port using the env var PRIOMPT_PREVIEW_SERVER_PORT
+      // which overwrites this text here in priompt-preview/scripts/serve.cjs
       fetch(`http://localhost:3000/priompt/getPromptOutput`, {
         method: "POST",
         headers: {
@@ -319,6 +323,7 @@ const App = () => {
         body: JSON.stringify(body),
       })
         .then((response) => {
+          console.log(`FETCHED http://localhost:3000/priompt/getPromptOutput`)
           if (!response.ok) {
             throw new Error("Error getting output: " + response.statusText);
           }
@@ -400,14 +405,19 @@ const App = () => {
       return;
     }
 
-    fetch(`http://localhost:3000/priompt/getPreviews`)
+    fetch(`http://localhost:3000/priompt/getPreviews`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
       .then((response) => response.json())
       .then((data) => {
         if (dontAutoload.current) {
           return;
         }
 
-        console.log("GOT RESPONSE", data);
+        console.log("GOT Preview RESPONSE", data);
         setPrompts(data);
         const x = Object.keys(data);
         x.sort();
@@ -655,6 +665,7 @@ const App = () => {
         promptId,
         propsId,
         tokenLimit: tokenCount.toString(),
+        shouldBuildSourceMap: String(true),
         tokenizer: "cl100k_base",
       };
 
@@ -671,6 +682,7 @@ const App = () => {
         `http://localhost:3000/priompt/getPrompt?${new URLSearchParams(query)}`
       )
         .then((response) => {
+          console.log('FETCHED priompt/getPrompt')
           if (!response.ok) {
             throw new Error("Error fetching prompt: " + response.statusText);
           }
@@ -924,6 +936,7 @@ const App = () => {
       `http://localhost:3000/priompt/liveMode?${new URLSearchParams(query)}`
     )
       .then((response) => {
+        console.log('FETCHED priompt/liveMode')
         if (!response.ok) {
           throw new Error("Error fetching live mode: " + response.statusText);
         }
@@ -1502,7 +1515,6 @@ const App = () => {
               <>
                 {prompt.messages.map((msg, i) => {
                   const key = `${i}-${forceRerender}`;
-                  console.log("rendering message", key);
                   return (
                     <>
                       {msg.role === "assistant" ? (
@@ -1772,6 +1784,7 @@ const App = () => {
                   )}`
                 )
                   .then((response) => {
+                    console.log('FETCHED priompt/liveModeResult')
                     if (!response.ok) {
                       throw new Error(
                         "Error submitting live mode result: " +
@@ -1818,6 +1831,7 @@ const App = () => {
                     )}`
                   )
                     .then((response) => {
+                      console.log('FETCHED priompt/liveModeResult')
                       if (!response.ok) {
                         throw new Error(
                           "Error submitting live mode result: " +

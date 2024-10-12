@@ -82,6 +82,7 @@ export type Scope = {
 	// relativePriority is relative to the parent of this scope
 	// it should always be negative (or else it will not be displayed)
 	relativePriority: number | undefined;
+	name?: string;
 	onEject?: () => void;
 	onInclude?: () => void;
 };
@@ -141,6 +142,7 @@ export type BaseProps = {
 	// maximum supported priority level is 1e6
 	p?: number;
 	prel?: number;
+	name?: string, // a label for debugging purposes
 	// TODO: add a max (token count) here. the max functions as follows:
 	// first we optimize over the outest token count scope. if any max exceeds its token count, it is capped to the token count. once we have a global solution we seek the local solution
 	// this works, but leads to something that may be a little bit weird: something of priority 1000 in a maxed out scope is not included while something with a priority of 0 outside the maxed out scope is included. but that's fine. i guess the whole point of the max is to break the global opptimization
@@ -281,10 +283,28 @@ export type RenderOptions = {
 	tokenLimit: number;
 	tokenizer: PriomptTokenizer;
 	countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY?: boolean;
+	shouldBuildSourceMap?: boolean;
 
 	// if it is, then we need to count tokens differently
 	lastMessageIsIncomplete?: boolean;
 };
+
+// A sourcemap is an optional piece of data priompt can produce to map
+// from prompt elements, e.g. the jsx tree, to the actual characters
+// in the final prompt. This can be used to "blame" where cache misses
+// which are character / token-wise correspond to in the prompt tree.
+// Each sourcemap represents a node in the prompt tree and has a range
+// as to the characters it represents (start and end) which are *relative*
+// to the range of its parent. A leaf has undefined children, and leaves which
+// are strings have `string` filled in for validation.
+type SourceMap = {
+	name: string;
+	children?: SourceMap[];
+	string?: string,
+	start: number;
+	end: number;
+}
+
 export type RenderOutput = {
 	prompt: RenderedPrompt;
 	tokenCount: number;
@@ -296,4 +316,5 @@ export type RenderOutput = {
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
 	config: ConfigProps;
 	durationMs?: number;
+	sourceMap?: SourceMap
 };

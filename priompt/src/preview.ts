@@ -13,7 +13,9 @@ export type PreviewManagerGetPromptQuery = {
   propsId: string;
   tokenLimit: number;
   tokenizer: UsableTokenizer;
+  shouldBuildSourceMap: boolean;
 };
+
 export type PreviewManagerGetRemotePromptQuery = {
   promptId: string;
   promptDump: string;
@@ -33,6 +35,7 @@ export type PreviewManagerGetPromptOutputQuery = {
   tokenizer: UsableTokenizer;
   completion: ChatCompletionResponseMessage | ChatCompletionResponseMessage[];
   stream: boolean;
+  shouldBuildSourceMap: boolean;
 };
 
 export type PreviewManagerLiveModeQuery = {
@@ -173,7 +176,7 @@ class PreviewManagerImpl implements IPreviewManager {
       element = await element;
     }
 
-    const rendered = await render(element, { tokenizer: getTokenizerByName(query.tokenizer), tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: getTokenizerByName(query.tokenizer), tokenLimit: query.tokenLimit, shouldBuildSourceMap: query.shouldBuildSourceMap });
 
     return rendered;
   }
@@ -186,7 +189,7 @@ class PreviewManagerImpl implements IPreviewManager {
       element = await element;
     }
 
-    const rendered = await render(element, { tokenizer: getTokenizerByName(query.tokenizer), tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: getTokenizerByName(query.tokenizer), tokenLimit: query.tokenLimit, shouldBuildSourceMap: query.shouldBuildSourceMap });
 
     if (!query.stream) {
       // call all of them and wait all of them in parallel

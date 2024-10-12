@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
 import { CL100K, CL100K_SPECIAL_TOKENS, PriomptTokenizer, estimateTokensUsingCharcount, numTokensForImage } from './tokenizer';
-import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage } from './types';
+import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 
@@ -176,7 +176,8 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 			type: 'scope',
 			children: [tag({ ...props, children: children })].flat(),
 			absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
-			relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
+			relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined,
+			name: (props && typeof props.name === 'string') ? props.name : undefined,
 		};
 	}
 	if (!(typeof tag === 'string')) {
@@ -191,6 +192,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					children: children.flat(),
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined,
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
+					name: (props && typeof props.name === 'string') ? props.name : undefined,
 					onEject: props && typeof props.onEject === 'function' ? props.onEject as () => void : undefined,
 					onInclude: props && typeof props.onInclude === 'function' ? props.onInclude as () => void : undefined,
 				};
@@ -204,6 +206,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					type: 'scope',
 					children: ['\n'],
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
+					name: (props && typeof props.name === 'string') ? props.name : undefined,
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
 				};
 			}
@@ -240,6 +243,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 						stop: stop,
 					}],
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
+					name: (props && typeof props.name === 'string') ? props.name : undefined,
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
 				};
 			}
@@ -253,6 +257,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					children: [{
 						type: 'breaktoken',
 					}],
+					name: (props && typeof props.name === 'string') ? props.name : undefined,
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
 				};
@@ -265,6 +270,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 				return {
 					type: 'scope',
 					children: ['\n\n-------\n\n'],
+					name: (props && typeof props.name === 'string') ? props.name : undefined,
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (props && typeof props.prel === 'number') ? props.prel : undefined
 				};
@@ -305,7 +311,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 						tokenCount: props.tokens,
 					}],
 					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
-					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
+					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined,
 				};
 			}
 		case 'isolate':
@@ -324,7 +330,8 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 						children: children.flat(),
 					}],
 					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
-					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
+					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined,
+					name: (props !== null && typeof props.name === 'string') ? props.name : undefined,
 				};
 			}
 		case 'capture':
@@ -348,7 +355,8 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 						onStream: ('onStream' in props && props.onStream !== undefined) ? props.onStream as OutputHandler<AsyncIterable<ChatCompletionResponseMessage>> : undefined,
 					}],
 					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
-					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined
+					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined,
+					name: (props !== null && typeof props.name === 'string') ? props.name : undefined,
 				};
 			}
 		case 'image': {
@@ -378,7 +386,6 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 			throw new Error(`Unknown tag ${tag}`);
 	}
 }
-
 export function Fragment({ children }: { children: PromptElement[]; }): PromptElement {
 	// merge all the lists
 	return children.flat();
@@ -637,7 +644,8 @@ export function renderCumulativeSum(
 
 }
 
-export async function renderBinarySearch(elem: PromptElement, { tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY }: RenderOptions): Promise<RenderOutput> {
+
+export async function renderBinarySearch(elem: PromptElement, { tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY, shouldBuildSourceMap }: RenderOptions): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (getIsDevelopment()) {
 		startTime = performance.now();
@@ -749,8 +757,13 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 	if (getIsDevelopment()) {
 		startExactTokenCount = performance.now();
 	}
-
-	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true);
+	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true, shouldBuildSourceMap === true ? {
+		name: 'root',
+		isLast: undefined,
+	} : undefined);
+	if (prompt.sourceMap !== undefined) {
+		prompt.sourceMap = normalizeSourceMap(prompt.sourceMap);
+	}
 	const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 
 	if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
@@ -784,6 +797,7 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 		outputHandlers: prompt.outputHandlers,
 		streamHandlers: prompt.streamHandlers,
 		priorityCutoff: sortedPriorityLevels[inclusiveUpperBound],
+		sourceMap: prompt.sourceMap,
 		config: prompt.config,
 	};
 
@@ -1039,6 +1053,7 @@ type RenderWithLevelPartialType = {
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
 	config: ConfigProps;
+	sourceMap?: SourceMap;
 };
 type RenderWithLevelPartialTypeWithCount = RenderWithLevelPartialType & { tokenCount: number; };
 
@@ -1614,21 +1629,39 @@ function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer): Prom
 		}
 	}
 }
-
+type SourceInfo = {
+	name: string;
+	isLast: boolean | undefined
+}
 // WARNING: do not attempt to make this function async!!! it will make it a lot slower!
-function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptTokenizer, callEjectedCallback?: boolean): RenderWithLevelPartialType {
+function renderWithLevel(
+	elem: PromptElement,
+	level: number,
+	tokenizer: PriomptTokenizer,
+	callEjectedCallback?: boolean,
+	sourceInfo?: SourceInfo
+): RenderWithLevelPartialType {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			sourceMap: undefined,
 			config: {}
 		};
 	}
 	if (Array.isArray(elem)) {
-		const results = elem.map(e => renderWithLevel(e, level, tokenizer, callEjectedCallback));
-		return results.reduce((a, b) => {
+		const results = elem.map(
+			(e, i) => renderWithLevel(
+				e, level, tokenizer, callEjectedCallback,
+				sourceInfo !== undefined ? {
+					name: `${i}`,
+					isLast: (sourceInfo.isLast === undefined || sourceInfo.isLast === true) && i === elem.length - 1,
+				} : undefined
+			)
+		);
+		const reducedResult = results.reduce((a, b) => {
 			return {
 				prompt: sumPrompts(a.prompt, b.prompt),
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
@@ -1643,6 +1676,10 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 			streamHandlers: [],
 			config: {}
 		});
+		return {
+			...reducedResult,
+			sourceMap: sourceInfo === undefined ? undefined : mergeSourceMaps(results.map(r => r.sourceMap), sourceInfo.name)
+		}
 	}
 	if (typeof elem === 'string') {
 		return {
@@ -1650,27 +1687,45 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			sourceMap: sourceInfo !== undefined ? {
+				name: sourceInfo.name,
+				children: undefined,
+				start: 0,
+				end: elem.length,
+				string: elem
+			} : undefined,
 			config: {}
 		};
 	}
 	if (typeof elem === 'number') {
+		const prompt = elem.toString();
 		return {
-			prompt: elem.toString(),
+			prompt,
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			sourceMap: sourceInfo !== undefined ? {
+				name: sourceInfo.name,
+				start: 0,
+				end: prompt.length,
+				string: prompt
+			} : undefined,
 			config: {}
 		};
 	}
 	switch (elem.type) {
 		case 'first': {
-			for (const child of elem.children) {
+			for (const [i, child] of elem.children.entries()) {
 				if (child.absolutePriority === undefined) {
 					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
 				}
 				if (child.absolutePriority >= level) {
 					elem.onInclude?.();
-					return renderWithLevel(child, level, tokenizer, callEjectedCallback);
+					const result = renderWithLevel(child, level, tokenizer, callEjectedCallback, sourceInfo !== undefined ? {
+						name: `${sourceInfo.name}.${i}`,
+						isLast: (sourceInfo.isLast === undefined || sourceInfo.isLast === true) && i === elem.children.length - 1,
+					} : undefined);
+					return result
 				} else if (callEjectedCallback === true) {
 					recursivelyEject(child);
 				}
@@ -1678,6 +1733,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 			// nothing returned from first, which is ok
 			return {
 				prompt: undefined,
+				sourceMap: undefined,
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
@@ -1687,6 +1743,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 		case 'capture': {
 			return {
 				prompt: undefined,
+				sourceMap: undefined,
 				emptyTokenCount: 0,
 				outputHandlers: elem.onOutput ? [
 					elem.onOutput
@@ -1700,6 +1757,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 		case 'config': {
 			return {
 				prompt: undefined,
+				sourceMap: undefined,
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
@@ -1709,6 +1767,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 		case 'breaktoken': {
 			return {
 				prompt: ['', ''],
+				sourceMap: undefined,
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
@@ -1718,6 +1777,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 		case 'empty': {
 			return {
 				prompt: undefined,
+				sourceMap: undefined,
 				emptyTokenCount: elem.tokenCount,
 				outputHandlers: [],
 				streamHandlers: [],
@@ -1738,6 +1798,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 			};
 			return {
 				prompt,
+				sourceMap: undefined,
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
@@ -1755,11 +1816,15 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
 				outputHandlers: elem.cachedRenderOutput.outputHandlers,
 				streamHandlers: elem.cachedRenderOutput.streamHandlers,
+				sourceMap: elem.cachedRenderOutput.sourceMap,
 				config: {}
 			}
 		}
 		case 'chat': {
-			const p = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
+			const p = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback, sourceInfo !== undefined ? {
+				name: `${elem.role}-message`,
+				isLast: undefined,
+			} : undefined);
 			if (isChatPrompt(p.prompt)) {
 				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
 			}
@@ -1834,13 +1899,17 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 				const x: never = elem.role;
 				throw new Error(`BUG!! Invalid role ${elem.role}`);
 			}
-
+			let sourceMap = p.sourceMap;
+			if (sourceInfo !== undefined && p.sourceMap !== undefined) {
+				sourceMap = getSourceMapForChat(message, tokenizer, p.sourceMap, sourceInfo);
+			}
 			return {
 				prompt: {
 					type: 'chat',
 					messages: [message],
 					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
+				sourceMap,
 				emptyTokenCount: p.emptyTokenCount,
 				outputHandlers: p.outputHandlers,
 				streamHandlers: p.streamHandlers,
@@ -1853,7 +1922,19 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 			}
 			if (elem.absolutePriority >= level) {
 				elem.onInclude?.();
-				return renderWithLevel(elem.children, level, tokenizer, callEjectedCallback);
+				const result = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback, sourceInfo !== undefined ? {
+					name: elem.name ?? 'scope',
+					isLast: sourceInfo.isLast,
+				} : undefined);
+				return {
+					...result,
+					sourceMap: result.sourceMap !== undefined && sourceInfo !== undefined ? {
+						name: sourceInfo.name,
+						children: [result.sourceMap],
+						start: 0,
+						end: result.sourceMap.end
+					} : undefined
+				}
 			} else if (callEjectedCallback === true) {
 				recursivelyEject(elem);
 			}
@@ -1863,6 +1944,7 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				sourceMap: undefined,
 				config: {}
 			}
 		}
@@ -1890,6 +1972,96 @@ function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptT
 		}
 	}
 }
+
+const getSourceMapForChat = (message: ChatPromptMessage, tokenizer: PriomptTokenizer, sourceMap: SourceMap, sourceInfo: SourceInfo) => {
+	let headerStringForMessage;
+	if (message.role === 'function') {
+		console.error("SourceMap not implemented for functions");
+		headerStringForMessage = "";
+	} else {
+		headerStringForMessage = tokenizer.getHeaderStringForMessage(message);
+	}
+	const children = [
+		{
+			name: 'header',
+			children: [],
+			start: 0,
+			end: headerStringForMessage.length
+		},
+		{
+			...sourceMap,
+			start: headerStringForMessage.length,
+			end: sourceMap.end + headerStringForMessage.length
+		}
+	]
+	if (sourceInfo.isLast === null) {
+		throw new Error(`BUG!! source.isLast should not be null`);
+	}
+	if ((sourceInfo.isLast === false) && tokenizer.shouldAddEosTokenToEachMessage) {
+		children.push({
+			name: 'eos',
+			children: [],
+			start: children[children.length - 1].end,
+			end: children[children.length - 1].end + tokenizer.getEosToken().length
+		})
+	}
+	return {
+		name: 'chat',
+		children,
+		start: 0,
+		end: children[children.length - 1].end
+	}
+}
+
+const normalizeSourceMap = (sourceMap: SourceMap): SourceMap => {
+	if (sourceMap.children === undefined) {
+		return sourceMap
+	}
+	if (sourceMap.children.length === 0) {
+		sourceMap.children = undefined
+		return sourceMap
+	}
+	if (sourceMap.children.length === 1) {
+		return normalizeSourceMap({
+			name: `${sourceMap.name}.${sourceMap.children[0].name}`,
+			children: sourceMap.children[0].children,
+			start: sourceMap.start,
+			end: sourceMap.end
+		})
+	} else {
+		return {
+			...sourceMap,
+			children: sourceMap.children.map(normalizeSourceMap),
+		}
+	}
+}
+
+const mergeSourceMaps = (sourceMaps: (SourceMap | undefined)[], sourceName: string): SourceMap | undefined => {
+	// We need to shift all of the non-root sourceMaps
+	const filteredSourceMaps = sourceMaps.filter(s => s !== undefined) as SourceMap[];
+	if (filteredSourceMaps.length === 0) {
+		return undefined
+	}
+	const shiftedSourceMaps = [filteredSourceMaps[0]]
+	for (const nextSourceMap of filteredSourceMaps.slice(1)) {
+		if (nextSourceMap === undefined) {
+			continue;
+		}
+		const newBase = shiftedSourceMaps[shiftedSourceMaps.length - 1].end;
+		shiftedSourceMaps.push({
+			...nextSourceMap,
+			start: nextSourceMap.start + newBase,
+			end: nextSourceMap.end + newBase
+		})
+	}
+	return {
+		name: sourceName,
+		children: shiftedSourceMaps,
+		start: 0,
+		end: shiftedSourceMaps.reduce((a, b) => Math.max(a, b.end), 0)
+	}
+}
+
 
 // TODO: make this into eslint rules so they can be shown in the IDE
 function validateUnrenderedPrompt(elem: PromptElement): void {
