@@ -438,7 +438,7 @@ export function Fragment({ children }: { children: PromptElement[]; }): PromptEl
 
 const getIsDevelopment = () => process.env.NODE_ENV === 'development' && process.env.PRINT_PRIOMPT_LOGS === "true";
 // priority level if it is not set becomes 1e9, i.e. it is always rendered
-const BASE_PRIORITY = 1e9;
+export const BASE_PRIORITY = 1e9;
 
 export async function render(elem: PromptElement, options: RenderOptions): Promise<RenderOutput> {
 
