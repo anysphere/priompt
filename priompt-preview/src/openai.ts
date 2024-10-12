@@ -3,7 +3,9 @@ import { encodingForModel } from "js-tiktoken";
 
 
 export const OSS_MODELS = [
-	{ displayName: "deepseek-7b", modelKey: "trt-llm:deepseek-7b-cpp" },
+	{ displayName: "cpp-ds-cache-v1", modelKey: "accounts/anysphere/models/anysphere-deepseek-6-7b-v1-fp8" },
+	{ displayName: "cpp-ds-cache-v3", modelKey: "accounts/anysphere/models/anysphere-deepseek-6-7b-cpp-caching-v3-fp8" },
+	{ displayName: "cpp-ds-cache-v4", modelKey: "accounts/anysphere/models/anysphere-deepseek-6-7b-cpp-caching-v4-fp8" },
 ]
 
 export async function* streamChatLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal) {
