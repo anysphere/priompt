@@ -15,6 +15,7 @@ const P50K_BASE = 'p50k_base';
 const GPT2_TOKENIZER = 'gpt2';
 const LLAMA3_TOKENIZER = 'llama3';
 const O200K_BASE = 'o200k_base';
+const CODESTRAL_BASE = 'codestral';
 
 
 const usableTokenizers = [
@@ -25,7 +26,8 @@ const usableTokenizers = [
 	GPT2_TOKENIZER,
 	LLAMA3_TOKENIZER,
 	O200K_BASE,
-	'o200k_base_special_tokens'
+	'o200k_base_special_tokens',
+	CODESTRAL_BASE
 ] as const;
 
 export type UsableTokenizer = typeof usableTokenizers[number];
@@ -42,6 +44,7 @@ export type PriomptTokenizer = {
 	numTokens: (text: string) => Promise<number>;
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text: string) => number;
 	estimateNumTokensFast: (text: string) => Promise<number>;
+	estimateNumTokensNoSpecialTokensFast: (text: string) => Promise<number>;
 	estimateTokensUsingCharCount: (text: string) => [number, number];
 	getHeaderStringForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => string;
 	getHeaderTokensForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => Promise<number[]>;
@@ -121,6 +124,7 @@ export const CL100K: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'cl100k_base' }),
+	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'cl100k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base'),
 	getEosToken: () => CL100K_END_TOKEN_STRING,
 	getEosTokenId: () => CL100K_END_TOKEN,
@@ -137,6 +141,7 @@ export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'cl100k_base_special_tokens' }),
+	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base_special_tokens'),
 	getEosToken: () => CL100K_END_TOKEN_STRING,
 	getEosTokenId: () => CL100K_END_TOKEN,
@@ -154,6 +159,7 @@ export const O200K: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'o200k_base' }),
+	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'o200k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base'),
 	getEosToken: () => O200K_END_TOKEN_STRING,
 	getEosTokenId: () => O200K_END_TOKEN,
@@ -171,6 +177,7 @@ export const O200K_SPECIAL_TOKENS: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'o200k_base_special_tokens' }),
+	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base_special_tokens'),
 	getEosToken: () => O200K_END_TOKEN_STRING,
 	getEosTokenId: () => O200K_END_TOKEN,
@@ -178,6 +185,27 @@ export const O200K_SPECIAL_TOKENS: PriomptTokenizer = {
 	getHeaderTokensForMessage: (message) => openaiGetHeaderTokensForMessage(message, 'o200k_base_special_tokens'),
 	applyChatTemplate: (messages) => openaiChatMessagesToPrompt(messages, 'o200k_base_special_tokens'),
 	applyChatTemplateTokens: async (messages) => openaiChatMessagesToTokens(messages, 'o200k_base_special_tokens'),
+	shouldAddEosTokenToEachMessage: true
+}
+
+const CODESTRAL_BOS_TOKEN = '<s>';
+const CODESTRAL_EOS_TOKEN = '</s>';
+const CODESTRAL_EOS_TOKEN_ID = 2;
+export const CODESTRAL_ONLY_USE_ESTIMATE_NUM_TOKENS_NO_SPECIAL_TOKENS_FAST: PriomptTokenizer = {
+	name: 'codestral',
+	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'codestral' }),
+	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'codestral' }),
+	numTokens: (text) => numTokens(text, { tokenizer: 'codestral' }),
+	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'codestral' }),
+	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'codestral' }),
+	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'codestral' }),
+	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'codestral'),
+	getEosToken: () => CODESTRAL_EOS_TOKEN,
+	getEosTokenId: () => CODESTRAL_EOS_TOKEN_ID,
+	getHeaderStringForMessage: (message) => openaiGetHeaderStringForMessage(message, 'codestral'),
+	getHeaderTokensForMessage: (message) => openaiGetHeaderTokensForMessage(message, 'codestral'),
+	applyChatTemplate: (messages) => applyCodestralChatTemplate(messages),
+	applyChatTemplateTokens: async (messages) => openaiChatMessagesToTokens(messages, 'codestral'),
 	shouldAddEosTokenToEachMessage: true
 }
 
@@ -189,6 +217,8 @@ export const getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS = (name: UsableTokeni
 			return CL100K_SPECIAL_TOKENS;
 		case 'o200k_base':
 			return O200K;
+		case 'codestral':
+			return CODESTRAL_ONLY_USE_ESTIMATE_NUM_TOKENS_NO_SPECIAL_TOKENS_FAST;
 		default:
 			throw new Error(`Unknown tokenizer ${name}`);
 	}
@@ -243,6 +273,20 @@ export async function estimateNumTokensFast(text: string, opts: {
 		case 'o200k_base':
 		case 'o200k_base_special_tokens':
 			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.O200k);
+		default:
+			throw new Error(`Unknown tokenizer ${tokenizerName}`);
+	}
+}
+
+export async function estimateNumTokensNoSpecialTokensFast(text: string, opts: {
+	tokenizer: UsableTokenizer;
+}): Promise<number> {
+	const tokenizerName = opts.tokenizer;
+	const textWithoutSpaces = text.replace(/ /g, '\u2581');
+
+	switch (tokenizerName) {
+		case 'codestral':
+			return tokenizerObject.estimateNumTokensNoSpecialTokensFast(textWithoutSpaces, tiktoken.SupportedEncoding.Codestral);
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
@@ -435,4 +479,41 @@ export const openaiGetHeaderStringForMessage = (message: { role: 'system' | 'use
 		headerString = injectNameString(headerString, message.name);
 	}
 	return headerString
+}
+
+export const applyCodestralChatTemplate = (messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], options?: { doNotAddGenerationPrompt?: boolean }): string => {
+	let chatTemplate = CODESTRAL_BOS_TOKEN;
+
+	if (messages[0].role === 'system') {
+		chatTemplate += `[INST] <<SYS>>\n${messages[0].content}\n<</SYS>>\n\n`
+		if (messages[1].role !== 'user') {
+			throw new Error('Second message must be a user message if first is system');
+		} else {
+			chatTemplate += `${messages[1].content} [/INST]`;
+		}
+
+		if (messages.length > 3) {
+			throw new Error('Too many messages');
+		} else if (messages.length === 3) {
+			if (messages[2].role === 'assistant') {
+				chatTemplate += messages[2].content
+			} else {
+				throw new Error('Third message with system prompt must be an assistant message');
+			}
+		}
+	} else if (messages[0].role === 'user') {
+		chatTemplate += `[INST] ${messages[0].content} [/INST]`
+		if (messages.length > 2) {
+			throw new Error('Too many messages');
+		} else if (messages.length === 2) {
+			if (messages[1].role === 'assistant') {
+				chatTemplate += messages[1].content
+			} else {
+				throw new Error('Second message with user prompt must be an assistant message');
+			}
+		}
+	} else {
+		throw new Error('First message must be a system message or a user message');
+	}
+	return chatTemplate;
 }

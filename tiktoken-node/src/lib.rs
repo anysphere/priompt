@@ -30,6 +30,7 @@ static ENCODINGS: Lazy<Result<Arc<Encodings>, EncodingFactoryError>> = Lazy::new
     llama3_encoding: llama_tokenizer()
       .map_err(|e| EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?,
     o200k_encoding: tiktoken::EncodingFactory::o200k_im()?,
+    codestral_encoding: tiktoken::EncodingFactory::codestral()?,
   }))
 });
 
@@ -38,6 +39,7 @@ pub enum SupportedEncoding {
   Cl100k = 0,
   Llama3 = 1,
   O200k = 2,
+  Codestral = 3,
 }
 
 struct TokenizerActor {
@@ -49,6 +51,7 @@ struct Encodings {
   cl100k_encoding: tiktoken::Encoding,
   llama3_encoding: tiktoken::Encoding,
   o200k_encoding: tiktoken::Encoding,
+  codestral_encoding: tiktoken::Encoding,
 }
 
 enum TokenizerMessage {
@@ -81,6 +84,11 @@ enum TokenizerMessage {
     encoding: SupportedEncoding,
   },
   ApproximateNumTokens {
+    respond_to: oneshot::Sender<anyhow::Result<i32>>,
+    text: String,
+    encoding: SupportedEncoding,
+  },
+  ApproximateNumTokensNoSpecialTokensFast {
     respond_to: oneshot::Sender<anyhow::Result<i32>>,
     text: String,
     encoding: SupportedEncoding,
@@ -172,6 +180,7 @@ impl TokenizerActor {
       SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
       SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
       SupportedEncoding::O200k => &self.encodings.o200k_encoding,
+      SupportedEncoding::Codestral => &self.encodings.codestral_encoding,
     }
   }
 
@@ -190,6 +199,13 @@ impl TokenizerActor {
 
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(num_tokens);
+      }
+      TokenizerMessage::ApproximateNumTokensNoSpecialTokensFast { respond_to, text, encoding } => {
+        let num_tokens =
+          self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text);
+
+        // The `let _ =` ignores any errors when sending.
+        let _ = respond_to.send(Ok(num_tokens as i32));
       }
       TokenizerMessage::EncodeTokens { respond_to, text, encoding, special_token_handling } => {
         let tokens = self
@@ -308,6 +324,29 @@ impl Tokenizer {
         default: tiktoken::SpecialTokenAction::NormalText,
         ..Default::default()
       },
+    };
+
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    match recv.await {
+      Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
+      Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
+    }
+  }
+
+  #[napi]
+  pub async fn estimate_num_tokens_no_special_tokens_fast(
+    &self,
+    text: String,
+    encoding: SupportedEncoding,
+  ) -> Result<i32, Error> {
+    let (send, recv) = oneshot::channel();
+    let msg = TokenizerMessage::ApproximateNumTokensNoSpecialTokensFast {
+      respond_to: send,
+      text,
+      encoding,
     };
 
     self
@@ -508,6 +547,7 @@ impl SyncTokenizer {
       SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
       SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
       SupportedEncoding::O200k => &self.encodings.o200k_encoding,
+      SupportedEncoding::Codestral => &self.encodings.codestral_encoding,
     }
   }
 }
