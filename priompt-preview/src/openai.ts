@@ -10,8 +10,7 @@ const ossEndpointsJson = `PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING${s}`;
 const ossEndpoints = JSON.parse(ossEndpointsJson.includes("PREVIEW_OSS_ENDPOINTS_JSON_STRING") ? '{}' : ossEndpointsJson);
 
 export const OSS_MODELS = [
-	{ displayName: "deepseek-7b", modelKey: "ft:deepseek-7b-cpp" },
-	{ displayName: "deepseek-33b", modelKey: "ft:deepseek-33b-cpp" },
+	{ displayName: "deepseek-7b", modelKey: "trt-llm:deepseek-7b-cpp" },
 ]
 
 export function isOSS(model: string): boolean {
