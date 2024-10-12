@@ -3233,7 +3233,7 @@ function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, t
 	return contentTokens + functionTokens + toolTokens;
 }
 
-function getPromptElementNodeCount(elem: PromptElement): number {
+export function getPromptElementNodeCount(elem: PromptElement): number {
 	if (elem === undefined || elem === null || typeof elem === 'number' || typeof elem === 'boolean' || typeof elem === 'string') {
 		return 1;
 	}
