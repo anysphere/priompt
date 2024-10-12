@@ -160,9 +160,12 @@ describe("sourcemap", () => {
     );
     expect(rendered.sourceMap?.start).toBe(0);
     expect(rendered.sourceMap?.end).toBe(promptString.length);
+    if (rendered.sourceMap === undefined) {
+      throw new Error("bad");
+    }
     expect(
       validateSourceMap(
-        absolutifySourceMap(rendered.sourceMap!, 0),
+        absolutifySourceMap(rendered.sourceMap, 0),
         promptString
       )
     ).toBe(true);
@@ -180,9 +183,12 @@ describe("sourcemap", () => {
     );
     expect(rendered.sourceMap?.start).toBe(0);
     expect(rendered.sourceMap?.end).toBe(promptString.length);
+    if (rendered.sourceMap === undefined) {
+      throw new Error("bad");
+    }
     expect(
       validateSourceMap(
-        absolutifySourceMap(rendered.sourceMap!, 0),
+        absolutifySourceMap(rendered.sourceMap, 0),
         promptString
       )
     ).toBe(true);
@@ -212,8 +218,11 @@ describe("sourcemap", () => {
     expect(sourceMap).toBeDefined();
     expect(sourceMap?.start).toBe(0);
     expect(sourceMap?.end).toBe(promptString.length);
+    if (sourceMap === undefined) {
+      throw new Error("bad");
+    }
     expect(
-      validateSourceMap(absolutifySourceMap(sourceMap!, 0), promptString)
+      validateSourceMap(absolutifySourceMap(sourceMap, 0), promptString)
     ).toBe(true);
   });
 });

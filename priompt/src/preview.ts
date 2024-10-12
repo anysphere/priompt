@@ -120,11 +120,19 @@ export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>,
 
   const dump = config.dump
     ? config.dump(objectToDump)
-    : yaml.dump(objectToDump, {
-      indent: 2,
-      lineWidth: -1,
-    });
+    : defaultYamlDump(objectToDump);
   return dump;
+}
+
+export function defaultYamlDump<T>(props: T): string {
+  return yaml.dump(props, {
+    indent: 2,
+    lineWidth: -1,
+  });
+}
+
+export function defaultYamlLoad<T>(dump: string): T {
+  return yaml.load(dump) as T;
 }
 
 // protoprops have a custom from-json/to-json!
@@ -323,7 +331,7 @@ class PreviewManagerImpl implements IPreviewManager {
         return protoProps.fromJsonString(dump)
       } catch (e) {
         // we try parsing as yaml! for backwards compatibility!
-        const jsonS = JSON.stringify(yaml.load(dump));
+        const jsonS = JSON.stringify(defaultYamlLoad(dump));
         return protoProps.fromJsonString(jsonS);
       }
     };
@@ -338,7 +346,7 @@ class PreviewManagerImpl implements IPreviewManager {
     if (config.hydrate) {
       return config.hydrate(dump);
     }
-    const yamlData = yaml.load(dump);
+    const yamlData = defaultYamlLoad(dump);
     const props: T = yamlData as T;
     return props;
   }
