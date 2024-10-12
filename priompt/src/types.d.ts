@@ -41,7 +41,6 @@ export type ConfigProps = {
 	maxResponseTokens: number | "tokensReserved" | "tokensRemaining" | undefined;
 	// at most 4 of these
 	stop: string | string[] | undefined;
-	cacheKey: string | undefined;
 }
 
 export type Isolate = {

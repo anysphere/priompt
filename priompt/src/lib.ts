@@ -119,7 +119,6 @@ export function emptyConfig(): ConfigProps {
 	return {
 		maxResponseTokens: undefined,
 		stop: undefined,
-		cacheKey: undefined,
 	};
 }
 // TODO: we probably want to merge based on depth-in-tree (not priority, i think)
@@ -278,20 +277,12 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					}
 					stop = props.stop;
 				}
-				let cacheKey: string | undefined = undefined;
-				if (props && 'cacheKey' in props && props.cacheKey !== null && props.cacheKey !== undefined) {
-					if (typeof props.cacheKey !== 'string') {
-						throw new Error(`cacheKey must be a string, got ${props.cacheKey}`);
-					}
-					cacheKey = props.cacheKey;
-				}
 				return {
 					type: 'scope',
 					children: [{
 						type: 'config',
 						maxResponseTokens: maxResponseTokens,
 						stop: stop,
-						cacheKey: cacheKey,
 					}],
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					name: (props && typeof props.name === 'string') ? props.name : undefined,
@@ -1194,7 +1185,6 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 			config: {
 				maxResponseTokens: undefined,
 				stop: undefined,
-				cacheKey: undefined,
 			},
 		});
 	}
@@ -1909,7 +1899,6 @@ function renderWithLevel(
 			config: {
 				stop: undefined,
 				maxResponseTokens: undefined,
-				cacheKey: undefined,
 			}
 		};
 	}
