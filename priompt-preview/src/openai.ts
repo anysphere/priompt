@@ -8,7 +8,7 @@ export const OSS_MODELS = [
 	{ displayName: "cpp-dsv2-08-10", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-08-10-long" },
 	{ displayName: "cpp-dsv2-09-14-dpo", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-09-14-long-dpo" },
 	{ displayName: "cpp-dsv2-lctxv2-10-1", modelKey: "accounts/anysphere/models/cpp-dsv2-10-01" },
-	{ displayName: "cpp-dsv2-lctxv2-10-5", modelKey: "accounts/anysphere/models/cpp-dsv2-10-05" },
+	{ displayName: "cpp-dsv2-lctxv2-10-7", modelKey: "accounts/anysphere/models/cpp-dsv2-10-07" },
 ]
 
 export async function* streamChatLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal) {
