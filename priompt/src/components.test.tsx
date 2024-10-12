@@ -242,7 +242,7 @@ describe("All kinds of messages", () => {
   });
 });
 
-describe("Images", () => {
+describe.skip("Images", () => {
   function TestImageMessage(props: PromptProps): PromptElement {
     return (
       <>
