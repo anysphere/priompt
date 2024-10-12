@@ -12,12 +12,8 @@ napi = { version = "2.12.2", default-features = false, features = [
   "napi4",
   "async",
 ] }
-rustc-hash = "1.1.0"
-base64 = "0.21.0"
-pathdiff = "0.2"
-log = { version = "0.4.21", features = ["kv"] }
 napi-derive = "2.12.2"
-tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "bbcff2e228f0ee955ac0fb30dd3a69e282b66752" }
+tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "6b66cac8738428a4c695d7479d881aaddaf926dd" }
 rayon = "1.7.0"
 anyhow = "1.0.69"
 tokio = { version = "1.13.0", features = [

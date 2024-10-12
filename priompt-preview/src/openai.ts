@@ -219,23 +219,12 @@ async function* streamSource<T>(stream: ReadableStream): AsyncGenerator<T> {
 	}
 }
 
-export function joinMessages(messages: ChatCompletionRequestMessage[], lastIsIncomplete: boolean = false, isLlama: boolean = false) {
-	if (!isLlama) {
-		return messages.map((message, index) => {
-			let ret = `<|im_start|>${message.role}<|im_sep|>${message.content}`;
-			if (!lastIsIncomplete || index !== messages.length - 1) {
-				ret += `<|im_end|>`;
-			}
-			return ret;
-		}).join('');
-	} else {
-		let ret = '<|begin_of_text|>'
-		for (const [index, message] of messages.entries()) {
-			ret += `<|start_header_id|>${message.role}<|end_header_id|>${message.content}`;
-			if (!lastIsIncomplete || index !== messages.length - 1) {
-				ret += `<|eot_id|>`;
-			}
+export function joinMessages(messages: ChatCompletionRequestMessage[], lastIsIncomplete: boolean = false) {
+	return messages.map((message, index) => {
+		let ret = `<|im_start|>${message.role}<|im_sep|>${message.content}`;
+		if (!lastIsIncomplete || index !== messages.length - 1) {
+			ret += `<|im_end|>`;
 		}
 		return ret;
-	}
+	}).join('');
 }
