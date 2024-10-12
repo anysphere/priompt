@@ -777,34 +777,28 @@ export async function renderBinarySearch(
 	elem: PromptElement,
 	{ tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE, shouldBuildSourceMap }: RenderOptions,
 ): Promise<RenderOutput> {
-	let startTime: number | undefined;
-	if (shouldPrintVerboseLogs()) {
-		startTime = performance.now();
-	}
-
-	let startTimeValidating: number | undefined;
-	if (shouldPrintVerboseLogs()) {
-		startTimeValidating = performance.now();
-	}
+	const startTime = performance.now();
 	validateUnrenderedPrompt(elem);
+	const validatingDuration = performance.now() - startTime;
+	statsd.distribution('priompt.validateUnrenderedPrompt', validatingDuration);
 	if (shouldPrintVerboseLogs()) {
-		const endTimeValidating = performance.now();
-		console.debug(`Validating prompt took ${endTimeValidating - (startTimeValidating ?? 0)} ms`);
+		console.debug(`Validating prompt took ${validatingDuration} ms`);
 	}
 
-	let startTimeComputingPriorityLevels = undefined;
-	if (shouldPrintVerboseLogs()) {
-		startTimeComputingPriorityLevels = performance.now();
-	}
+	const startTimeComputingPriorityLevels = performance.now();
 	// for now, we do a much simple thing, which is just to render the whole thing every time
 	const priorityLevels = new Set<number>();
 	computePriorityLevels(elem, BASE_PRIORITY, priorityLevels);
 	priorityLevels.add(BASE_PRIORITY);
 	// convert to array and sort them from lowest to highest
 	const sortedPriorityLevels = Array.from(priorityLevels).sort((a, b) => a - b);
+	const computingPriorityLevelsDuration = performance.now() - startTimeComputingPriorityLevels;
+	const bucketedLength = Math.pow(2, Math.floor(Math.log2(sortedPriorityLevels.length + 1)));
+	statsd.distribution('priompt.computePriorityLevels', computingPriorityLevelsDuration, {
+		'bucketedLength': bucketedLength.toString()
+	});
 	if (shouldPrintVerboseLogs()) {
-		const endTimeComputingPriorityLevels = performance.now();
-		console.debug(`Computing priority levels took ${endTimeComputingPriorityLevels - (startTimeComputingPriorityLevels ?? 0)} ms`);
+		console.debug(`Computing priority levels took ${computingPriorityLevelsDuration} ms`);
 	}
 
 	// We lower the token limit if this is an approx count
@@ -816,22 +810,19 @@ export async function renderBinarySearch(
 	}
 
 	// now we hydrate the isolates
-	let startTimeHydratingIsolates = undefined;
-	if (shouldPrintVerboseLogs()) {
-		startTimeHydratingIsolates = performance.now();
-	}
+	const startTimeHydratingIsolates = performance.now();
 	await hydrateIsolates(elem, tokenizer, shouldBuildSourceMap);
+	const hydrateIsolatesDuration = performance.now() - startTimeHydratingIsolates;
+	statsd.distribution('priompt.hydrateIsolates', hydrateIsolatesDuration, {
+		'bucketedLength': bucketedLength.toString()
+	});
 	if (shouldPrintVerboseLogs()) {
-		const endTimeHydratingIsolates = performance.now();
-		console.debug(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
+		console.debug(`Hydrating isolates took ${hydrateIsolatesDuration} ms`);
 	}
 
 	await hydrateEmptyTokenCount(elem, tokenizer);
 
-	let startTimeRendering = undefined;
-	if (shouldPrintVerboseLogs()) {
-		startTimeRendering = performance.now();
-	}
+	const startTimeRendering = performance.now();
 
 	// the lowest priority level is as far as the cutoff can go
 	// we choose an exclusive lower bound and an inclusive upper bound because we get the information
@@ -872,39 +863,48 @@ export async function renderBinarySearch(
 		} finally {
 			if (shouldPrintVerboseLogs()) {
 				const end = performance.now();
-				console.debug(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - (start ?? 0)} ms and has ${tokenCount} tokens (-1 means early exit, counting took ${end - (countStart ?? 0)})`);
+				console.debug(`Candidate level ${candidateLevel} with index ${candidateLevelIndex} took ${end - (start ?? 0)} ms and has ${tokenCount} tokens(-1 means early exit, counting took ${end - (countStart ?? 0)})`);
 			}
 		}
 	}
 
-	if (shouldPrintVerboseLogs()) {
-		const endTimeRendering = performance.now();
+	const renderingDuration = performance.now() - startTimeRendering;
+	statsd.distribution('priompt.rendering', renderingDuration, {
+		'bucketedLength': bucketedLength.toString()
+	});
 
-		const totalRenderingTime = endTimeRendering - (startTimeRendering ?? 0);
-		console.debug(`Rendering prompt took ${totalRenderingTime} ms spl=${sortedPriorityLevels.length}`);
+	if (shouldPrintVerboseLogs()) {
+		console.debug(`Rendering prompt took ${renderingDuration} ms spl = ${sortedPriorityLevels.length} `);
 	}
 
-	let startExactTokenCount = undefined;
-	if (shouldPrintVerboseLogs()) {
-		startExactTokenCount = performance.now();
-	}
 	const renderWithLevelStartTime = performance.now();
 	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true, shouldBuildSourceMap === true ? {
 		name: 'root',
 		isLast: undefined,
 	} : undefined);
-	const renderWithLevelEndTime = performance.now();
-
-
-	const bucketedLength = Math.pow(2, Math.floor(Math.log2(sortedPriorityLevels.length + 1)));
-
-	statsd.distribution('priompt.renderWithLevel', renderWithLevelEndTime - renderWithLevelStartTime, undefined, {
+	const renderWithLevelDuration = performance.now() - renderWithLevelStartTime;
+	statsd.distribution('priompt.renderWithLevel', renderWithLevelDuration, {
 		'bucketedLength': bucketedLength.toString()
 	});
+
 	if (prompt.sourceMap !== undefined) {
+		const normalizeSourceMapStartTime = performance.now();
 		prompt.sourceMap = normalizeSourceMap(prompt.sourceMap);
+		const normalizeSourceMapDuration = performance.now() - normalizeSourceMapStartTime;
+		statsd.distribution('priompt.normalizeSourceMap', normalizeSourceMapDuration, {
+			'bucketedLength': bucketedLength.toString()
+		});
 	}
+
+	const startExactTokenCount = performance.now();
 	const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
+	const exactTokenCountDuration = performance.now() - startExactTokenCount;
+	statsd.distribution('priompt.countTokensExact', exactTokenCountDuration, {
+		'bucketedLength': bucketedLength.toString()
+	});
+	if (shouldPrintVerboseLogs()) {
+		console.debug(`Computing exact token count took ${exactTokenCountDuration} ms`);
+	}
 
 	if (tokenCount + prompt.emptyTokenCount > tokenLimit) {
 		// this means that the base level prompt is too big
@@ -914,18 +914,12 @@ export async function renderBinarySearch(
 		throw new TooManyTokensForBasePriority(`Base prompt estimated token count is ${tokenCount} with ${prompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This is probably a bug in the prompt — please add some priority levels to fix this.`);
 	}
 
-	if (shouldPrintVerboseLogs()) {
-		const endExactTokenCount = performance.now();
-		console.debug(`Computing exact token count took ${endExactTokenCount - (startExactTokenCount ?? 0)} ms`);
-	}
-
-	let duration: number | undefined = undefined;
-	if (startTime !== undefined) {
-		const endTime = performance.now();
-		duration = endTime - startTime;
-		if (duration > 100) {
-			console.warn(`Priompt WARNING: rendering prompt took ${duration} ms, which is longer than the recommended maximum of 100 ms. Consider reducing the number of scopes you have.`)
-		}
+	const renderBinarySearchDuration = performance.now() - startTime;
+	statsd.distribution('priompt.renderBinarySearch', renderBinarySearchDuration, {
+		'bucketedLength': bucketedLength.toString()
+	});
+	if (shouldPrintVerboseLogs() && renderBinarySearchDuration > 100) {
+		console.warn(`Priompt WARNING: rendering prompt took ${renderBinarySearchDuration} ms, which is longer than the recommended maximum of 100 ms.Consider reducing the number of scopes you have.`)
 	}
 	return {
 		prompt: prompt.prompt ?? "",
@@ -933,7 +927,7 @@ export async function renderBinarySearch(
 		tokensReserved: prompt.emptyTokenCount,
 		tokenLimit: tokenLimit,
 		tokenizer,
-		durationMs: duration,
+		durationMs: renderBinarySearchDuration,
 		outputHandlers: prompt.outputHandlers,
 		streamHandlers: prompt.streamHandlers,
 		streamResponseObjectHandlers: prompt.streamResponseObjectHandlers,
@@ -1053,7 +1047,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 	// consider adding a mode that if this happens, backtracks
 	if (prevPrompt.prompt !== undefined) {
 		const exactTokenCount = await countTokensExact(tokenizer, prevPrompt.prompt, { lastMessageIsIncomplete });
-		console.debug(`Discrepancy: (estimated token count) - (actual token count) = ${prevPrompt.tokenCount} - ${exactTokenCount} = ${prevPrompt.tokenCount - exactTokenCount}`);
+		console.debug(`Discrepancy: (estimated token count) - (actual token count) = ${prevPrompt.tokenCount} - ${exactTokenCount} = ${prevPrompt.tokenCount - exactTokenCount} `);
 		prevPrompt.tokenCount = exactTokenCount;
 		if (exactTokenCount + prevPrompt.emptyTokenCount > tokenLimit) {
 			console.warn(`Actual token count is ${exactTokenCount} with ${prevPrompt.emptyTokenCount} tokens reserved, which is higher than the limit ${tokenLimit}. This can possibly happen in rare circumstances, but should never be a problem in practice.`)
@@ -1261,7 +1255,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					images: [{
 						type: 'image_url',
 						image_url: {
-							url: `data:${mediaType};base64,${base64EncodedBytes}`,
+							url: `data:${mediaType}; base64, ${base64EncodedBytes} `,
 							detail: elem.detail,
 							// Temporary addition to be removed before sent to openai
 							dimensions: elem.dimensions,
@@ -1314,7 +1308,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 		case 'empty': {
 			if (elem.tokenCount === undefined) {
 				if (elem.tokenFunction === undefined) {
-					throw new Error(`BUG!! empty token function is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.`);
+					throw new Error(`BUG!! empty token function is undefined.THIS SHOULD NEVER HAPPEN.BUG IN PRIOMPT.`);
 				}
 				elem.tokenCount = await elem.tokenFunction((s) => tokenizer.numTokens(s));
 			}
@@ -1486,7 +1480,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				extraTokenCount += await tokenizer.numTokens(elem.name);
 			} else {
 				const x: never = elem.role;
-				throw new Error(`BUG!! Invalid role ${elem.role}`);
+				throw new Error(`BUG!! Invalid role ${elem.role} `);
 			}
 
 			return {
@@ -1616,7 +1610,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 		}
 		case 'empty': {
 			if (elem.tokenCount === undefined) {
-				throw new Error(`BUG!! empty token count is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
+				throw new Error(`BUG!! empty token count is undefined.THIS SHOULD NEVER HAPPEN.BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
 			}
 			return {
 				prompt: undefined,
