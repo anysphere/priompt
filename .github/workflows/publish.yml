@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: 20.12.2
 
-      - uses: anysphere/action-setup@c3b53f6a16e57305370b4ae5a540c2077a1d50dd
+      - uses: anysphere/action-setup@0eb0e970826653e8af98de91bec007fbd58a23e0
         name: Install pnpm
         id: pnpm-install
         with:
@@ -94,7 +94,7 @@ jobs:
         with:
           node-version: 20.12.2
 
-      - uses: anysphere/action-setup@c3b53f6a16e57305370b4ae5a540c2077a1d50dd
+      - uses: anysphere/action-setup@0eb0e970826653e8af98de91bec007fbd58a23e0
         name: Install pnpm
         id: pnpm-install
         with:
