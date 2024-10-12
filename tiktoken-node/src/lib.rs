@@ -279,7 +279,7 @@ impl Tokenizer {
   pub fn new() -> Result<Self, tiktoken::EncodingFactoryError> {
     // we allow 100 outstanding requests before we fail
     // ideally we should never hit this limit... queueing up would be bad
-    let (sender, receiver) = crossbeam_channel::bounded(256);
+    let (sender, receiver) = crossbeam_channel::bounded(1024);
     for i in 0..3 {
       let actor = TokenizerActor::new(receiver.clone(), ENCODINGS.clone().unwrap());
       std::thread::Builder::new()
