@@ -32,22 +32,9 @@ export {
 	CreateCompletionResponseChoicesInnerLogprobs
 } from 'openai';
 
+import { UsableTokenizer } from './tokenizer';
+
 // tokenizers
-export const CL100K_BASE = 'cl100k_base';
-export const R50K_BASE = 'r50k_base';
-export const P50K_BASE = 'p50k_base';
-export const GPT2_TOKENIZER = 'gpt2';
-
-export const usableTokenizers = [
-	CL100K_BASE,
-	'cl100k_base_special_tokens',
-	R50K_BASE,
-	P50K_BASE,
-	GPT2_TOKENIZER
-] as const;
-
-export type UsableTokenizer = typeof usableTokenizers[number];
-
 const encoder = new TextEncoder();
 export function approximateTokensUsingBytecount(text: string, tokenizer: UsableTokenizer): number {
 	const byteLength = encoder.encode(text).length;

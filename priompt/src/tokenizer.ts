@@ -5,12 +5,27 @@
 // it may be well worth forking tiktoken-node though, as it is not super well maintained
 // and we probably want to compile our own tiktoken because i'm slightly worried about
 // supply-chain attacks here
-import tiktoken, { getTokenizer, SyncTokenizer } from '@anysphere/tiktoken-node';
-import { UsableTokenizer } from './openai';
+import tiktoken, { SyncTokenizer } from '@anysphere/tiktoken-node';
 
 
-export const tokenizerObject = tiktoken.getTokenizer();
-export const syncTokenizer = new SyncTokenizer();
+const CL100K_BASE = 'cl100k_base';
+const R50K_BASE = 'r50k_base';
+const P50K_BASE = 'p50k_base';
+const GPT2_TOKENIZER = 'gpt2';
+
+
+const usableTokenizers = [
+	CL100K_BASE,
+	'cl100k_base_special_tokens',
+	R50K_BASE,
+	P50K_BASE,
+	GPT2_TOKENIZER
+] as const;
+
+export type UsableTokenizer = typeof usableTokenizers[number];
+
+const tokenizerObject = tiktoken.getTokenizer();
+const syncTokenizer = new SyncTokenizer();
 
 export async function numTokens(text: string, opts: {
 	tokenizer: UsableTokenizer;
@@ -83,5 +98,32 @@ export function estimateTokensUsingCharcount(text: string, tokenizer: UsableToke
 		default:
 			// conservative!
 			return [length / 10, length];
+	}
+}
+
+export function numTokensForImage(dimensions: { width: number; height: number; }, detail: 'low' | 'high' | 'auto'): number {
+	if (detail === 'low') {
+		return 85
+	} else if (detail === 'high' || detail === 'auto') {
+		// First, we rescale to fit within 2048 x 2048
+		const largestRatio = Math.max(dimensions.width / 2048, dimensions.height / 2048);
+		if (largestRatio > 1) {
+			dimensions.width = Math.floor(dimensions.width / largestRatio);
+			dimensions.height = Math.floor(dimensions.height / largestRatio);
+		}
+
+		// Next, we scale the shortest side to be 768 px
+		const smallestRatio = Math.min(dimensions.width / 768, dimensions.height / 768);
+
+		dimensions.width = Math.floor(dimensions.width / smallestRatio);
+		dimensions.height = Math.floor(dimensions.height / smallestRatio);
+
+		// Finally, we calculate the number of 512 x 512 blocks needed to cover the image
+		// and pay 85 tokens per block
+		const numWidthBlocks = Math.ceil(dimensions.width / 512);
+		const numHeightBlocks = Math.ceil(dimensions.height / 512);
+		return numWidthBlocks * numHeightBlocks * 85;
+	} else {
+		throw new Error(`Unknown detail level ${detail}`);
 	}
 }

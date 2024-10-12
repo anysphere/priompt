@@ -3,7 +3,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import { ChatCompletionResponseMessage } from 'openai';
-import { UsableTokenizer } from './openai';
+import { UsableTokenizer } from './tokenizer';
 
 export type FunctionBody = {
 	name: string;

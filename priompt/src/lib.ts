@@ -4,13 +4,12 @@
 // TODO: add an IDE plugin or something that renders the prompt when you hover over it (and has a slider for the priority)
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
-import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, UsableTokenizer } from './openai';
-import { encodeTokens, estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingBytecount, estimateTokensUsingCharcount, numTokens, tokenizerObject } from './tokenizer';
-import { BaseProps, Node, ChatMessage, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, TextPromptContent, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage } from './types';
+import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
+import { UsableTokenizer, numTokensForImage } from './tokenizer';
+import { encodeTokens, estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingCharcount, numTokens } from './tokenizer';
+import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
-import { SpecialTokenAction, SupportedEncoding } from '@anysphere/tiktoken-node';
-import { normalize } from 'path';
 
 
 
@@ -171,32 +170,6 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	throw new Error(`cannot sum prompts ${a} (${isPlainPrompt(a) ? 'string' : a.type}) and ${b} (${isPlainPrompt(b) ? 'string' : b.type})`);
 }
 
-export function numTokensForImage(dimensions: { width: number; height: number; }, detail: 'low' | 'high' | 'auto'): number {
-	if (detail === 'low') {
-		return 85
-	} else if (detail === 'high' || detail === 'auto') {
-		// First, we rescale to fit within 2048 x 2048
-		const largestRatio = Math.max(dimensions.width / 2048, dimensions.height / 2048);
-		if (largestRatio > 1) {
-			dimensions.width = Math.floor(dimensions.width / largestRatio);
-			dimensions.height = Math.floor(dimensions.height / largestRatio);
-		}
-
-		// Next, we scale the shortest side to be 768 px
-		const smallestRatio = Math.min(dimensions.width / 768, dimensions.height / 768);
-
-		dimensions.width = Math.floor(dimensions.width / smallestRatio);
-		dimensions.height = Math.floor(dimensions.height / smallestRatio);
-
-		// Finally, we calculate the number of 512 x 512 blocks needed to cover the image
-		// and pay 85 tokens per block
-		const numWidthBlocks = Math.ceil(dimensions.width / 512);
-		const numHeightBlocks = Math.ceil(dimensions.height / 512);
-		return numWidthBlocks * numHeightBlocks * 85;
-	} else {
-		throw new Error(`Unknown detail level ${detail}`);
-	}
-}
 
 export function createElement(tag: ((props: BaseProps & Record<string, unknown>) => PromptElement) | string, props: Record<string, unknown> | null, ...children: PromptElement[]): PromptElement {
 	if (typeof tag === 'function') {
@@ -2324,12 +2297,12 @@ const CL100K_END_TOKEN_STRING = "<|im_end|>";
 
 async function injectName(tokens: number[], name: string): Promise<number[]> {
 	// i don't really know if this is the right way to format it....
-	const nameTokens = await tokenizerObject.encodeCl100KNoSpecialTokens(":" + name);
+	const nameTokens = await encodeTokens(":" + name, { tokenizer: 'cl100k_base' })
 	return [...tokens.slice(0, -1), ...nameTokens, tokens[tokens.length - 1]];
 }
 async function injectTo(tokens: number[], to: string): Promise<number[]> {
 	// Adjusting the function to handle 'to' parameter injection
-	const toTokens = await tokenizerObject.encodeCl100KNoSpecialTokens(" to=" + to);
+	const toTokens = await encodeTokens(" to=" + to, { tokenizer: 'cl100k_base' });
 	return [...tokens.slice(0, -1), ...toTokens, tokens[tokens.length - 1]];
 }
 function injectNameString(tokens: string, name: string): string {

@@ -3,7 +3,8 @@ import { Prompt, PromptElement, PromptProps, RenderOutput, SynchronousPrompt } f
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { StreamChatCompletionResponse, UsableTokenizer } from './openai';
+import { StreamChatCompletionResponse } from './openai';
+import { UsableTokenizer } from './tokenizer';
 import { ChatCompletionResponseMessage, CreateChatCompletionResponse } from 'openai';
 import { NewOutputCatcher, OutputCatcher } from './outputCatcher.ai';
 
@@ -478,13 +479,6 @@ export function register() {
   }
   return registerPrompt;
 }
-
-// export function register<T, ReturnT = never>(prompt: Prompt<T, ReturnT>) {
-//   PreviewManager.register(prompt);
-// }
-
-
-
 
 
 function randomString() {
