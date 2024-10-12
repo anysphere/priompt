@@ -69,6 +69,9 @@ export type Content = {
 	}
 }
 
+export function hasImages(message: ChatCompletionRequestMessage) {
+	return typeof message.content !== 'string';
+}
 
 export interface ChatCompletionRequestMessage {
 	/**

@@ -83,8 +83,8 @@ const enc_old = encodingForModel("text-davinci-003");
 
 // TODO (Aman): Make this work for non-oai models (or error if it doesn't work for them)!
 export async function* streamChatCompletionLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
-	// If this is an anthropic model, we can actually just streamchat localhost
-	if (createChatCompletionRequest.model.includes('claude-3')) {
+	// If this is an anthropic or fireworks model, we can streamchat having partially filled in the last assistant message
+	if (createChatCompletionRequest.model.includes('claude-3') || createChatCompletionRequest.model.includes('deepseek')) {
 		// The last message must be an assistant message
 		if (createChatCompletionRequest.messages.length === 0 || createChatCompletionRequest.messages[createChatCompletionRequest.messages.length - 1].role !== 'assistant') {
 			throw new Error('Last message must be an assistant message');

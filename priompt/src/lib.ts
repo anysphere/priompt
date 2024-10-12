@@ -5,7 +5,7 @@
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
-import { CL100K, CL100K_SPECIAL_TOKENS, PriomptTokenizer, estimateTokensUsingCharcount, numTokensForImage } from './tokenizer';
+import { CL100K, CL100K_SPECIAL_TOKENS, OpenAIMessageRole, PriomptTokenizer, estimateTokensUsingCharcount, numTokensForImage } from './tokenizer';
 import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
@@ -2449,7 +2449,7 @@ export function promptToOpenAIChatRequest(prompt: RenderedPrompt): { messages: A
 }
 
 
-function contentArrayToStringContent(content: Array<string | PromptContent>): string[] {
+export function contentArrayToStringContent(content: Array<string | PromptContent>): string[] {
 	const newContent: string[] = []
 	content.forEach(c => {
 		if (typeof c === 'string') {
@@ -2509,9 +2509,6 @@ export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPr
 
 // always leaves the last message "open"
 export async function promptToTokens(prompt: RenderedPrompt, tokenizer: PriomptTokenizer): Promise<number[]> {
-	if (tokenizer.name !== CL100K.name && tokenizer.name !== CL100K_SPECIAL_TOKENS.name) {
-		throw new Error(`promptToTokens only supports the cl100k_base tokenizer for now! Got ${tokenizer}`)
-	}
 	if (isPlainPrompt(prompt)) {
 		// we should just encode it as a plain prompt!
 		if (Array.isArray(prompt)) {
@@ -2520,37 +2517,23 @@ export async function promptToTokens(prompt: RenderedPrompt, tokenizer: PriomptT
 		}
 		return tokenizer.encodeTokens(prompt);
 	} else if (isChatPrompt(prompt)) {
-		// THIS IS HYPERSPECIFIC TO CL100K
-
-		const parts = await Promise.all(prompt.messages.map(async (msg) => {
+		const messages = prompt.messages;
+		messages.forEach(msg => {
 			if (msg.role === 'function') {
-				// let's just throw
 				throw new Error(`BUG!! promptToTokens got a chat prompt with a function message, which is not supported yet!`);
 			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
 				throw new Error(`BUG!! promptToTokens got a chat prompt with a function message, which is not supported yet!`);
-			} else {
-				const headerTokens = await tokenizer.getHeaderTokensForMessage(msg);
-				let newContent: string[] | string | undefined = undefined
-				if (Array.isArray(msg.content)) {
-					// We just combine the tokens to a string array to get around images
-					newContent = contentArrayToStringContent(msg.content);
-				} else {
-					newContent = msg.content;
-				}
-				return [
-					...headerTokens,
-					...(newContent !== undefined ? (await promptToTokens(newContent, tokenizer)) : []),
-				];
+			} else if (msg.content === undefined) {
+				throw new Error(`BUG!! promptToTokens got a chat prompt with a message that is undefined!`);
 			}
-		}));
-		const final: number[] = [];
-		for (const part of parts) {
-			if (final.length > 0 && tokenizer.shouldAddEosTokenToEachMessage) {
-				final.push(tokenizer.getEosTokenId());
-			}
-			final.push(...part);
-		}
-		return final;
+		})
+
+		return await tokenizer.applyChatTemplateTokens(messages as {
+			role: OpenAIMessageRole,
+			name?: string,
+			to?: string,
+			content: string | string[]
+		}[])
 	}
 	throw new Error(`BUG!! promptToTokens got an invalid prompt`);
 }

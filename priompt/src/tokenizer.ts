@@ -6,6 +6,7 @@
 // and we probably want to compile our own tiktoken because i'm slightly worried about
 // supply-chain attacks here
 import tiktoken, { SyncTokenizer } from '@anysphere/tiktoken-node';
+import { PromptContent } from './types';
 
 
 const CL100K_BASE = 'cl100k_base';
@@ -27,7 +28,7 @@ export type UsableTokenizer = typeof usableTokenizers[number];
 const tokenizerObject = tiktoken.getTokenizer();
 const syncTokenizer = new SyncTokenizer();
 
-type OpenAIMessageRole = 'system' | 'user' | 'assistant' | 'tool'
+export type OpenAIMessageRole = 'system' | 'user' | 'assistant' | 'tool'
 
 export type PriomptTokenizer = {
 	name: string;
@@ -39,7 +40,37 @@ export type PriomptTokenizer = {
 	getHeaderTokensForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => Promise<number[]>;
 	getEosTokenId: () => number;
 	getEosToken: () => string;
+	applyChatTemplate: (messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[]) => string;
+	applyChatTemplateTokens: (messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[]) => Promise<number[]>;
 	shouldAddEosTokenToEachMessage: boolean;
+}
+
+function contentArrayToStringContent(content: Array<string | PromptContent>): string[] {
+	const newContent: string[] = []
+	content.forEach(c => {
+		if (typeof c === 'string') {
+			newContent.push(c);
+		} else if (c.type === 'text') {
+			newContent.push(c.text);
+		} else if (c.type === 'image_url') {
+			// Do nothing with images
+		}
+	});
+	return newContent;
+}
+
+function openaiChatMessagesToPrompt(messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], tokenizer: UsableTokenizer): string {
+	const parts = messages.map(msg => {
+		const headerString = getHeaderStringForMessage(msg, tokenizer);
+		let newContent: string;
+		if (Array.isArray(msg.content)) {
+			newContent = contentArrayToStringContent(msg.content).join('');
+		} else {
+			newContent = msg.content;
+		}
+		return headerString + newContent;
+	})
+	return parts.join('');
 }
 
 export const CL100K: PriomptTokenizer = {
@@ -52,6 +83,12 @@ export const CL100K: PriomptTokenizer = {
 	getEosTokenId: () => CL100K_END_TOKEN,
 	getHeaderStringForMessage: (message) => getHeaderStringForMessage(message, 'cl100k_base'),
 	getHeaderTokensForMessage: (message) => getHeaderTokensForMessage(message, 'cl100k_base'),
+	applyChatTemplate: (messages) => openaiChatMessagesToPrompt(messages, 'cl100k_base'),
+	applyChatTemplateTokens: async (messages) => {
+		const prompt = openaiChatMessagesToPrompt(messages, 'cl100k_base');
+		const tokens = await encodeTokens(prompt, { tokenizer: 'cl100k_base' });
+		return tokens;
+	},
 	shouldAddEosTokenToEachMessage: true
 }
 export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
@@ -64,6 +101,12 @@ export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
 	getEosTokenId: () => CL100K_END_TOKEN,
 	getHeaderStringForMessage: (message) => getHeaderStringForMessage(message, 'cl100k_base_special_tokens'),
 	getHeaderTokensForMessage: (message) => getHeaderTokensForMessage(message, 'cl100k_base_special_tokens'),
+	applyChatTemplate: (messages) => openaiChatMessagesToPrompt(messages, 'cl100k_base_special_tokens'),
+	applyChatTemplateTokens: async (messages) => {
+		const prompt = openaiChatMessagesToPrompt(messages, 'cl100k_base_special_tokens');
+		const tokens = await encodeTokens(prompt, { tokenizer: 'cl100k_base_special_tokens' });
+		return tokens;
+	},
 	shouldAddEosTokenToEachMessage: true
 }
 
