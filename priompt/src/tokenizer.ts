@@ -43,8 +43,8 @@ export type PriomptTokenizer = {
 	getHeaderTokensForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => Promise<number[]>;
 	getEosTokenId: () => number;
 	getEosToken: () => string;
-	applyChatTemplate: (messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[]) => string;
-	applyChatTemplateTokens: (messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[]) => Promise<number[]>;
+	applyChatTemplate: (messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], options?: { doNotAddGenerationPrompt?: boolean }) => string;
+	applyChatTemplateTokens: (messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], options?: { doNotAddGenerationPrompt?: boolean }) => Promise<number[]>;
 	shouldAddEosTokenToEachMessage: boolean;
 }
 
