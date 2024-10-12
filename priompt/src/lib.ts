@@ -413,6 +413,37 @@ export async function render(elem: PromptElement, options: RenderOptions): Promi
 	return await renderBinarySearch(elem, options);
 }
 
+export async function renderPrompt<
+	ReturnT,
+	PropsT extends object
+>({
+	prompt,
+	props,
+	renderOptions,
+}: {
+	prompt: Prompt<PropsT, ReturnT>;
+	props: PropsT;
+	renderOptions: RenderOptions;
+}): Promise<RenderOutput> {
+	const baseProps: BasePromptProps<PropsT> = props;
+
+	const returnProps: ReturnProps<ReturnT> = {
+		onReturn: async () => { },
+	};
+
+	const realProps: PromptProps<PropsT, ReturnT> = {
+		...baseProps,
+		...returnProps,
+	} satisfies PromptProps<PropsT, ReturnT>;
+
+	let promptElement = prompt(realProps);
+	if (promptElement instanceof Promise) {
+		promptElement = await promptElement;
+	}
+
+	return await render(promptElement, renderOptions);
+}
+
 // returns the highest-priority onOutput call
 // may throw
 export async function renderun<
