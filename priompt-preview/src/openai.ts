@@ -66,6 +66,27 @@ export async function* streamChatLocalhost(createChatCompletionRequest: CreateCh
 	}
 }
 
+const getOutputTokenLimit = (model: string) => {
+	if (model.includes('22b')) {
+		return 32_768;
+	} else {
+		return 4_096;
+	}
+}
+
+const getTokenLimit = (model: string) => {
+	const maybeTokenLimit = TOKEN_LIMIT[model];
+	if (maybeTokenLimit !== undefined) {
+		return maybeTokenLimit;
+	}
+
+	if (model.includes('22b')) {
+		return 32_768;
+	}
+
+	return 8192;
+}
+
 const TOKEN_LIMIT: Record<string, number> = {
 	"gpt-3.5-turbo": 4096,
 	"azure-3.5-turbo": 4096,
@@ -101,7 +122,7 @@ export async function* streamChatCompletionLocalhost(createChatCompletionRequest
 		tokens = enc_old.encode(prompt).length;
 	}
 	const createCompletionRequest = {
-		max_tokens: Math.min((TOKEN_LIMIT[createChatCompletionRequest.model] ?? 4096) - tokens, 4000), // hacky but most models only support 4k output tokens
+		max_tokens: Math.min((getTokenLimit(createChatCompletionRequest.model)) - tokens, getOutputTokenLimit(createChatCompletionRequest.model)), // hacky but most models only support 4k output tokens
 		...createChatCompletionRequest,
 		messages: undefined,
 		prompt,

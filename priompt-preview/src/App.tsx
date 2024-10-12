@@ -241,12 +241,12 @@ const App = () => {
   const [selectedRemotePrompt, setSelectedRemotePrompt] = useState<string>("");
   const [selectedRequestId, setSelectedRequestId] = useState<string>("");
   const [selectedPropsId, setSelectedPropsId] = useState("");
-  const [tokenCount, setTokenCount] = useState(8192);
+  const [tokenCount, setTokenCount] = useState(32_768);
   const [temperature, setTemperature] = useState(0);
   const [forceFunctionCall, setForceFunctionCall] = useState<
     string | undefined
   >(undefined);
-  const [derivedTokenCount, setDerivedTokenCount] = useState(8192);
+  const [derivedTokenCount, setDerivedTokenCount] = useState(32_768);
   const [tokenCountUsed, setTokenCountUsed] = useState(0);
   const [tokenCountReserved, setTokenCountReserved] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
