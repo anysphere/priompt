@@ -16,7 +16,7 @@ export const enum SpecialTokenAction {
   /** The special token is treated as the special token it is. If this is applied to a specific text and the text is NOT a special token then an error will be returned. If it is the default action no error will be returned, don't worry. */
   Special = 2
 }
-export declare function getTokenizer(): Tokenizer
+export function getTokenizer(): Tokenizer
 export class Tokenizer {
   exactNumTokensNoSpecialTokens(text: string, encoding: SupportedEncoding): Promise<number>
   exactNumTokens(text: string, encoding: SupportedEncoding, specialTokenDefaultAction: SpecialTokenAction, specialTokenOverrides: Record<string, SpecialTokenAction>): Promise<number>
