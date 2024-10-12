@@ -17,7 +17,7 @@ base64 = "0.21.0"
 pathdiff = "0.2"
 log = { version = "0.4.21", features = ["kv"] }
 napi-derive = "2.12.2"
-tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "670cd553c0eca65c7de2801facde9c26327aa6bc" }
+tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "86157ca3e9e235760cf5ffca08b6de996fe0e7d9" }
 rayon = "1.7.0"
 anyhow = "1.0.69"
 tokio = { version = "1.13.0", features = [
