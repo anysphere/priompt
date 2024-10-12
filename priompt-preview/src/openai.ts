@@ -5,6 +5,7 @@ import { encodingForModel } from "js-tiktoken";
 export const OSS_MODELS = [
 	{ displayName: "cpp-ds-cache-v4", modelKey: "accounts/anysphere/models/anysphere-deepseek-6-7b-cpp-caching-v4-fp8" },
 	{ displayName: "cpp-ds-cache-v5", modelKey: "accounts/anysphere/models/cpp-deepseek-coder-6-7b-instruct-v5-fp8" },
+	{ displayName: "cpp-ds-cache-v8", modelKey: "accounts/anysphere/models/cpp-deepseek-coder-6-7b-instruct-v8-fp8" },
 ]
 
 export async function* streamChatLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal) {
