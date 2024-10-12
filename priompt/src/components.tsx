@@ -1,6 +1,7 @@
 import * as Priompt from "./lib";
 import {
   BasePromptProps,
+  Capture,
   ChatAssistantFunctionToolCall,
   ImageProps,
   OutputHandler,
@@ -11,6 +12,7 @@ import { JSONSchema7 } from "json-schema";
 import { ChatCompletionResponseMessage } from "openai";
 import { z } from "zod";
 import zodToJsonSchemaImpl from "zod-to-json-schema";
+import { StreamChatCompletionResponse } from "./openai";
 
 export function SystemMessage(
   props: PromptProps<{
@@ -130,6 +132,29 @@ export function ToolResultMessage(
   };
 }
 
+const populateOnStreamResponseObjectFromOnStream = (
+  captureProps: Capture & {
+    onStream: (
+      stream: AsyncIterable<ChatCompletionResponseMessage>
+    ) => Promise<void>;
+  }
+) => ({
+  ...captureProps,
+  onStreamResponseObject: async (
+    stream: AsyncIterable<StreamChatCompletionResponse>
+  ) => {
+    const messageStream = (async function* () {
+      for await (const s of stream) {
+        if (s.choices.length === 0) continue;
+        if (s.choices[0].delta === undefined) continue;
+        const message = s.choices[0].delta;
+        yield message;
+      }
+    })();
+    await captureProps.onStream(messageStream);
+  },
+});
+
 // design choice: can only have 1 tools component per prompt, and cannot have any other onStream
 export function Tools(
   props: PromptProps<{
@@ -164,7 +189,7 @@ export function Tools(
           parameters={tool.parameters}
         />
       ))}
-      {{
+      {populateOnStreamResponseObjectFromOnStream({
         type: "capture",
         onStream: async (
           stream: AsyncIterable<ChatCompletionResponseMessage>
@@ -243,7 +268,7 @@ export function Tools(
             })()
           );
         },
-      }}
+      })}
     </>
   );
 }
