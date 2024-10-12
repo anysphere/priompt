@@ -8,6 +8,7 @@ echo '{
 
 echo '[workspace]
 members = ["tiktoken-node"]
+resolver = "2"
 ' > "$SCRIPT_DIR"/Cargo.toml
 
 # copy over the examples/.env.example to examples/.env

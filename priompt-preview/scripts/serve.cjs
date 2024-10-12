@@ -5,7 +5,30 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const url = require('url'); // Added this line
+const url = require('url');
+
+// Add these new imports
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+
+// Parse command line arguments
+const argv = yargs(hideBin(process.argv))
+	.option('config', {
+		describe: 'Path to config JSON file',
+		type: 'string'
+	})
+	.argv;
+
+let config = {};
+if (argv.config) {
+	try {
+		const configFile = fs.readFileSync(argv.config, 'utf8');
+		config = JSON.parse(configFile);
+	} catch (error) {
+		console.error(`Error reading config file: ${error.message}`);
+		process.exit(1);
+	}
+}
 
 const port = process.env.PRIOMPT_PREVIEW_PORT || 6283;
 const server_port = process.env.PRIOMPT_PREVIEW_SERVER_PORT;
@@ -16,8 +39,8 @@ if (!server_port) {
 const distPath = path.join(path.dirname(__dirname), 'dist');
 
 const requestListener = (req, res) => {
-	const parsedUrl = url.parse(req.url); // Parse the URL
-	const filePath = path.join(distPath, parsedUrl.pathname === '/' ? 'index.html' : parsedUrl.pathname); // Use parsedUrl.pathname instead of req.url
+	const parsedUrl = url.parse(req.url);
+	const filePath = path.join(distPath, parsedUrl.pathname === '/' ? 'index.html' : parsedUrl.pathname);
 	const extname = String(path.extname(filePath)).toLowerCase();
 	const mimeTypes = {
 		'.html': 'text/html',
@@ -44,15 +67,21 @@ const requestListener = (req, res) => {
 			}
 		} else {
 			res.writeHead(200, { 'Content-Type': contentType });
-			// check if can convert to string
 			if (data.toString().includes('localhost:3000')) {
 				data = data.toString().replace(/localhost:3000/g, `localhost:${server_port}`);
 			}
-			if (process.env.PRIOMPT_PREVIEW_MODELS) {
-				const models = process.env.PRIOMPT_PREVIEW_MODELS.split(',');
-				data = data.toString().replace(/gpt-3.5-turbo,gpt-4,gpt-4-32k/, models);
+
+			// Use config.chatModels if available, otherwise fall back to PRIOMPT_PREVIEW_MODELS
+			if (config.chatModels) {
+				data = data.toString().replace(/\["gpt-3.5-turbo","gpt-4"\]/, JSON.stringify(config.chatModels));
+			} else if (process.env.PRIOMPT_PREVIEW_MODELS) {
+				data = data.toString().replace(/\["gpt-3.5-turbo","gpt-4"\]/, process.env.PRIOMPT_PREVIEW_MODELS);
 			}
-			if (process.env.PRIOMPT_PREVIEW_COMPLETION_MODELS) {
+
+			// Use config.completionModels if available, otherwise fall back to PRIOMPT_PREVIEW_COMPLETION_MODELS
+			if (config.completionModels) {
+				data = data.toString().replace(/text-davinci-003,code-davinci-002/, config.completionModels.join(','));
+			} else if (process.env.PRIOMPT_PREVIEW_COMPLETION_MODELS) {
 				const completionModels = process.env.PRIOMPT_PREVIEW_COMPLETION_MODELS.split(',');
 				data = data.toString().replace(/text-davinci-003,code-davinci-002/, completionModels);
 			}

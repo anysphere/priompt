@@ -24,6 +24,7 @@ jobs:
           - aarch64-unknown-linux-gnu
           - x86_64-apple-darwin
           - aarch64-apple-darwin
+          - aarch64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v3
@@ -57,7 +58,7 @@ jobs:
           version: 0.10.0
 
       - run: cargo install cargo-xwin
-        if: matrix.target == 'x86_64-pc-windows-msvc'
+        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-pc-windows-msvc'
 
       - name: Check formatting
         run: cargo fmt --all --check
@@ -66,11 +67,11 @@ jobs:
         run: pnpm i
 
       - name: Build Mac and Linux
-        if: matrix.target != 'x86_64-pc-windows-msvc' && matrix.target != 'x86_64-unknown-linux-gnu'
+        if: matrix.target != 'x86_64-pc-windows-msvc' && matrix.target != 'x86_64-unknown-linux-gnu' && matrix.target != 'aarch64-pc-windows-msvc'
         run: pnpm run build -- --zig --target ${{ matrix.target }}
 
       - name: Build Windows
-        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-unknown-linux-gnu'
+        if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'aarch64-pc-windows-msvc'
         run: pnpm run build -- --target ${{ matrix.target }}
 
       - name: Upload artifact

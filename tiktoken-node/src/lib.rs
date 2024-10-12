@@ -1,11 +1,9 @@
 use anyhow::Context;
 use async_channel::{bounded, Receiver, Sender};
-use base64::Engine;
 use napi::bindgen_prelude::create_custom_tokio_runtime;
 use napi::bindgen_prelude::Error;
 use napi_derive::napi;
 use once_cell::sync::Lazy;
-use rustc_hash::FxHashMap;
 use tiktoken::EncodingFactoryError;
 use tokio::runtime::Builder;
 
@@ -14,13 +12,7 @@ use std::sync::Arc;
 
 // we use the actor pattern to have good cache locality
 // this means that no tokenization requests will ever run in parallel, but i think that's almost certainly fine
-use base64::engine::general_purpose::STANDARD;
 use napi::tokio::sync::oneshot;
-use std::env;
-use std::fs::File;
-use std::io::{self, BufRead};
-
-const LLAMA_PATH: &str = "./Meta-Llama-3-70B-Instruct";
 
 static TOKENIZER: Lazy<Result<Tokenizer, Error>> =
   Lazy::new(|| Tokenizer::new().map_err(|e| Error::from_reason(e.to_string())));
@@ -28,8 +20,7 @@ static TOKENIZER: Lazy<Result<Tokenizer, Error>> =
 static ENCODINGS: Lazy<Result<Arc<Encodings>, EncodingFactoryError>> = Lazy::new(|| {
   Ok(Arc::new(Encodings {
     cl100k_encoding: tiktoken::EncodingFactory::cl100k_im()?,
-    llama3_encoding: llama_tokenizer()
-      .map_err(|e| EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?,
+    llama3_encoding: tiktoken::EncodingFactory::llama3()?,
     o200k_encoding: tiktoken::EncodingFactory::o200k_im()?,
     codestral_encoding: tiktoken::EncodingFactory::codestral()?,
   }))
@@ -90,78 +81,6 @@ enum TokenizerMessage {
     encoding: SupportedEncoding,
     replace_spaces_with_lower_one_eighth_block: bool,
   },
-}
-
-fn llama_tokenizer() -> Result<tiktoken::Encoding, anyhow::Error> {
-  let pat_str = r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+";
-
-  let current_dir = env::current_dir().expect("Failed to get current directory");
-  let backend_dir = current_dir.ancestors().find(|p| p.ends_with("backend")).unwrap_or_else(|| {
-    eprintln!("Warning: Backend directory not found in path ancestors. Using `..` as a fallback.");
-    current_dir.parent().expect("Failed to access parent directory")
-  });
-  let default_tokenizers_path = backend_dir.join("./tokenizers");
-  let env_tokenizers_path = env::var("TOKENIZERS_DIR");
-
-  let tokenizers_path = if let Ok(env_tokenizers_path) = env_tokenizers_path {
-    std::path::PathBuf::from(env_tokenizers_path)
-  } else {
-    default_tokenizers_path
-  };
-
-  let mergeable_ranks_path = tokenizers_path.join(LLAMA_PATH).join("tokenizer.model");
-  let mergeable_ranks_file =
-    File::open(&mergeable_ranks_path).map_err(|e| anyhow::Error::msg(e.to_string()))?;
-  let mergeable_ranks_reader = io::BufReader::new(mergeable_ranks_file);
-
-  let mut mergeable_ranks: FxHashMap<Vec<u8>, usize> = mergeable_ranks_reader
-    .lines()
-    .filter_map(|line| line.ok())
-    .filter(|line| !line.is_empty())
-    .map(|line| {
-      let mut parts = line.split_whitespace();
-      let token = parts.next().expect("Token missing");
-      let rank = parts.next().expect("Rank missing");
-      let rank: usize = rank.parse().expect("Rank must be a number");
-      (STANDARD.decode(token).expect("Base64 decoding failed"), rank)
-    })
-    .collect();
-  mergeable_ranks.shrink_to_fit();
-
-  let num_base_tokens = mergeable_ranks.len();
-  let mut special_tokens = vec![
-    "<|begin_of_text|>".to_string(),
-    "<|end_of_text|>".to_string(),
-    "<|reserved_special_token_0|>".to_string(),
-    "<|reserved_special_token_1|>".to_string(),
-    "<|reserved_special_token_2|>".to_string(),
-    "<|reserved_special_token_3|>".to_string(),
-    "<|start_header_id|>".to_string(),
-    "<|end_header_id|>".to_string(),
-    "<|reserved_special_token_4|>".to_string(),
-    "<|eot_id|>".to_string(), // end of turn
-  ];
-
-  let num_reserved_special_tokens = 256; // Assuming a total of 20 reserved tokens as an example
-  special_tokens.extend(
-    (5..num_reserved_special_tokens - 5).map(|i| format!("<|reserved_special_token_{}|>", i)),
-  );
-
-  let mut special_tokens_map: FxHashMap<String, usize> =
-    special_tokens.into_iter().enumerate().map(|(i, token)| (token, num_base_tokens + i)).collect();
-  special_tokens_map.shrink_to_fit();
-
-  let vocab_size = num_base_tokens + special_tokens_map.len();
-  let encoding = tiktoken::Encoding::new(
-    "llama3",
-    pat_str,
-    mergeable_ranks,
-    special_tokens_map,
-    Some(vocab_size),
-  )
-  .map_err(|e| anyhow::Error::msg(e.to_string()))?;
-
-  Ok(encoding)
 }
 
 impl TokenizerActor {
@@ -235,8 +154,16 @@ impl TokenizerActor {
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(Ok(text));
       }
-      TokenizerMessage::ApproximateNumTokens { respond_to, text, encoding, replace_spaces_with_lower_one_eighth_block } => {
-        let tokens = self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text, replace_spaces_with_lower_one_eighth_block);
+      TokenizerMessage::ApproximateNumTokens {
+        respond_to,
+        text,
+        encoding,
+        replace_spaces_with_lower_one_eighth_block,
+      } => {
+        let tokens = self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(
+          &text,
+          replace_spaces_with_lower_one_eighth_block,
+        );
 
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(Ok(tokens as i32));
@@ -379,7 +306,12 @@ impl Tokenizer {
     replace_spaces_with_lower_one_eighth_block: bool,
   ) -> Result<i32, Error> {
     let (send, recv) = oneshot::channel();
-    let msg = TokenizerMessage::ApproximateNumTokens { respond_to: send, text, encoding, replace_spaces_with_lower_one_eighth_block };
+    let msg = TokenizerMessage::ApproximateNumTokens {
+      respond_to: send,
+      text,
+      encoding,
+      replace_spaces_with_lower_one_eighth_block,
+    };
 
     // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
     let _ = self.sender.send(msg).await;

@@ -7,11 +7,7 @@ import {
   useLayoutEffect,
 } from "react";
 import { RenderedPrompt } from "@anysphere/priompt";
-import {
-  OSS_MODELS,
-  streamChatCompletionLocalhost,
-  streamChatLocalhost,
-} from "./openai";
+import { streamChatCompletionLocalhost, streamChatLocalhost } from "./openai";
 import { useDebouncedCallback as useDebouncedCallback2 } from "use-debounce";
 import { ChatAndFunctionPromptFunction } from "@anysphere/priompt";
 import {
@@ -224,9 +220,11 @@ function useDebouncedCallback<T extends (...args: A[]) => R, A, R>(
   ) as T;
 }
 
-const ALL_MODELS_STR = "gpt-3.5-turbo,gpt-4,gpt-4-32k,gpt-4-vision-preview";
+// note: this is configured by either the PRIOMPT_PREVIEW_MODELS env variable or by the "chatModels" key in the --config json file
+const ALL_MODELS_STR = '["gpt-3.5-turbo","gpt-4"]';
 
-const ALL_MODELS = ALL_MODELS_STR.split(",");
+const ALL_MODELS: (string | { displayName: string; modelKey: string })[] =
+  JSON.parse(ALL_MODELS_STR);
 const COMPLETION_MODELS_STR = "text-davinci-003,code-davinci-002";
 const COMPLETION_MODELS = COMPLETION_MODELS_STR.split(",");
 
@@ -1574,10 +1572,9 @@ const App = () => {
                           setFullText={(newText: string) => {
                             debouncedSetFullPrompts(i, newText);
                           }}
-                          extraModels={(lastPassedInModel
-                            ? [lastPassedInModel]
-                            : []
-                          ).concat(...OSS_MODELS)}
+                          extraModels={
+                            lastPassedInModel ? [lastPassedInModel] : []
+                          }
                         />
                       ) : (
                         <>
@@ -1662,10 +1659,9 @@ const App = () => {
                               setFullText={(_: string) => {
                                 // intentionally empty
                               }}
-                              extraModels={(lastPassedInModel
-                                ? [lastPassedInModel]
-                                : []
-                              ).concat(...OSS_MODELS)}
+                              extraModels={
+                                lastPassedInModel ? [lastPassedInModel] : []
+                              }
                             />
                           )}
                         </>
@@ -2457,9 +2453,12 @@ function AssistantBox(props: {
 
   const initialExtraModelsDisplayNames =
     props.extraModels?.map((model) => model.displayName) ?? [];
+  const allModelsDisplayNames = ALL_MODELS.map((model) =>
+    typeof model === "string" ? model : model.displayName
+  );
   const [allModels, setAllModels] = useState([
     ...(props.extraModels ? initialExtraModelsDisplayNames : []),
-    ...ALL_MODELS,
+    ...allModelsDisplayNames,
   ]);
 
   useEffect(() => {
@@ -2467,9 +2466,9 @@ function AssistantBox(props: {
       props.extraModels?.map((model) => model.displayName) ?? [];
     setAllModels([
       ...(props.extraModels ? extraModelsDisplayNames : []),
-      ...ALL_MODELS,
+      ...allModelsDisplayNames,
     ]);
-  }, [props.extraModels]);
+  }, [props.extraModels, allModelsDisplayNames]);
 
   return (
     <div key={props.key}>
@@ -2479,9 +2478,15 @@ function AssistantBox(props: {
             key={model}
             onClick={() => {
               props.abortController?.abort();
-              const maybeModel = props.extraModels?.find(
-                (modelObj) => modelObj.displayName === model
-              );
+              const maybeModel =
+                props.extraModels?.find(
+                  (modelObj) => modelObj.displayName === model
+                ) ??
+                (ALL_MODELS.find(
+                  (modelObj) =>
+                    typeof modelObj !== "string" &&
+                    modelObj.displayName === model
+                ) as { displayName: string; modelKey: string } | undefined);
               if (maybeModel) {
                 props.streamCompletion(maybeModel.modelKey);
               } else {
