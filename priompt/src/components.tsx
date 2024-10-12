@@ -156,6 +156,8 @@ export function Tools(
   return (
     <>
       {props.tools.map((tool) => (
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         <Tool
           name={tool.name}
           description={tool.description}
@@ -271,6 +273,8 @@ export function ZTools<ParamT>(
   }>
 ): PromptElement {
   return (
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     <Tools
       tools={props.tools.map((tool) => ({
         name: tool.name,
