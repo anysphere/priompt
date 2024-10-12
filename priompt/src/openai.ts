@@ -2,7 +2,7 @@ import {
 	ChatCompletionFunctions,
 	ChatCompletionRequestMessageFunctionCall,
 	ChatCompletionRequestMessageRoleEnum,
-	ChatCompletionResponseMessage,
+	ChatCompletionResponseMessageRoleEnum,
 	CreateChatCompletionRequestFunctionCall,
 	CreateChatCompletionRequestStop,
 	CreateChatCompletionResponse,
@@ -13,7 +13,6 @@ import {
 
 export {
 	CreateChatCompletionResponse,
-	ChatCompletionResponseMessage,
 	ChatCompletionFunctions,
 	// Setup
 	OpenAIApi,
@@ -84,7 +83,7 @@ export interface ChatCompletionRequestMessage {
 	 * @type {string}
 	 * @memberof ChatCompletionRequestMessage
 	 */
-	'role': ChatCompletionRequestMessageRoleEnum;
+	'role': ChatCompletionRequestMessageRoleEnum | 'tool';
 	/**
 	 * The contents of the message. `content` is required for all messages except assistant messages with function calls.
 	 * @type {string}
@@ -111,7 +110,7 @@ export interface ChatCompletionRequestMessageWithoutImages {
 	 * @type {string}
 	 * @memberof ChatCompletionRequestMessage
 	 */
-	'role': ChatCompletionRequestMessageRoleEnum;
+	'role': ChatCompletionRequestMessageRoleEnum | 'tool';
 	/**
 	 * The contents of the message. `content` is required for all messages except assistant messages with function calls.
 	 * @type {string}
@@ -337,6 +336,50 @@ export interface StreamChatCompletionResponse extends CreateChatCompletionRespon
 	 * @memberof StreamChatCompletionResponse
 	 */
 	'choices': Array<StreamChatCompletionResponseChoicesInner>;
+}
+
+export interface ChatCompletionRequestMessageFunctionToolCall {
+	type: 'function';
+	function: {
+		name?: string;
+		arguments: string;
+	}
+}
+
+export type ChatCompletionRequestMessageToolCall = {
+	id?: string;
+	index?: number;
+} & (ChatCompletionRequestMessageFunctionToolCall);
+
+
+/**
+ *
+ * @export
+ * @interface ChatCompletionResponseMessage
+ */
+export interface ChatCompletionResponseMessage {
+	/**
+	 * The role of the author of this message.
+	 * @type {string}
+	 * @memberof ChatCompletionResponseMessage
+	 */
+	'role': ChatCompletionResponseMessageRoleEnum | 'tool';
+	/**
+	 * The contents of the message.
+	 * @type {string}
+	 * @memberof ChatCompletionResponseMessage
+	 */
+	'content'?: string;
+	/**
+	 *
+	 * @type {ChatCompletionRequestMessageFunctionCall}
+	 * @memberof ChatCompletionResponseMessage
+	 */
+	'function_call'?: ChatCompletionRequestMessageFunctionCall;
+	/**
+	 *
+	 */
+	'tool_calls'?: Array<ChatCompletionRequestMessageToolCall>;
 }
 
 interface StreamChatCompletionResponseChoicesInner extends CreateChatCompletionResponseChoicesInner {
