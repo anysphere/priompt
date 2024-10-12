@@ -7,6 +7,8 @@ export const OSS_MODELS = [
 	{ displayName: "cpp-dsv2-07-18", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-07-18-long" },
 	{ displayName: "cpp-dsv2-08-10", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-08-10-long" },
 	{ displayName: "cpp-dsv2-09-05-dpo", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-09-05-long-dpo" },
+	{ displayName: "cpp-dsv2-09-14-dpo", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-09-14-long-dpo" },
+	{ displayName: "cpp-dsv2-lctxv2-10-1", modelKey: "accounts/anysphere/models/cpp-dsv2-10-01" },
 ]
 
 export async function* streamChatLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal) {
@@ -127,7 +129,7 @@ export async function* streamChatCompletionLocalhost(createChatCompletionRequest
 	if (createChatCompletionRequest.model.includes('claude-3') || createChatCompletionRequest.model.includes('deepseek')) {
 		// The last message must be an assistant message
 		if (createChatCompletionRequest.messages.length === 0 || createChatCompletionRequest.messages[createChatCompletionRequest.messages.length - 1].role !== 'assistant') {
-			throw new Error('Last message must be an assistant message');
+			throw new Error('Last message must not be an assistant message');
 		}
 		yield* streamChatLocalhost(createChatCompletionRequest, options, abortSignal);
 		return;
