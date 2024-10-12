@@ -98,7 +98,7 @@ export async function* streamChatCompletionLocalhost(createChatCompletionRequest
 		tokens = enc_old.encode(prompt).length;
 	}
 	const createCompletionRequest = {
-		max_tokens: (TOKEN_LIMIT[createChatCompletionRequest.model] ?? 4096) - tokens,
+		max_tokens: Math.min((TOKEN_LIMIT[createChatCompletionRequest.model] ?? 4096) - tokens, 4000), // hacky but most models only support 4k output tokens
 		...createChatCompletionRequest,
 		messages: undefined,
 		prompt,
