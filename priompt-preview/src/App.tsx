@@ -247,7 +247,6 @@ const App = () => {
     string | undefined
   >(undefined);
   const [derivedTokenCount, setDerivedTokenCount] = useState(32_768);
-  const [maxTokenCount, setMaxTokenCount] = useState(32_768);
   const [tokenCountUsed, setTokenCountUsed] = useState(0);
   const [tokenCountReserved, setTokenCountReserved] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
@@ -1299,16 +1298,8 @@ const App = () => {
       />
       <div>
         {!dontDisplayExtras && (
-          <div
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 100,
-              fontSize: "0.9rem",
-            }}
-          >
-            <h2 style={{ fontWeight: 100, textAlign: "center" }}>
-              Welcome to Priompt Dashboard
-            </h2>
+          <div>
+            <h1>Welcome to Priompt</h1>
             <div>
               <b>r</b> to reload, <b>left</b> and <b>right</b> arrows to adjust
               token count, <b>shift-left</b> and <b>shift-right</b> arrows to
@@ -1319,99 +1310,78 @@ const App = () => {
               </div>
             </div>
             <br />
-            <div className="flex flex-col space-y-2">
-              <form
-                onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-                  e.preventDefault();
-                  const currentText = (e.currentTarget[0] as HTMLInputElement)
-                    .value;
-                  setSelectedPrompt("");
-                  setSelectedRemotePrompt(currentText);
-                  setSelectedRequestId("");
-                }}
-                className="flex items-center space-x-2"
-              >
-                <input
-                  type="text"
-                  className="flex-grow p-2 border border-gray-200 border-solid rounded"
-                  placeholder="Enter remote prompt URL"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-sky-950 text-white rounded hover:bg-sky-900"
-                >
-                  Fetch Remote Prompt
-                </button>
-              </form>
-
-              <form
-                onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-                  e.preventDefault();
-                  const currentText = (e.currentTarget[0] as HTMLInputElement)
-                    .value;
-                  setSelectedPrompt("");
-                  setSelectedRemotePrompt("");
-                  console.log("set request id");
-                  setSelectedRequestId(currentText);
-                }}
-                className="flex items-center space-x-2"
-              >
-                <input
-                  type="text"
-                  className="flex-grow p-2 border border-gray-200 border-solid rounded"
-                  value={requestId}
-                  placeholder="Enter request id"
-                  onChange={(e) => setRequestId(e.target.value)}
-                />
-                <button
-                  id="fetch-request-id"
-                  type="submit"
-                  className="px-4 py-2 bg-sky-950 text-white rounded hover:bg-sky-900"
-                >
-                  Fetch Request Id
-                </button>
-              </form>
-
-              <form
-                onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
-                  e.preventDefault();
-                  const currentText = (e.currentTarget[0] as HTMLInputElement)
-                    .value;
-                  setSelectedPrompt("");
-                  setSelectedRemotePrompt("");
-                  setSelectedRequestId("");
-                  const currentIndex = (e.currentTarget[1] as HTMLInputElement)
-                    .valueAsNumber;
-                  fetchJsonL(currentText, currentIndex);
-                }}
-                className="flex items-center space-x-2"
-              >
-                <input
-                  type="text"
-                  className="flex-grow p-2 border border-gray-200 border-solid rounded"
-                  placeholder="Enter JSONL path"
-                />
-                <input
-                  type="number"
-                  defaultValue={0}
-                  className="w-20 p-2 border border-gray-200 border-solid rounded"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-sky-950 text-white rounded hover:bg-sky-900"
-                >
-                  Fetch local JSONL
-                </button>
-              </form>
-
+            <form
+              onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                const currentText = (e.currentTarget[0] as HTMLInputElement)
+                  .value;
+                setSelectedPrompt("");
+                setSelectedRemotePrompt(currentText);
+                setSelectedRequestId("");
+              }}
+            >
               <input
                 type="text"
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-                placeholder="Filter prompts"
-                className="w-full p-2 border border-gray-200 border-solid rounded"
+                style={{
+                  width: "500px",
+                }}
+                placeholder="Enter remote prompt URL"
               />
-            </div>
+              <button type="submit">Fetch Remote Prompt</button>
+            </form>
+            <form
+              onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                const currentText = (e.currentTarget[0] as HTMLInputElement)
+                  .value;
+                setSelectedPrompt("");
+                setSelectedRemotePrompt("");
+                console.log("set request id");
+                setSelectedRequestId(currentText);
+              }}
+            >
+              <input
+                type="text"
+                style={{
+                  width: "500px",
+                }}
+                value={requestId}
+                placeholder="Enter request id"
+                onChange={(e) => setRequestId(e.target.value)}
+              />
+              <button id="fetch-request-id" type="submit">
+                Fetch Request Id
+              </button>
+            </form>
+            <form
+              onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                const currentText = (e.currentTarget[0] as HTMLInputElement)
+                  .value;
+                setSelectedPrompt("");
+                setSelectedRemotePrompt("");
+                setSelectedRequestId("");
+                const currentIndex = (e.currentTarget[1] as HTMLInputElement)
+                  .valueAsNumber;
+                fetchJsonL(currentText, currentIndex);
+              }}
+            >
+              <input
+                style={{
+                  width: "500px",
+                }}
+                type="text"
+                placeholder="Enter JSONL path"
+              />
+              <input type="number" defaultValue={0} />
+              <button type="submit">Fetch local JSONL</button>
+            </form>
+            <input
+              type="text"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="Filter prompts"
+            />
             <div
               style={{
                 display: "flex",
@@ -1423,44 +1393,41 @@ const App = () => {
                 padding: "1rem 0",
               }}
             >
-              <div className="flex flex-row space-x-2 items-center">
-                <div style={{ paddingRight: "10px" }}>
-                  Select live mode or a prompt:
-                </div>
-                <Button
-                  className="tab border-none h-8 whitespace-nowrap"
-                  onClick={() => handleSelectPrompt("liveModePromptId")}
-                  variant={
-                    "liveModePromptId" === selectedPrompt ? "ghost" : "outline"
-                  }
-                  style={{
-                    border:
-                      "liveModePromptId" === selectedPrompt
-                        ? "1px solid black"
-                        : "none",
-                    cursor: "pointer",
-                    paddingRight: "10px",
-                  }}
-                >
-                  Live Mode
-                </Button>
-                <select
-                  value={selectedPrompt}
-                  onChange={(e) => handleSelectPrompt(e.target.value)}
-                  className="flex-grow p-2 border rounded"
-                >
-                  <option value="">Select a prompt</option>
-                  {promptsls
-                    .filter((prompt) =>
-                      prompt.toLowerCase().includes(filterText.toLowerCase())
-                    )
-                    .map((prompt) => (
-                      <option key={prompt} value={prompt}>
-                        {prompt}
-                      </option>
-                    ))}
-                </select>
-              </div>
+              <Button
+                className="tab border-none h-8 whitespace-nowrap"
+                onClick={() => handleSelectPrompt("liveModePromptId")}
+                variant={
+                  "liveModePromptId" === selectedPrompt ? "ghost" : "outline"
+                }
+                style={{
+                  border:
+                    "liveModePromptId" === selectedPrompt
+                      ? "1px solid black"
+                      : "none",
+                  cursor: "pointer",
+                }}
+              >
+                live mode
+              </Button>
+              {promptsls
+                .filter((prompt) =>
+                  prompt.toLowerCase().includes(filterText.toLowerCase())
+                )
+                .map((prompt) => (
+                  <Button
+                    variant={prompt === selectedPrompt ? "ghost" : "outline"}
+                    key={prompt}
+                    className="tab border-none outline-none shadow-none h-8"
+                    onClick={() => handleSelectPrompt(prompt)}
+                    style={{
+                      border:
+                        prompt === selectedPrompt ? "1px solid black" : "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {prompt}
+                  </Button>
+                ))}
             </div>
             <PropsSelector
               prompt={prompts[selectedPrompt]}
@@ -1471,60 +1438,23 @@ const App = () => {
               <label htmlFor="token-count-slider">
                 Token count: <span>{tokenCount}</span>
               </label>
-              <button
-                className="px-4 py-1 m-2 bg-gray-50 rounded hover:bg-gray-100 border border-gray-200"
-                onClick={() => setTokenCount(4096)}
-              >
+              <button onClick={() => setTokenCount(4096)}>
                 4096 (press 4)
               </button>
-              <button
-                className="px-4 py-1 m-2 bg-gray-50 rounded hover:bg-gray-100 border border-gray-200"
-                onClick={() => setTokenCount(8192)}
-              >
+              <button onClick={() => setTokenCount(8192)}>
                 8192 (press 8)
               </button>
-              <button
-                className="px-4 py-1 m-2 bg-gray-50 rounded hover:bg-gray-100 border border-gray-200"
-                onClick={() => setTokenCount(150_000)}
-              >
-                150,000
-              </button>
-              <button
-                className="px-4 py-1 m-2 bg-gray-50 rounded hover:bg-gray-100 border border-gray-200"
-                onClick={() => setTokenCount(200_000)}
-                What
-                should
-                I
-                run
-                in
-                the
-                terminal
-              >
-                200,000
-              </button>
-              <button
-                className="px-4 py-1 m-2 bg-gray-50 rounded hover:bg-gray-100 border border-gray-200"
-                onClick={() => setTokenCount(1_000_000)}
-              >
+              <button onClick={() => setTokenCount(150_000)}>150,000</button>
+              <button onClick={() => setTokenCount(200_000)}>200,000</button>
+              <button onClick={() => setTokenCount(1_000_000)}>
                 1,000,000
               </button>
               <br />
-              <div>
-                Slider max token count:
-                <input
-                  type="number"
-                  value={maxTokenCount}
-                  onChange={(e) => setMaxTokenCount(Number(e.target.value))}
-                  placeholder="Max token count"
-                  className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ marginBottom: "10px", width: "150px" }}
-                />
-              </div>
               <input
                 type="range"
                 id="token-count-slider"
                 min="1"
-                max={maxTokenCount}
+                max="1000000"
                 value={tokenCount}
                 onChange={handleTokenCountChange}
                 style={{
@@ -1596,10 +1526,7 @@ const App = () => {
           </>
         )}
         <hr />
-        <div
-          id="prompt-display"
-          style={{ maxHeight: "500px", overflowY: "auto" }}
-        >
+        <div id="prompt-display">
           {prompt &&
             "functions" in prompt &&
             prompt.functions.map((f, index) => (
@@ -2440,11 +2367,7 @@ function PropsSelector({
         <div key={saved}>
           <button
             style={{
-              backgroundColor: saved === selectedPropsId ? "red" : "#f3f3f3",
-              margin: "5px",
-              border: "1px solid #d3d3d3",
-              borderRadius: "4px",
-              padding: "5px 10px",
+              backgroundColor: saved === selectedPropsId ? "red" : "white",
             }}
             onClick={() => {
               console.log("saved", saved);
@@ -2464,12 +2387,7 @@ function PropsSelector({
           <div key={dump}>
             <button
               style={{
-                backgroundColor: dump === selectedPropsId ? "red" : "#f3f3f3",
-                margin: "5px",
-                border: "1px solid #d3d3d3",
-                borderRadius: "4px",
-                padding: "5px 10px",
-                width: "115px",
+                backgroundColor: dump === selectedPropsId ? "red" : "white",
               }}
               onClick={() => {
                 setSelectedPropsId(dump);
@@ -2524,7 +2442,6 @@ function AssistantBox(props: {
   const [customChatModel, setCustomChatModel] = useState("");
   // State to hold the user's completion model input
   const [customCompletionModel, setCustomCompletionModel] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-4");
 
   // Function to update the state as the user types in the textbox
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2557,41 +2474,24 @@ function AssistantBox(props: {
   return (
     <div key={props.key}>
       <div>
-        // Start of Selection
-        <div>
-          <select
-            onChange={(e) => setSelectedModel(e.target.value)}
-            value={selectedModel}
-            className="p-2 border rounded"
-          >
-            <option value="">Select a model</option>
-            {allModels.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
+        {allModels.map((model) => (
           <button
+            key={model}
             onClick={() => {
-              if (!selectedModel) {
-                alert("Please select a model.");
-                return;
-              }
               props.abortController?.abort();
               const maybeModel = props.extraModels?.find(
-                (modelObj) => modelObj.displayName === selectedModel
+                (modelObj) => modelObj.displayName === model
               );
               if (maybeModel) {
                 props.streamCompletion(maybeModel.modelKey);
               } else {
-                props.streamCompletion(selectedModel);
+                props.streamCompletion(model);
               }
             }}
-            className="ml-2 px-4 py-2 bg-blue-500 text-white rounded"
           >
-            Submit
+            Submit to {model}
           </button>
-        </div>
+        ))}
         <input
           type="text"
           value={customChatModel}
