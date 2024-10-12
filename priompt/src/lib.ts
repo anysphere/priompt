@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, StreamChatCompletionResponse, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
 import { OpenAIMessageRole, PriomptTokenizer, numTokensForImage } from './tokenizer';
-import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap, ToolPrompt, ToolDefinition, ChatAndToolPromptToolFunction } from './types';
+import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 
@@ -80,9 +80,6 @@ function isTextPromptPotentiallyWithFunctions(prompt: RenderedPrompt | undefined
 export function promptHasFunctions(prompt: RenderedPrompt | undefined): prompt is ((ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt)) {
 	return typeof prompt === 'object' && 'functions' in prompt && prompt.functions !== undefined;
 }
-export function promptHasTools(prompt: RenderedPrompt | undefined): prompt is ((ChatPrompt & ToolPrompt) | (TextPrompt & ToolPrompt)) {
-	return typeof prompt === 'object' && 'tools' in prompt && prompt.tools !== undefined;
-}
 export function promptStringToString(promptString: PromptString): string {
 	return Array.isArray(promptString) ? promptString.join('') : promptString;
 }
@@ -143,40 +140,22 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	// These are non-intersecting messages, so we are fine
 	if ((isChatPrompt(a) && isChatPrompt(b)) || (isChatPrompt(a) && promptGetText(b) === '') || (isChatPrompt(b) && promptGetText(a) === '')) {
 		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
-		const tools = [...(promptHasTools(a) ? a.tools : []), ...(promptHasTools(b) ? b.tools : [])];
-		const prompt: (ChatPrompt & FunctionPrompt) | (ChatPrompt & ToolPrompt) | ChatPrompt = {
+		const prompt: (ChatPrompt & FunctionPrompt) | ChatPrompt = {
 			type: 'chat',
 			messages: [...(isChatPrompt(a) ? a.messages : []), ...(isChatPrompt(b) ? b.messages : [])],
-			functions: functions.length > 0 ? functions : undefined,
-			tools: tools.length > 0 ? tools : undefined,
-		};
-		return prompt;
-	}
-	if ((promptHasTools(a) || promptHasTools(b)) && (promptHasFunctions(a) || promptHasFunctions(b))) {
-		throw new Error(`Cannot sum prompts ${a} and ${b} since you should only use tools or functions, but not both`);
-	}
-	if ((promptHasTools(a) || promptHasTools(b)) && (isTextPromptPotentiallyWithFunctions(a) && isTextPromptPotentiallyWithFunctions(b))) {
-		const tools = [...(promptHasTools(a) ? a.tools : []), ...(promptHasTools(b) ? b.tools : [])];
-		const prompt: (TextPrompt & ToolPrompt) = {
-			type: 'text',
-			text: sumPromptStrings((isPlainPrompt(a) ? a : a.text), (isPlainPrompt(b) ? b : b.text)),
-			tools,
+			functions: functions.length > 0 ? functions : undefined
 		};
 		return prompt;
 	}
 	if ((promptHasFunctions(a) || promptHasFunctions(b)) && (isTextPromptPotentiallyWithFunctions(a) && isTextPromptPotentiallyWithFunctions(b))) {
 		// valid, should return TextPrompt & FunctionPrompt
 		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
-		const prompt: (TextPrompt & FunctionPrompt) = {
+		const prompt: TextPrompt & FunctionPrompt = {
 			type: 'text',
 			text: sumPromptStrings((isPlainPrompt(a) ? a : a.text), (isPlainPrompt(b) ? b : b.text)),
 			functions,
 		};
 		return prompt;
-	}
-
-	if ((promptHasTools(a) && isPromptContent(b)) || (promptHasTools(b) && isPromptContent(a))) {
-		throw new Error(`Cannot sum prompts ${a} and ${b} since one has tools and the other has images`);
 	}
 
 	// We should not have contentPrompts with functions in them
@@ -585,10 +564,6 @@ export async function renderun<
 			}
 			await outputCatcher.onOutput(awaitable() as ReturnT);
 		} else {
-			if (rendered.streamHandlers.length > 1) {
-				// warn ppl
-				console.warn('Multiple stream handlers received, this may cause unexpected behavior')
-			}
 			await Promise.all(
 				rendered.streamHandlers.map((handler) => handler(modelOutput.value))
 			);
@@ -686,10 +661,8 @@ export function renderCumulativeSum(
 				newTokens += countable;
 			} else if (typeof countable === 'string') {
 				newTokens += tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(countable);
-			} else if (countable.type === 'functionDefinition') {
+			} else {
 				newTokens += countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(countable, definedTokenizer);
-			} else if (countable.type === 'toolDefinition') {
-				newTokens += countToolTokensApprox_SYNCHRONOUS_BE_CAREFUL(countable.tool, definedTokenizer);
 			}
 		});
 		runningTokenSum += newTokens;
@@ -1080,10 +1053,7 @@ type NormalizedChatMessage = NormalizedChatUserSystemMessage | NormalizedChatAss
 type NormalizedFunctionDefinition = FunctionDefinition & {
 	cachedCount: number | undefined;
 }
-type NormalizedToolDefinition = ToolDefinition & {
-	cachedCount: number | undefined;
-}
-type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Config | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | ChatImage | NormalizedFunctionDefinition | NormalizedToolDefinition;
+type NormalizedNode = NormalizedFirst | NormalizedScope | BreakToken | Config | Empty | Isolate | Capture | NormalizedChatMessage | NormalizedString | ChatImage | NormalizedFunctionDefinition;
 type NormalizedPromptElement = NormalizedNode[];
 function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 	// we want to merge all the strings together
@@ -1121,7 +1091,6 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 					newNode = node;
 					break;
 				}
-				case 'toolDefinition':
 				case 'functionDefinition': {
 					newNode = {
 						...node,
@@ -1321,34 +1290,6 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				config: emptyConfig(),
 			}
 		}
-		case 'toolDefinition': {
-			if (elem.cachedCount === undefined) {
-				elem.cachedCount = await countToolTokens(elem.tool, tokenizer);
-			}
-			const prompt: (TextPrompt & ToolPrompt) = {
-				type: 'text',
-				text: "",
-				tools: [
-					{
-						type: 'function',
-						function: {
-							name: elem.tool.function.name,
-							description: elem.tool.function.description,
-							parameters: elem.tool.function.parameters,
-						}
-					}
-				]
-			};
-			return {
-				prompt,
-				tokenCount: elem.cachedCount,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
-			}
-		}
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
@@ -1416,13 +1357,6 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 						functionCall: elem.functionCall,
 					}
 					extraTokenCount += await countFunctionCallMessageTokens(elem.functionCall, tokenizer);
-				} else if (elem.toolCalls !== undefined && elem.toolCalls.length > 0) {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-						toolCalls: elem.toolCalls,
-					}
 				} else {
 					message = {
 						role: elem.role,
@@ -1461,8 +1395,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				prompt: {
 					type: 'chat',
 					messages: [message],
-					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined,
-					tools: promptHasTools(p.prompt) ? p.prompt.tools : undefined,
+					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				tokenCount: p.tokenCount + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR + extraTokenCount,
 				emptyTokenCount: p.emptyTokenCount,
@@ -1608,26 +1541,6 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				emptyTokenCount: 0
 			}
 		}
-		case 'toolDefinition': {
-			const prompt: (TextPrompt & ToolPrompt) = {
-				type: 'text',
-				text: "",
-				tools: [
-					{
-						type: 'function',
-						function: {
-							name: elem.tool.function.name,
-							description: elem.tool.function.description,
-							parameters: elem.tool.function.parameters,
-						}
-					}
-				]
-			};
-			return {
-				prompt,
-				emptyTokenCount: 0
-			}
-		}
 		case 'image': {
 			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
 			const mediaType = getImageMimeType(elem.bytes);
@@ -1704,13 +1617,6 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
 						functionCall: elem.functionCall,
 					}
-				} else if (elem.toolCalls !== undefined) {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
-						toolCalls: elem.toolCalls,
-					}
 				} else {
 					message = {
 						role: elem.role,
@@ -1747,8 +1653,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				prompt: {
 					type: 'chat',
 					messages: [message],
-					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined,
-					tools: promptHasTools(p.prompt) ? p.prompt.tools : undefined,
+					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				emptyTokenCount: p.emptyTokenCount,
 			}
@@ -1813,7 +1718,6 @@ function hydrateEmptyTokenCount(elem: PromptElement, tokenizer: PriomptTokenizer
 		case 'isolate':
 		case 'breaktoken':
 		case 'config':
-		case 'toolDefinition':
 		case 'functionDefinition': {
 			return;
 		}
@@ -1860,8 +1764,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer): Prom
 		case 'image':
 		case 'breaktoken':
 		case 'config':
-		case 'functionDefinition':
-		case 'toolDefinition': {
+		case 'functionDefinition': {
 			return;
 		}
 		case 'isolate': {
@@ -2081,31 +1984,6 @@ function renderWithLevel(
 				config: emptyConfig(),
 			}
 		}
-		case 'toolDefinition': {
-			const prompt: (TextPrompt & ToolPrompt) = {
-				type: 'text',
-				text: "",
-				tools: [
-					{
-						type: 'function',
-						function: {
-							name: elem.tool.function.name,
-							description: elem.tool.function.description,
-							parameters: elem.tool.function.parameters,
-						}
-					}
-				]
-			};
-			return {
-				prompt,
-				sourceMap: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
-			}
-		}
 		case 'isolate': {
 			// check if we have a cached prompt
 			if (elem.cachedRenderOutput === undefined) {
@@ -2170,13 +2048,6 @@ function renderWithLevel(
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
 						functionCall: elem.functionCall,
 					}
-				} else if (elem.toolCalls !== undefined) {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
-						toolCalls: elem.toolCalls,
-					}
 				} else {
 					message = {
 						role: elem.role,
@@ -2216,8 +2087,7 @@ function renderWithLevel(
 				prompt: {
 					type: 'chat',
 					messages: [message],
-					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined,
-					tools: promptHasTools(p.prompt) ? p.prompt.tools : undefined,
+					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined
 				},
 				sourceMap,
 				emptyTokenCount: p.emptyTokenCount,
@@ -2406,7 +2276,6 @@ function validateNoUnhandledTypes(elem: PromptElement): void {
 
 	switch (elem.type) {
 		case 'functionDefinition':
-		case 'toolDefinition':
 		case 'image':
 		case 'empty': {
 			return;
@@ -2459,7 +2328,6 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 		case 'capture':
 		case 'breaktoken':
 		case 'functionDefinition':
-		case 'toolDefinition':
 		case 'image':
 		case 'config':
 		case 'empty': {
@@ -2513,7 +2381,6 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 		case 'image':
 		case 'breaktoken':
 		case 'functionDefinition':
-		case 'toolDefinition':
 		case 'empty':
 		case 'config': {
 			return;
@@ -2569,7 +2436,6 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 		case 'image':
 		case 'capture':
 		case 'functionDefinition':
-		case 'toolDefinition':
 		case 'breaktoken':
 		case 'config':
 		case 'empty': {
@@ -2599,9 +2465,10 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 		}
 	}
 
+	throw new Error(`BUG!! computePriorityLevels got an invalid node of type ${typeof elem} (see the console log above)`);
 }
 
-type Countables = FunctionDefinition | NormalizedFunctionDefinition | ToolDefinition | NormalizedToolDefinition | string | number
+type Countables = FunctionDefinition | NormalizedFunctionDefinition | string | number
 function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedNode, parentPriority: number, mapping: Record<number, Countables[]>): void {
 
 	if (Array.isArray(elem)) {
@@ -2623,13 +2490,6 @@ function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedN
 			return
 		}
 		case 'functionDefinition': {
-			if (!(parentPriority in mapping)) {
-				mapping[parentPriority] = [];
-			}
-			mapping[parentPriority].push(elem);
-			return;
-		}
-		case 'toolDefinition': {
 			if (!(parentPriority in mapping)) {
 				mapping[parentPriority] = [];
 			}
@@ -2728,13 +2588,6 @@ function countTokensApproxFast_UNSAFE(tokenizer: PriomptTokenizer, prompt: Rende
 		});
 		tokens += functionTokens.reduce((a, b) => a + b, 0);
 	}
-	if (promptHasTools(prompt)) {
-		// we assume an extra 2 tokens per tool
-		const toolTokens = prompt.tools.map((tool) => {
-			return countToolTokensApprox_SYNCHRONOUS_BE_CAREFUL(tool, tokenizer) + 2;
-		});
-		tokens += toolTokens.reduce((a, b) => a + b, 0);
-	}
 	return tokens;
 }
 async function countTokensExact(tokenizer: PriomptTokenizer, prompt: RenderedPrompt, options: {
@@ -2770,26 +2623,15 @@ async function countTokensExact(tokenizer: PriomptTokenizer, prompt: RenderedPro
 		}));
 		tokens += functionTokens.reduce((a, b) => a + b, 0);
 	}
-	if (promptHasTools(prompt)) {
-		// we assume an extra 2 tokens per tool
-		const toolTokens = await Promise.all(prompt.tools.map(async (tool) => {
-			return await countToolTokens(tool, tokenizer) + 2;
-		}));
-		tokens += toolTokens.reduce((a, b) => a + b, 0);
-	}
 	return tokens;
 }
 
-// TODO: swap this with newer version of openai api
-export function promptToOpenAIChatRequest(prompt: RenderedPrompt): { messages: Array<ChatCompletionRequestMessage>; functions: ChatCompletionFunctions[] | undefined; tools: ChatAndToolPromptToolFunction[] | undefined, tool_choice?: 'auto' } {
+export function promptToOpenAIChatRequest(prompt: RenderedPrompt): { messages: Array<ChatCompletionRequestMessage>; functions: ChatCompletionFunctions[] | undefined } {
 	const functions = promptHasFunctions(prompt) ? prompt.functions : undefined;
-	const tools = promptHasTools(prompt) ? prompt.tools : undefined;
 	const messages = promptToOpenAIChatMessages(prompt);
 	return {
 		messages,
-		functions,
-		tools,
-		tool_choice: tools && tools.length > 0 ? 'auto' : undefined,
+		functions
 	};
 }
 
@@ -2943,10 +2785,11 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 					content: promptStringToString(msg.content),
 				}
 			} else if (msg.role === 'tool') {
+				// openai chat messages do not support the tool role... (i think)
+				// so we put it in a system message instead!
 				return {
-					role: 'tool',
+					role: "system",
 					name: msg.name,
-					tool_call_id: msg.to,
 					content: promptStringToString(msg.content),
 				}
 			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
@@ -2954,20 +2797,6 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 					role: msg.role,
 					content: msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
 					function_call: msg.functionCall,
-				}
-			} else if (msg.role === 'assistant' && msg.toolCalls !== undefined) {
-				return {
-					role: msg.role,
-					content: msg.content !== undefined ? promptStringToString(msg.content) : "", // openai is lying when they say this should not be provided
-					tool_calls: msg.toolCalls?.map(toolCall => ({
-						type: 'function',
-						id: toolCall.id,
-						index: toolCall.index,
-						function: {
-							name: toolCall.tool.function.name,
-							arguments: toolCall.tool.function.arguments,
-						}
-					}))
 				}
 			} else if (msg.role === 'assistant') {
 				return {
@@ -3067,19 +2896,6 @@ async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunc
 	return Math.ceil(raw * 1.5) + 10;
 }
 
-async function countToolTokens(toolDefinition: ChatAndToolPromptToolFunction, tokenizer: PriomptTokenizer): Promise<number> {
-	// hmmmm how do we count these tokens? openai has been quite unclear
-	// for now we JSON stringify and count tokens, and hope that that is reasonably close
-	const stringifiedTool = JSON.stringify({
-		name: toolDefinition.function.name,
-		description: toolDefinition.function.description,
-		parameters: toolDefinition.function.parameters,
-	}, null, 2);
-	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
-	const raw = await tokenizer.numTokens(stringifiedTool);
-	return Math.ceil(raw * 1.5) + 10;
-}
-
 function countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: PriomptTokenizer): number {
 	// hmmmm how do we count these tokens? openai has been quite unclear
 	// for now we JSON stringify and count tokens, and hope that that is reasonably close
@@ -3093,19 +2909,6 @@ function countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(functionDefinition: Ch
 	return Math.ceil(raw * 1.5) + 10;
 }
 
-function countToolTokensApprox_SYNCHRONOUS_BE_CAREFUL(toolDefinition: ChatAndToolPromptToolFunction, tokenizer: PriomptTokenizer): number {
-	// hmmmm how do we count these tokens? openai has been quite unclear
-	// for now we JSON stringify and count tokens, and hope that that is reasonably close
-	const stringifiedTool = JSON.stringify({
-		name: toolDefinition.function.name,
-		description: toolDefinition.function.description,
-		parameters: toolDefinition.function.parameters,
-	}, null, 2);
-	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
-	const raw = tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(stringifiedTool);
-	return Math.ceil(raw * 1.5) + 10;
-}
-
 
 function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: PriomptTokenizer): [number, number] {
 	const stringifiedFunction = JSON.stringify({
@@ -3114,17 +2917,6 @@ function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctio
 		parameters: functionDefinition.parameters,
 	}, null, 2);
 	const raw = tokenizer.estimateTokensUsingCharCount(stringifiedFunction);
-	// we multiply by 1.5 and add 10 just to be safe until we've done more testing for the upper bound
-	return [Math.ceil(raw[0] * 0.5), Math.ceil(raw[1] * 1.5) + 10];
-}
-
-function estimateToolTokensUsingCharcount(toolDefinition: ChatAndToolPromptToolFunction, tokenizer: PriomptTokenizer): [number, number] {
-	const stringifiedTool = JSON.stringify({
-		name: toolDefinition.function.name,
-		description: toolDefinition.function.description,
-		parameters: toolDefinition.function.parameters,
-	}, null, 2);
-	const raw = tokenizer.estimateTokensUsingCharCount(stringifiedTool);
 	// we multiply by 1.5 and add 10 just to be safe until we've done more testing for the upper bound
 	return [Math.ceil(raw[0] * 0.5), Math.ceil(raw[1] * 1.5) + 10];
 }
@@ -3154,9 +2946,8 @@ function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, t
 	}
 
 	const functionTokens = (promptHasFunctions(prompt) ? prompt.functions.reduce((a, b) => (a + estimateFunctionTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);
-	const toolTokens = (promptHasTools(prompt) ? prompt.tools.reduce((a, b) => (a + estimateToolTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);
 
-	return contentTokens + functionTokens + toolTokens;
+	return contentTokens + functionTokens;
 }
 
 export class TooManyTokensForBasePriority extends Error {
