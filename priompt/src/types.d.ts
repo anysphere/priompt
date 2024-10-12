@@ -21,7 +21,8 @@ export type First = {
 
 export type Empty = {
 	type: 'empty';
-	tokenCount: number;
+	tokenCount: number | undefined;
+	tokenFunction: ((tokenizer: (s: string) => Promise<number>) => Promise<number>) | undefined;
 };
 
 export type BreakToken = {
@@ -165,7 +166,7 @@ export namespace JSX {
 		hr: Omit<BaseProps, 'children'>;
 		breaktoken: Omit<BaseProps, 'children'>;
 		// automatically use a certain number of tokens (useful for leaving space for the model to give its answer)
-		empty: BaseProps & { tokens: number; };
+		empty: BaseProps & { tokens: number | ((tokenizer: (s: string) => Promise<number>) => Promise<number>); };
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
 		capture: Omit<BaseProps, 'children'> & CaptureProps;
 		isolate: BaseProps & IsolateProps;

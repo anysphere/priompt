@@ -300,7 +300,7 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 				if (children.length > 0) {
 					throw new Error(`empty tag must have no children, got ${children}`);
 				}
-				if (!props || typeof props.tokens !== 'number') {
+				if (!props || (typeof props.tokens !== 'number' && typeof props.tokens !== 'function')) {
 					throw new Error(`empty tag must have a tokens prop, got ${props}`);
 				}
 
@@ -308,7 +308,8 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					type: 'scope',
 					children: [{
 						type: 'empty',
-						tokenCount: props.tokens,
+						tokenCount: typeof props.tokens === 'number' ? props.tokens : undefined,
+						tokenFunction: typeof props.tokens === 'function' ? props.tokens as Empty['tokenFunction'] : undefined,
 					}],
 					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined,
@@ -725,6 +726,8 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 		const endTimeHydratingIsolates = performance.now();
 		console.debug(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
 	}
+
+	await hydrateEmptyTokenCount(elem, tokenizer);
 
 	let startTimeRendering = undefined;
 	if (getIsDevelopment()) {
@@ -1185,6 +1188,12 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 			}
 		}
 		case 'empty': {
+			if (elem.tokenCount === undefined) {
+				if (elem.tokenFunction === undefined) {
+					throw new Error(`BUG!! empty token function is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.`);
+				}
+				elem.tokenCount = await elem.tokenFunction((s) => tokenizer.numTokens(s));
+			}
 			return {
 				prompt: undefined,
 				tokenCount: 0,
@@ -1440,6 +1449,9 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 			}
 		}
 		case 'empty': {
+			if (elem.tokenCount === undefined) {
+				throw new Error(`BUG!! empty token count is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
+			}
 			return {
 				prompt: undefined,
 				emptyTokenCount: elem.tokenCount
@@ -1605,6 +1617,54 @@ function recursivelyEject(elem: PromptElement) {
 		}
 		if ('children' in elem && elem.children !== undefined && Array.isArray(elem.children)) {
 			elem.children.forEach(e => recursivelyEject(e));
+		}
+	}
+}
+
+function hydrateEmptyTokenCount(elem: PromptElement, tokenizer: PriomptTokenizer): Promise<void> | undefined {
+	if (elem === undefined || elem === null || elem === false) {
+		return;
+	}
+	if (Array.isArray(elem)) {
+		const results = elem.map(e => hydrateEmptyTokenCount(e, tokenizer));
+		if (results.some(r => r !== undefined)) {
+			return Promise.all(results.filter(r => r !== undefined)).then(() => { });
+		} else {
+			return undefined;
+		}
+	}
+	if (typeof elem === 'string') {
+		return;
+	}
+	if (typeof elem === 'number') {
+		return;
+	}
+	switch (elem.type) {
+		case 'chat':
+		case 'scope':
+		case 'first': {
+			return hydrateEmptyTokenCount(elem.children, tokenizer);
+		}
+		case 'capture':
+		case 'image':
+		case 'isolate':
+		case 'breaktoken':
+		case 'config':
+		case 'functionDefinition': {
+			return;
+		}
+		case 'empty': {
+			// check if we have a cached prompt
+			if (elem.tokenCount === undefined) {
+				const promise = (async () => {
+					if (elem.tokenFunction === undefined) {
+						throw new Error(`BUG!! empty token function is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.`);
+					}
+					elem.tokenCount = await elem.tokenFunction((s) => tokenizer.numTokens(s));
+				})();
+				return promise;
+			}
+			return;
 		}
 	}
 }
@@ -1806,6 +1866,9 @@ function renderWithLevel(
 			}
 		}
 		case 'empty': {
+			if (elem.tokenCount === undefined) {
+				throw new Error(`BUG!! empty token count is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
+			}
 			return {
 				prompt: undefined,
 				sourceMap: undefined,
@@ -2327,6 +2390,9 @@ function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedN
 
 	switch (elem.type) {
 		case 'empty': {
+			if (elem.tokenCount === undefined) {
+				throw new Error(`BUG!! empty token count is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
+			}
 			if (!(parentPriority in mapping)) {
 				mapping[parentPriority] = [];
 			}
