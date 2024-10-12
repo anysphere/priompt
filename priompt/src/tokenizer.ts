@@ -38,6 +38,7 @@ export type OpenAIMessageRole = 'system' | 'user' | 'assistant' | 'tool'
 export type PriomptTokenizer = {
 	name: string;
 	encodeTokens: (text: string) => Promise<number[]>;
+	decodeTokens: (tokens: number[]) => Promise<string>;
 	numTokens: (text: string) => Promise<number>;
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text: string) => number;
 	estimateTokensUsingCharCount: (text: string) => [number, number];
@@ -115,6 +116,7 @@ async function openaiChatMessagesToTokens(messages: { role: OpenAIMessageRole, n
 export const CL100K: PriomptTokenizer = {
 	name: 'cl100k_base',
 	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'cl100k_base' }),
+	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'cl100k_base' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base'),
@@ -129,6 +131,7 @@ export const CL100K: PriomptTokenizer = {
 export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
 	name: 'cl100k_base_special_tokens',
 	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'cl100k_base_special_tokens' }),
+	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'cl100k_base_special_tokens' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base_special_tokens'),
@@ -144,6 +147,7 @@ export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
 export const O200K: PriomptTokenizer = {
 	name: 'o200k_base',
 	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'o200k_base' }),
+	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'o200k_base' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base'),
@@ -159,6 +163,7 @@ export const O200K: PriomptTokenizer = {
 export const O200K_SPECIAL_TOKENS: PriomptTokenizer = {
 	name: 'o200k_base_special_tokens',
 	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'o200k_base_special_tokens' }),
+	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'o200k_base_special_tokens' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base_special_tokens'),
@@ -236,6 +241,25 @@ export async function encodeTokens(text: string, opts: {
 			return await tokenizerObject.encode(text, tiktoken.SupportedEncoding.O200k, tiktoken.SpecialTokenAction.NormalText, {});
 		case 'o200k_base_special_tokens':
 			return await tokenizerObject.encode(text, tiktoken.SupportedEncoding.O200k, tiktoken.SpecialTokenAction.Special, {});
+		default:
+			throw new Error(`Unknown tokenizer ${tokenizerName}`);
+	}
+}
+
+export async function decodeTokens(tokens: number[], opts: {
+	tokenizer: UsableTokenizer;
+}): Promise<string> {
+	const tokenizerName = opts.tokenizer;
+
+	switch (tokenizerName) {
+		case 'cl100k_base':
+			return await tokenizerObject.decode(tokens, tiktoken.SupportedEncoding.Cl100k);
+		case 'cl100k_base_special_tokens':
+			return await tokenizerObject.decode(tokens, tiktoken.SupportedEncoding.Cl100k);
+		case 'o200k_base':
+			return await tokenizerObject.decode(tokens, tiktoken.SupportedEncoding.O200k);
+		case 'o200k_base_special_tokens':
+			return await tokenizerObject.decode(tokens, tiktoken.SupportedEncoding.O200k);
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
