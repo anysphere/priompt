@@ -322,6 +322,7 @@ const App = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-ghost-mode": "false",
         },
         body: JSON.stringify(body),
       })
@@ -520,6 +521,7 @@ const App = () => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          "x-ghost-mode": "false",
         },
       })
         .then((res) => res.json())
@@ -604,6 +606,7 @@ const App = () => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          "x-ghost-mode": "false",
         },
       })
         .then((res) => res.json())
