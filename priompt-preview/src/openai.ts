@@ -29,6 +29,7 @@ export async function* streamChatLocalhost(createChatCompletionRequest: CreateCh
 			},
 			signal: newAbortSignal.signal,
 			body: JSON.stringify({
+				max_tokens: 4000,
 				...createChatCompletionRequest,
 				stream: true
 			}),
@@ -82,6 +83,15 @@ const enc_old = encodingForModel("text-davinci-003");
 
 // TODO (Aman): Make this work for non-oai models (or error if it doesn't work for them)!
 export async function* streamChatCompletionLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
+	// If this is an anthropic model, we can actually just streamchat localhost
+	if (createChatCompletionRequest.model.includes('claude-3')) {
+		// The last message must be an assistant message
+		if (createChatCompletionRequest.messages.length === 0 || createChatCompletionRequest.messages[createChatCompletionRequest.messages.length - 1].role !== 'assistant') {
+			throw new Error('Last message must be an assistant message');
+		}
+		yield* streamChatLocalhost(createChatCompletionRequest, options, abortSignal);
+		return;
+	}
 	const prompt = joinMessages(createChatCompletionRequest.messages, true);
 	let tokens = enc.encode(prompt).length;
 	if (createChatCompletionRequest.model.includes('00')) {
@@ -94,6 +104,7 @@ export async function* streamChatCompletionLocalhost(createChatCompletionRequest
 		prompt,
 		stop: ['<|im_end|>', '<|diff_marker|>']
 	} as CreateCompletionRequest;
+
 
 	let streamer: AsyncGenerator<CreateCompletionResponse> | undefined = undefined;
 
