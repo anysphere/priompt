@@ -23,12 +23,14 @@ const LLAMA_PATH: &str = "./tokenizers/Meta-Llama-3-70B-Instruct";
 pub enum SupportedEncoding {
   Cl100k = 0,
   Llama3 = 1,
+  O200k = 2,
 }
 
 struct TokenizerActor {
   receiver: mpsc::Receiver<TokenizerMessage>,
   cl100k_encoding: tiktoken::Encoding,
   llama3_encoding: tiktoken::Encoding,
+  o200k_encoding: tiktoken::Encoding,
 }
 enum TokenizerMessage {
   ExactNumTokens {
@@ -136,7 +138,9 @@ impl TokenizerActor {
       .map_err(|e| tiktoken::EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?;
     let llama3_encoding = llama_tokenizer()
       .map_err(|e| tiktoken::EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?;
-    Ok(TokenizerActor { receiver, cl100k_encoding, llama3_encoding })
+    let o200k_encoding = tiktoken::EncodingFactory::o200k_im()
+      .map_err(|e| tiktoken::EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?;
+    Ok(TokenizerActor { receiver, cl100k_encoding, llama3_encoding, o200k_encoding })
   }
   fn handle_message(&mut self, msg: TokenizerMessage) {
     match msg {
@@ -144,6 +148,7 @@ impl TokenizerActor {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
           SupportedEncoding::Llama3 => &self.llama3_encoding,
+          SupportedEncoding::O200k => &self.o200k_encoding,
         };
 
         let tokens = enc.encode(&text, &special_token_handling).context("Error encoding string");
@@ -160,6 +165,7 @@ impl TokenizerActor {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
           SupportedEncoding::Llama3 => &self.llama3_encoding,
+          SupportedEncoding::O200k => &self.o200k_encoding,
         };
 
         let tokens = enc.encode(&text, &special_token_handling).context("Error encoding string");
@@ -176,6 +182,7 @@ impl TokenizerActor {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
           SupportedEncoding::Llama3 => &self.llama3_encoding,
+          SupportedEncoding::O200k => &self.o200k_encoding,
         };
 
         let token = enc.encode_single_token_bytes(&bytes);
@@ -192,6 +199,7 @@ impl TokenizerActor {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
           SupportedEncoding::Llama3 => &self.llama3_encoding,
+          SupportedEncoding::O200k => &self.o200k_encoding,
         };
         let bytes = enc.decode_single_token_bytes(token as usize);
         let bytes = match bytes {
@@ -204,6 +212,7 @@ impl TokenizerActor {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
           SupportedEncoding::Llama3 => &self.llama3_encoding,
+          SupportedEncoding::O200k => &self.o200k_encoding,
         };
 
         let text = enc.decode(&tokens.into_iter().map(|t| t as usize).collect::<Vec<_>>());
@@ -215,6 +224,7 @@ impl TokenizerActor {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
           SupportedEncoding::Llama3 => &self.llama3_encoding,
+          SupportedEncoding::O200k => &self.o200k_encoding,
         };
 
         let tokens = enc.estimate_num_tokens_no_special_tokens_fast(&text);
@@ -469,6 +479,7 @@ impl Tokenizer {
 pub struct SyncTokenizer {
   cl100k_encoding: tiktoken::Encoding,
   llama3_encoding: tiktoken::Encoding,
+  o200k_encoding: tiktoken::Encoding,
 }
 
 #[napi]
@@ -481,8 +492,11 @@ impl SyncTokenizer {
     let llama3_encoding = llama_tokenizer().map_err(|e| {
       napi::Error::from_reason(format!("Error creating tokenizer: {}", e.to_string()))
     })?;
+    let o200k_encoding = tiktoken::EncodingFactory::o200k_im().map_err(|e| {
+      napi::Error::from_reason(format!("Error creating tokenizer: {}", e.to_string()))
+    })?;
 
-    Ok(Self { cl100k_encoding, llama3_encoding })
+    Ok(Self { cl100k_encoding, llama3_encoding, o200k_encoding })
   }
 
   #[napi]
@@ -490,6 +504,7 @@ impl SyncTokenizer {
     let enc = match encoding {
       SupportedEncoding::Cl100k => &self.cl100k_encoding,
       SupportedEncoding::Llama3 => &self.llama3_encoding,
+      SupportedEncoding::O200k => &self.o200k_encoding,
     };
     Ok(enc.estimate_num_tokens_no_special_tokens_fast(&text) as i32)
   }

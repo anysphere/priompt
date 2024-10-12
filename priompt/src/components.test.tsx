@@ -16,7 +16,7 @@ import {
   UserMessage,
 } from "./components";
 import { PromptElement, PromptProps } from "./types";
-import { getTokenizerByName } from './tokenizer';
+import { getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS } from "./tokenizer";
 
 describe("SystemMessage", () => {
   function TestSystemMessage(props: PromptProps): PromptElement {
@@ -26,7 +26,7 @@ describe("SystemMessage", () => {
   it("should create a chat message", async () => {
     const rendered = await render(TestSystemMessage({}), {
       tokenLimit: 1000,
-      tokenizer: getTokenizerByName("cl100k_base"),
+      tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
     });
     expect(isChatPrompt(rendered.prompt)).toBe(true);
   });
@@ -52,7 +52,7 @@ describe("SystemMessage", () => {
       TestSystemMessageWithName({ systemName: "TestName", userName: "carl" }),
       {
         tokenLimit: 1000,
-        tokenizer: getTokenizerByName("cl100k_base"),
+        tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
       }
     );
     expect(isChatPrompt(rendered.prompt)).toBe(true);
@@ -106,7 +106,7 @@ describe("Function", () => {
   it("should create a function message", async () => {
     const rendered = await render(TestFunction({}), {
       tokenLimit: 1000,
-      tokenizer: getTokenizerByName("cl100k_base"),
+      tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
     });
     expect(isChatPrompt(rendered.prompt)).toBe(true);
     expect(promptHasFunctions(rendered.prompt)).toBe(true);
@@ -172,7 +172,7 @@ describe("All kinds of messages", () => {
   it("should create all kinds of messages", async () => {
     const rendered = await render(TestAllMessages({}), {
       tokenLimit: 1000,
-      tokenizer: getTokenizerByName("cl100k_base"),
+      tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
     });
     expect(isChatPrompt(rendered.prompt)).toBe(true);
     if (!isChatPrompt(rendered.prompt)) return;
@@ -273,7 +273,7 @@ describe("Images", () => {
   it("should create all kinds of messages", async () => {
     const rendered = await render(TestImageMessage({}), {
       tokenLimit: 1000,
-      tokenizer: getTokenizerByName("cl100k_base"),
+      tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
     });
     expect(isChatPrompt(rendered.prompt)).toBe(true);
     if (!isChatPrompt(rendered.prompt)) return;

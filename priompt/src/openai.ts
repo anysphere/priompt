@@ -41,6 +41,7 @@ export function approximateTokensUsingBytecount(text: string, tokenizer: UsableT
 	const byteLength = encoder.encode(text).length;
 	switch (tokenizer) {
 		case 'cl100k_base':
+		case 'o200k_base':
 			return byteLength / 4;
 		default:
 			return byteLength / 3;

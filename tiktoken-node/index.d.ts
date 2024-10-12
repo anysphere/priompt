@@ -5,7 +5,8 @@
 
 export const enum SupportedEncoding {
   Cl100k = 0,
-  Llama3 = 1
+  Llama3 = 1,
+  O200k = 2
 }
 export const enum SpecialTokenAction {
   /** The special token is forbidden. If it is included in the string, an error will be returned. */
