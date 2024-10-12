@@ -1957,6 +1957,7 @@ const TextAreaWithSetting = memo(
   }) => {
     const [prevScrollPos, setPrevScrollPos] = useState(0);
     const [scrollCorrection, setScrollCorrection] = useState(false);
+    const [isMinimized, setIsMinimized] = useState(false);
 
     const internalRef = useRef<HTMLTextAreaElement>(null);
 
@@ -2056,7 +2057,7 @@ const TextAreaWithSetting = memo(
             width: "100%",
             outline: "none",
             resize: "none",
-            display: "block",
+            display: isMinimized ? "none" : "block",
             // remove the border from the textarea
             border: "solid 1px",
             // background completely transparent
@@ -2067,6 +2068,10 @@ const TextAreaWithSetting = memo(
           onKeyDown={(e) => {
             // Capture all keydown events
             e.stopPropagation();
+            // if it's cmd+escape, minimize
+            if (e.key === "Escape" && e.metaKey) {
+              setIsMinimized(true);
+            }
           }}
           onChange={handleInput}
           spellCheck={false}
@@ -2075,6 +2080,18 @@ const TextAreaWithSetting = memo(
           onFocus={onFocus}
           onClick={onFocus}
         />
+        {isMinimized ? (
+          <>
+            <button
+              style={{
+                margin: "10px",
+              }}
+              onClick={() => setIsMinimized(false)}
+            >
+              Minimized. Click to unminimize
+            </button>
+          </>
+        ) : null}
       </div>
     );
   },

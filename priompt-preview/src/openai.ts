@@ -24,6 +24,12 @@ export async function* streamChatLocalhost(createChatCompletionRequest: CreateCh
 	}, 200_000);
 
 	try {
+		const prompt = joinMessages(createChatCompletionRequest.messages, true);
+		let tokens = enc.encode(prompt).length;
+		if (createChatCompletionRequest.model.includes('00')) {
+			tokens = enc_old.encode(prompt).length;
+		}
+		const maxTokens = Math.min((getTokenLimit(createChatCompletionRequest.model)) - tokens, getOutputTokenLimit(createChatCompletionRequest.model))
 		const requestOptions: RequestInit = {
 			...options,
 			method: 'POST',
@@ -32,9 +38,16 @@ export async function* streamChatLocalhost(createChatCompletionRequest: CreateCh
 			},
 			signal: newAbortSignal.signal,
 			body: JSON.stringify({
-				max_tokens: (window as Window & { max_tokens?: number }).max_tokens ?? 4000,
 				...createChatCompletionRequest,
-				stream: true
+				...(
+					openaiNonStreamableModels.includes(createChatCompletionRequest.model) ? {
+						stream: undefined,
+						max_tokens: undefined,
+					} : {
+						stream: true,
+						max_tokens: maxTokens
+					}
+				)
 			}),
 		};
 
@@ -69,6 +82,8 @@ export async function* streamChatLocalhost(createChatCompletionRequest: CreateCh
 const getOutputTokenLimit = (model: string) => {
 	if (model.includes('22b')) {
 		return 32_768;
+	} else if (model.includes("claude-3-5-sonnet-20240620")) {
+		return 8_192;
 	} else {
 		return 4_096;
 	}
@@ -84,7 +99,7 @@ const getTokenLimit = (model: string) => {
 		return 32_768;
 	}
 
-	return 8192;
+	return 1_000_000;
 }
 
 const TOKEN_LIMIT: Record<string, number> = {
@@ -104,6 +119,7 @@ const TOKEN_LIMIT: Record<string, number> = {
 const enc = encodingForModel("gpt-4");
 const enc_old = encodingForModel("text-davinci-003");
 
+const openaiNonStreamableModels = ["o1-mini-2024-09-12", "o1-preview-2024-09-12"];
 
 // TODO (Aman): Make this work for non-oai models (or error if it doesn't work for them)!
 export async function* streamChatCompletionLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {

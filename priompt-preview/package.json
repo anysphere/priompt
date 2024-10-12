@@ -24,6 +24,7 @@
       "command": "vite build",
       "files": [
         "src/**/*.ts",
+        "src/**/*.tsx",
         "tsconfig.json"
       ],
       "output": [
@@ -39,6 +40,7 @@
       "clean": "if-file-deleted",
       "files": [
         "src/**/*.ts",
+        "src/**/*.tsx",
         "tsconfig.json"
       ],
       "output": [
