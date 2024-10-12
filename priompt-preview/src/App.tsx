@@ -1401,12 +1401,17 @@ const App = () => {
               <button onClick={() => setTokenCount(8192)}>
                 8192 (press 8)
               </button>
+              <button onClick={() => setTokenCount(150_000)}>150,000</button>
+              <button onClick={() => setTokenCount(200_000)}>200,000</button>
+              <button onClick={() => setTokenCount(1_000_000)}>
+                1,000,000
+              </button>
               <br />
               <input
                 type="range"
                 id="token-count-slider"
                 min="1"
-                max="32768"
+                max="1000000"
                 value={tokenCount}
                 onChange={handleTokenCountChange}
                 style={{
@@ -1540,8 +1545,8 @@ const App = () => {
                                 msg.role === "user"
                                   ? "rgba(0, 0, 255, 0.2)"
                                   : msg.role === "system"
-                                    ? "rgba(100, 100, 100, 0.1)"
-                                    : "rgba(180,100,0,0.5)",
+                                  ? "rgba(100, 100, 100, 0.1)"
+                                  : "rgba(180,100,0,0.5)",
                               width: "100%",
                               // height: "fit-content",
                             }}
