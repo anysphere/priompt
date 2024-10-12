@@ -17,7 +17,7 @@ use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 
-const LLAMA_PATH: &str = "./tokenizers/Meta-Llama-3-70B-Instruct";
+const LLAMA_PATH: &str = "./Meta-Llama-3-70B-Instruct";
 
 #[napi]
 pub enum SupportedEncoding {
@@ -76,8 +76,16 @@ fn llama_tokenizer() -> Result<tiktoken::Encoding, anyhow::Error> {
     eprintln!("Warning: Backend directory not found in path ancestors. Using `..` as a fallback.");
     current_dir.parent().expect("Failed to access parent directory")
   });
+  let default_tokenizers_path = backend_dir.join("./tokenizers");
+  let env_tokenizers_path = env::var("TOKENIZERS_DIR");
 
-  let mergeable_ranks_path = backend_dir.join(LLAMA_PATH).join("tokenizer.model");
+  let tokenizers_path = if let Ok(env_tokenizers_path) = env_tokenizers_path {
+    std::path::PathBuf::from(env_tokenizers_path)
+  } else {
+    default_tokenizers_path
+  };
+
+  let mergeable_ranks_path = tokenizers_path.join(LLAMA_PATH).join("tokenizer.model");
   let mergeable_ranks_file =
     File::open(&mergeable_ranks_path).map_err(|e| anyhow::Error::msg(e.to_string()))?;
   let mergeable_ranks_reader = io::BufReader::new(mergeable_ranks_file);
