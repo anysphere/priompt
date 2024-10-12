@@ -27,7 +27,7 @@ tokio = { version = "1.13.0", features = [
   "macros",
 ] }
 once_cell = "1.18.0"
-crossbeam-channel = "0.5.8"
+async-channel = "2.3.1"
 
 [build-dependencies]
 napi-build = "2.0.1"

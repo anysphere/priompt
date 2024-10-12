@@ -1,4 +1,5 @@
 use anyhow::Context;
+use async_channel::{bounded, Receiver, Sender};
 use base64::Engine;
 use napi::bindgen_prelude::create_custom_tokio_runtime;
 use napi::bindgen_prelude::Error;
@@ -43,7 +44,7 @@ pub enum SupportedEncoding {
 }
 
 struct TokenizerActor {
-  receiver: crossbeam_channel::Receiver<TokenizerMessage>,
+  receiver: Receiver<TokenizerMessage>,
   encodings: Arc<Encodings>,
 }
 
@@ -164,10 +165,7 @@ fn llama_tokenizer() -> Result<tiktoken::Encoding, anyhow::Error> {
 }
 
 impl TokenizerActor {
-  fn new(
-    receiver: crossbeam_channel::Receiver<TokenizerMessage>,
-    encodings: Arc<Encodings>,
-  ) -> Self {
+  fn new(receiver: Receiver<TokenizerMessage>, encodings: Arc<Encodings>) -> Self {
     TokenizerActor { receiver, encodings }
   }
 
@@ -248,7 +246,7 @@ impl TokenizerActor {
 }
 
 fn run_tokenizer_actor(actor: TokenizerActor) {
-  while let Ok(msg) = actor.receiver.recv() {
+  while let Ok(msg) = actor.receiver.recv_blocking() {
     actor.handle_message(msg);
   }
 }
@@ -256,7 +254,7 @@ fn run_tokenizer_actor(actor: TokenizerActor) {
 #[napi]
 #[derive(Clone)]
 pub struct Tokenizer {
-  sender: crossbeam_channel::Sender<TokenizerMessage>,
+  sender: Sender<TokenizerMessage>,
 }
 
 #[napi]
@@ -282,10 +280,8 @@ impl SpecialTokenAction {
 #[napi]
 impl Tokenizer {
   pub fn new() -> Result<Self, tiktoken::EncodingFactoryError> {
-    // we allow 100 outstanding requests before we fail
-    // ideally we should never hit this limit... queueing up would be bad
-    let (sender, receiver) = crossbeam_channel::bounded(1024);
-    for i in 0..3 {
+    let (sender, receiver) = bounded(256);
+    for i in 0..4 {
       let actor = TokenizerActor::new(receiver.clone(), ENCODINGS.clone().unwrap());
       std::thread::Builder::new()
         .name(format!("tokenizer-actor-{}", i))
@@ -315,10 +311,8 @@ impl Tokenizer {
       },
     };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -346,10 +340,8 @@ impl Tokenizer {
       },
     };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -371,10 +363,8 @@ impl Tokenizer {
       },
     };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -391,10 +381,8 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::ApproximateNumTokens { respond_to: send, text, encoding, replace_spaces_with_lower_one_eighth_block };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -422,10 +410,8 @@ impl Tokenizer {
       },
     };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -442,10 +428,8 @@ impl Tokenizer {
     let msg =
       TokenizerMessage::EncodeSingleToken { respond_to: send, bytes: bytes.to_vec(), encoding };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -460,10 +444,8 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::DecodeTokenBytes { respond_to: send, token, encoding };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result
         .map_err(|e| napi::Error::from_reason(e.to_string()))
@@ -481,10 +463,8 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::DecodeTokens { respond_to: send, tokens: encoded_tokens, encoding };
 
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    // ignore errors since it can only mean the channel is closed, which will be caught in the recv below
+    let _ = self.sender.send(msg).await;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
