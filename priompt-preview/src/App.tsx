@@ -1939,10 +1939,60 @@ const TextAreaWithSetting = memo(
 
     const internalRef = useRef<HTMLTextAreaElement>(null);
 
+    const updateHeight = () => {
+      if (internalRef.current === null) return;
+      // Create a hidden clone of the textarea
+      const clone = internalRef.current.cloneNode() as HTMLTextAreaElement;
+      clone.style.visibility = "hidden";
+      clone.style.position = "absolute";
+      clone.style.height = "auto";
+      clone.style.whiteSpace = "pre-wrap";
+      clone.style.border = "solid 1px rgba(0,0,0,0)";
+      clone.style.boxSizing = "border-box";
+      clone.style.width = "100%";
+      clone.style.display = "block";
+      clone.style.resize = "none";
+      clone.style.outline = "none";
+      // document.body.appendChild(clone);
+      // append to the parent of the internalRef!
+      const appendNode = internalRef.current.parentNode ?? document.body;
+      appendNode.appendChild(clone);
+
+      // Copy the content to the clone
+      clone.value = internalRef.current.value ?? "";
+
+      // Measure the scrollHeight of the clone
+      const scrollHeight = clone.scrollHeight;
+
+      // Remove the clone
+      appendNode.removeChild(clone);
+
+      // Adjust the height of the original textarea
+      internalRef.current.style.height = `${scrollHeight + 5}px`;
+
+      // Store the current scroll position
+      // const scrollTop = internalRef.current.scrollTop;
+      // const h = internalRef.current.scrollHeight;
+
+      // resize the textarea to fit the content
+      // internalRef.current.style.height = `${internalRef.current.scrollHeight}px`;
+
+      // Restore the scroll position
+      // internalRef.current.scrollTop = scrollTop;
+      // update the scroll!
+      if (internalRef.current !== null) {
+        internalRef.current.scrollTop = prevScrollPos;
+      }
+    };
+
     useEffect(() => {
       if (internalRef.current !== null) {
         props.setTextArea(internalRef.current);
+        setTimeout(() => {
+          updateHeight();
+        }, 10);
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [props]);
 
     const handleScroll: React.UIEventHandler<HTMLTextAreaElement> = (event) => {
@@ -1960,39 +2010,7 @@ const TextAreaWithSetting = memo(
       props.setFullText(e.target.value ?? "");
       if (internalRef.current !== null) {
         internalRef.current.value = e.target.value ?? "";
-
-        // Create a hidden clone of the textarea
-        const clone = internalRef.current.cloneNode() as HTMLTextAreaElement;
-        clone.style.visibility = "hidden";
-        clone.style.position = "absolute";
-        clone.style.height = "auto";
-        document.body.appendChild(clone);
-
-        // Copy the content to the clone
-        clone.value = e.target.value ?? "";
-
-        // Measure the scrollHeight of the clone
-        const scrollHeight = clone.scrollHeight;
-
-        // Remove the clone
-        document.body.removeChild(clone);
-
-        // Adjust the height of the original textarea
-        internalRef.current.style.height = `${scrollHeight}px`;
-
-        // Store the current scroll position
-        // const scrollTop = internalRef.current.scrollTop;
-        // const h = internalRef.current.scrollHeight;
-
-        // resize the textarea to fit the content
-        // internalRef.current.style.height = `${internalRef.current.scrollHeight}px`;
-
-        // Restore the scroll position
-        // internalRef.current.scrollTop = scrollTop;
-      }
-      // update the scroll!
-      if (internalRef.current !== null) {
-        internalRef.current.scrollTop = prevScrollPos;
+        updateHeight();
       }
     };
 
@@ -2003,32 +2021,40 @@ const TextAreaWithSetting = memo(
     };
 
     return (
-      <textarea
-        ref={internalRef}
-        id={`prompt-textarea-${props.realKey}`}
+      <div
         style={{
-          whiteSpace: "pre-wrap",
           width: "100%",
-          outline: "none",
-          resize: "none",
-          display: "block",
-          // remove the border from the textarea
-          border: "solid 1px",
-          // background completely transparent
-          backgroundColor: "rgba(0,0,0,0)",
-          boxSizing: "border-box",
-          ...props.style,
+          position: "relative",
         }}
-        onKeyDown={(e) => {
-          // Capture all keydown events
-          e.stopPropagation();
-        }}
-        onChange={handleInput}
-        spellCheck={false}
-        onScroll={handleScroll}
-        onFocus={onFocus}
-        onClick={onFocus}
-      />
+      >
+        <textarea
+          ref={internalRef}
+          id={`prompt-textarea-${props.realKey}`}
+          style={{
+            whiteSpace: "pre-wrap",
+            width: "100%",
+            outline: "none",
+            resize: "none",
+            display: "block",
+            // remove the border from the textarea
+            border: "solid 1px",
+            // background completely transparent
+            backgroundColor: "rgba(0,0,0,0)",
+            boxSizing: "border-box",
+            ...props.style,
+          }}
+          onKeyDown={(e) => {
+            // Capture all keydown events
+            e.stopPropagation();
+          }}
+          onChange={handleInput}
+          spellCheck={false}
+          autoComplete="off"
+          onScroll={handleScroll}
+          onFocus={onFocus}
+          onClick={onFocus}
+        />
+      </div>
     );
   },
   (prevProps, nextProps) => {
