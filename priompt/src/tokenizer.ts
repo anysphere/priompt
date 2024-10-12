@@ -7,7 +7,6 @@
 // supply-chain attacks here
 import tiktoken, { SyncTokenizer } from '@anysphere/tiktoken-node';
 import { PromptContent } from './types';
-import { promptStringToString } from '.';
 
 
 const CL100K_BASE = 'cl100k_base';
