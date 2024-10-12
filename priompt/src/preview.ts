@@ -66,6 +66,9 @@ type LiveModeData = {
 };
 
 function getProjectRoot(): string {
+  if (process.env.PRIOMPT_PREVIEW_BASE_ABSOLUTE_PATH !== undefined) {
+    return process.env.PRIOMPT_PREVIEW_BASE_ABSOLUTE_PATH;
+  }
   if (process.env.PRIOMPT_PREVIEW_BASE_RELATIVE_PATH !== undefined) {
     return path.join(process.cwd(), process.env.PRIOMPT_PREVIEW_BASE_RELATIVE_PATH);
   }
