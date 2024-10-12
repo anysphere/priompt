@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { StreamChatCompletionResponse } from './openai';
-import { UsableTokenizer } from './tokenizer';
+import { UsableTokenizer, getTokenizerByName } from './tokenizer';
 import { ChatCompletionResponseMessage, CreateChatCompletionResponse } from 'openai';
 import { NewOutputCatcher, OutputCatcher } from './outputCatcher.ai';
 
@@ -173,7 +173,7 @@ class PreviewManagerImpl implements IPreviewManager {
       element = await element;
     }
 
-    const rendered = await render(element, { tokenizer: query.tokenizer, tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: getTokenizerByName(query.tokenizer), tokenLimit: query.tokenLimit });
 
     return rendered;
   }
@@ -186,7 +186,7 @@ class PreviewManagerImpl implements IPreviewManager {
       element = await element;
     }
 
-    const rendered = await render(element, { tokenizer: query.tokenizer, tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: getTokenizerByName(query.tokenizer), tokenLimit: query.tokenLimit });
 
     if (!query.stream) {
       // call all of them and wait all of them in parallel
@@ -244,7 +244,7 @@ class PreviewManagerImpl implements IPreviewManager {
   }
 
   async getPromptFromRemoteElement(query: Omit<PreviewManagerGetRemotePromptQuery, "promptId" | "promptDump">, element: PromptElement) {
-    const rendered = await render(element, { tokenizer: query.tokenizer, tokenLimit: query.tokenLimit });
+    const rendered = await render(element, { tokenizer: getTokenizerByName(query.tokenizer), tokenLimit: query.tokenLimit });
     return rendered
   }
 

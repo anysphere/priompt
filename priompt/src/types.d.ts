@@ -3,7 +3,7 @@
 
 import { JSONSchema7 } from 'json-schema';
 import { ChatCompletionResponseMessage } from 'openai';
-import { UsableTokenizer } from './tokenizer';
+import { PriomptTokenizer, UsableTokenizer } from './tokenizer';
 
 export type FunctionBody = {
 	name: string;
@@ -279,7 +279,7 @@ export type SynchronousPrompt<PropsT, ReturnT = never> = (props: PromptProps<Pro
 // decision: wait for now, see if it is needed
 export type RenderOptions = {
 	tokenLimit: number;
-	tokenizer: UsableTokenizer;
+	tokenizer: PriomptTokenizer;
 	countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY?: boolean;
 
 	// if it is, then we need to count tokens differently
@@ -289,7 +289,7 @@ export type RenderOutput = {
 	prompt: RenderedPrompt;
 	tokenCount: number;
 	tokenLimit: number;
-	tokenizer: UsableTokenizer;
+	tokenizer: PriomptTokenizer;
 	tokensReserved: number;
 	priorityCutoff: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];

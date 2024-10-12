@@ -27,6 +27,56 @@ export type UsableTokenizer = typeof usableTokenizers[number];
 const tokenizerObject = tiktoken.getTokenizer();
 const syncTokenizer = new SyncTokenizer();
 
+type OpenAIMessageRole = 'system' | 'user' | 'assistant' | 'tool'
+
+export type PriomptTokenizer = {
+	name: string;
+	encodeTokens: (text: string) => Promise<number[]>;
+	numTokens: (text: string) => Promise<number>;
+	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text: string) => number;
+	estimateTokensUsingCharCount: (text: string) => [number, number];
+	getHeaderStringForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => string;
+	getHeaderTokensForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => Promise<number[]>;
+	getEosTokenId: () => number;
+	getEosToken: () => string;
+	shouldAddEosTokenToEachMessage: boolean;
+}
+
+export const CL100K: PriomptTokenizer = {
+	name: 'cl100k_base',
+	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'cl100k_base' }),
+	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base' }),
+	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base' }),
+	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base'),
+	getEosToken: () => CL100K_END_TOKEN_STRING,
+	getEosTokenId: () => CL100K_END_TOKEN,
+	getHeaderStringForMessage: (message) => getHeaderStringForMessage(message, 'cl100k_base'),
+	getHeaderTokensForMessage: (message) => getHeaderTokensForMessage(message, 'cl100k_base'),
+	shouldAddEosTokenToEachMessage: true
+}
+export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
+	name: 'cl100k_base_special_tokens',
+	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'cl100k_base_special_tokens' }),
+	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base_special_tokens' }),
+	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base_special_tokens' }),
+	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base_special_tokens'),
+	getEosToken: () => CL100K_END_TOKEN_STRING,
+	getEosTokenId: () => CL100K_END_TOKEN,
+	getHeaderStringForMessage: (message) => getHeaderStringForMessage(message, 'cl100k_base_special_tokens'),
+	getHeaderTokensForMessage: (message) => getHeaderTokensForMessage(message, 'cl100k_base_special_tokens'),
+	shouldAddEosTokenToEachMessage: true
+}
+
+export const getTokenizerByName = (name: UsableTokenizer): PriomptTokenizer => {
+	switch (name) {
+		case 'cl100k_base':
+			return CL100K;
+		case 'cl100k_base_special_tokens':
+			return CL100K_SPECIAL_TOKENS;
+		default:
+			throw new Error(`Unknown tokenizer ${name}`);
+	}
+}
 export async function numTokens(text: string, opts: {
 	tokenizer: UsableTokenizer;
 }) {
@@ -127,3 +177,80 @@ export function numTokensForImage(dimensions: { width: number; height: number; }
 		throw new Error(`Unknown detail level ${detail}`);
 	}
 }
+
+const CL100K_SYSTEM_TOKENS = [100264, 9125, 100266];
+const CL100K_USER_TOKENS = [100264, 882, 100266];
+const CL100K_TOOL_TOKENS = [100264, 14506, 100266];
+const CL100K_ASSISTANT_TOKENS = [100264, 78191, 100266];
+const CL100K_END_TOKEN = 100265;
+const CL100K_SYSTEM_TOKENS_STRING = "<|im_start|>system<|im_sep|>";
+const CL100K_USER_TOKENS_STRING = "<|im_start|>user<|im_sep|>";
+const CL100K_ASSISTANT_TOKENS_STRING = "<|im_start|>assistant<|im_sep|>";
+const CL100K_END_TOKEN_STRING = "<|im_end|>";
+
+async function injectName(tokens: number[], name: string, tokenizer: UsableTokenizer): Promise<number[]> {
+	// i don't really know if this is the right way to format it....
+	const nameTokens = await encodeTokens(":" + name, { tokenizer: tokenizer })
+	return [...tokens.slice(0, -1), ...nameTokens, tokens[tokens.length - 1]];
+}
+async function injectTo(tokens: number[], to: string, tokenizer: UsableTokenizer): Promise<number[]> {
+	// Adjusting the function to handle 'to' parameter injection
+	const toTokens = await encodeTokens(" to=" + to, { tokenizer: tokenizer });
+	return [...tokens.slice(0, -1), ...toTokens, tokens[tokens.length - 1]];
+}
+
+function injectNameString(tokens: string, name: string): string {
+	return tokens.replace("<|im_sep|>", ":" + name + "<|im_sep|>");
+}
+
+export const getHeaderTokensForMessage = async (message: { role: 'system' | 'user' | 'assistant' | 'tool', name?: string, to?: string }, tokenizer: UsableTokenizer): Promise<number[]> => {
+	let headerTokens: number[]
+	switch (message.role) {
+		case 'system':
+			headerTokens = CL100K_SYSTEM_TOKENS
+			break
+		case 'user':
+			headerTokens = CL100K_USER_TOKENS
+			break
+		case 'assistant':
+			headerTokens = CL100K_ASSISTANT_TOKENS
+			break
+		case 'tool':
+			headerTokens = CL100K_TOOL_TOKENS
+			break
+		default:
+			throw new Error(`Unknown role ${message.role}`)
+	}
+	if ('name' in message && message.name !== undefined) {
+		headerTokens = await injectName(headerTokens, message.name, tokenizer);
+	}
+	if ('to' in message && message.to !== undefined) {
+		headerTokens = await injectTo(headerTokens, message.to, tokenizer);
+	}
+	return headerTokens
+}
+
+export const getHeaderStringForMessage = (message: { role: 'system' | 'user' | 'assistant' | 'tool', name?: string, to?: string }, tokenizer: UsableTokenizer): string => {
+	let headerString = '';
+	switch (message.role) {
+		case 'system':
+			headerString = CL100K_SYSTEM_TOKENS_STRING;
+			break
+		case 'user':
+			headerString = CL100K_USER_TOKENS_STRING;
+			break
+		case 'assistant':
+			headerString = CL100K_ASSISTANT_TOKENS_STRING;
+			break
+		case 'tool':
+			headerString = CL100K_USER_TOKENS_STRING;
+			break
+		default:
+			throw new Error(`Unknown role ${message.role}`)
+	}
+	if ('name' in message && message.name !== undefined) {
+		headerString = injectNameString(headerString, message.name);
+	}
+	return headerString
+}
+

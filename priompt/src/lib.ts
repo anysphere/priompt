@@ -5,12 +5,10 @@
 
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
-import { UsableTokenizer, numTokensForImage } from './tokenizer';
-import { encodeTokens, estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL, estimateTokensUsingCharcount, numTokens } from './tokenizer';
+import { CL100K, CL100K_SPECIAL_TOKENS, PriomptTokenizer, estimateTokensUsingCharcount, numTokensForImage } from './tokenizer';
 import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
-
 
 
 export function chatPromptToString(prompt: ChatPrompt): string {
@@ -578,7 +576,7 @@ export function renderCumulativeSum(
 			if (typeof countable === 'number') {
 				newTokens += countable;
 			} else if (typeof countable === 'string') {
-				newTokens += estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(countable, { tokenizer });
+				newTokens += tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(countable);
 			} else {
 				newTokens += countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(countable, definedTokenizer);
 			}
@@ -688,9 +686,6 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 		const endTimeHydratingIsolates = performance.now();
 		console.debug(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
 	}
-
-
-	// if the first one is higher than the base priority, then print a warning because it will not have any effect
 
 	let startTimeRendering = undefined;
 	if (getIsDevelopment()) {
@@ -1048,7 +1043,7 @@ type RenderWithLevelPartialType = {
 type RenderWithLevelPartialTypeWithCount = RenderWithLevelPartialType & { tokenCount: number; };
 
 // if chat prompt, the token count will be missing the constant factor
-async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: UsableTokenizer): Promise<RenderWithLevelPartialTypeWithCount> {
+async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: PriomptTokenizer): Promise<RenderWithLevelPartialTypeWithCount> {
 	if (Array.isArray(elem)) {
 		return (await Promise.all(elem.map(e => renderWithLevelAndCountTokens(e, level, tokenizer)))).reduce((a, b) => {
 			return {
@@ -1260,7 +1255,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					to: elem.to,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				}
-				extraTokenCount += await numTokens(elem.name, { tokenizer });
+				extraTokenCount += await tokenizer.numTokens(elem.name);
 			} else if (elem.role === 'tool') {
 				if (isPromptContent(p.prompt)) {
 					throw new Error('Did not expect images in tool message')
@@ -1271,7 +1266,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					to: elem.to,
 					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 				}
-				extraTokenCount += await numTokens(elem.name, { tokenizer });
+				extraTokenCount += await tokenizer.numTokens(elem.name);
 			} else {
 				const x: never = elem.role;
 				throw new Error(`BUG!! Invalid role ${elem.role}`);
@@ -1308,7 +1303,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 		}
 		case 'normalizedString': {
 			if (elem.cachedCount === undefined) {
-				elem.cachedCount = await numTokens(elem.s, { tokenizer });
+				elem.cachedCount = await tokenizer.numTokens(elem.s);
 			}
 			return {
 				prompt: elem.s,
@@ -1323,7 +1318,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 }
 
 // WARNING: do not attempt to make this function async!!! it will make it a lot slower!
-function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: UsableTokenizer, tokenLimit: number): {
+function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, level: number, tokenizer: PriomptTokenizer, tokenLimit: number): {
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 } {
@@ -1568,7 +1563,7 @@ function recursivelyEject(elem: PromptElement) {
 	}
 }
 
-function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promise<void> | undefined {
+function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer): Promise<void> | undefined {
 	if (elem === undefined || elem === null || elem === false) {
 		return;
 	}
@@ -1621,7 +1616,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: UsableTokenizer): Promi
 }
 
 // WARNING: do not attempt to make this function async!!! it will make it a lot slower!
-function renderWithLevel(elem: PromptElement, level: number, tokenizer: UsableTokenizer, callEjectedCallback?: boolean): RenderWithLevelPartialType {
+function renderWithLevel(elem: PromptElement, level: number, tokenizer: PriomptTokenizer, callEjectedCallback?: boolean): RenderWithLevelPartialType {
 	if (elem === undefined || elem === null || elem === false) {
 		return {
 			prompt: undefined,
@@ -2185,23 +2180,23 @@ function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedN
 	}
 }
 
-async function numTokensPromptString(p: PromptString, tokenizer: UsableTokenizer): Promise<number> {
+async function numTokensPromptString(p: PromptString, tokenizer: PriomptTokenizer): Promise<number> {
 	if (Array.isArray(p)) {
 		// should be tokenized independently!!!!!!!
-		const t = await Promise.all(p.map(s => numTokens(s, { tokenizer })));
+		const t = await Promise.all(p.map(s => tokenizer.numTokens(s)));
 		return t.reduce((a, b) => a + b, 0);
 	}
-	return numTokens(p, { tokenizer });
+	return tokenizer.numTokens(p);
 }
 
-function numTokensPromptStringFast_UNSAFE(prompt: PromptString, tokenizer: UsableTokenizer): number {
+function numTokensPromptStringFast_UNSAFE(prompt: PromptString, tokenizer: PriomptTokenizer): number {
 	if (Array.isArray(prompt)) {
 		return prompt.reduce((a, b) => a + numTokensPromptStringFast_UNSAFE(b, tokenizer), 0);
 	}
-	return estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(prompt, { tokenizer });
+	return tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(prompt)
 }
 
-function countTokensApproxFast_UNSAFE(tokenizer: UsableTokenizer, prompt: RenderedPrompt, options: {
+function countTokensApproxFast_UNSAFE(tokenizer: PriomptTokenizer, prompt: RenderedPrompt, options: {
 	lastMessageIsIncomplete?: boolean;
 }): number {
 	let tokens = 0;
@@ -2223,7 +2218,6 @@ function countTokensApproxFast_UNSAFE(tokenizer: UsableTokenizer, prompt: Render
 				// Fine because sync anyways
 				tokens += numTokensForImage(image.image_url.dimensions, image.image_url.detail)
 			});
-
 		}
 	} else {
 		tokens += numTokensPromptStringFast_UNSAFE(prompt.text, tokenizer);
@@ -2237,7 +2231,7 @@ function countTokensApproxFast_UNSAFE(tokenizer: UsableTokenizer, prompt: Render
 	}
 	return tokens;
 }
-async function countTokensExact(tokenizer: UsableTokenizer, prompt: RenderedPrompt, options: {
+async function countTokensExact(tokenizer: PriomptTokenizer, prompt: RenderedPrompt, options: {
 	lastMessageIsIncomplete?: boolean;
 }): Promise<number> {
 	let tokens = 0;
@@ -2282,29 +2276,6 @@ export function promptToOpenAIChatRequest(prompt: RenderedPrompt): { messages: A
 	};
 }
 
-const CL100K_SYSTEM_TOKENS = [100264, 9125, 100266];
-const CL100K_USER_TOKENS = [100264, 882, 100266];
-const CL100K_TOOL_TOKENS = [100264, 14506, 100266];
-const CL100K_ASSISTANT_TOKENS = [100264, 78191, 100266];
-const CL100K_END_TOKEN = [100265];
-const CL100K_SYSTEM_TOKENS_STRING = "<|im_start|>system<|im_sep|>";
-const CL100K_USER_TOKENS_STRING = "<|im_start|>user<|im_sep|>";
-const CL100K_ASSISTANT_TOKENS_STRING = "<|im_start|>assistant<|im_sep|>";
-const CL100K_END_TOKEN_STRING = "<|im_end|>";
-
-async function injectName(tokens: number[], name: string): Promise<number[]> {
-	// i don't really know if this is the right way to format it....
-	const nameTokens = await encodeTokens(":" + name, { tokenizer: 'cl100k_base' })
-	return [...tokens.slice(0, -1), ...nameTokens, tokens[tokens.length - 1]];
-}
-async function injectTo(tokens: number[], to: string): Promise<number[]> {
-	// Adjusting the function to handle 'to' parameter injection
-	const toTokens = await encodeTokens(" to=" + to, { tokenizer: 'cl100k_base' });
-	return [...tokens.slice(0, -1), ...toTokens, tokens[tokens.length - 1]];
-}
-function injectNameString(tokens: string, name: string): string {
-	return tokens.replace("<|im_sep|>", ":" + name + "<|im_sep|>");
-}
 
 function contentArrayToStringContent(content: Array<string | PromptContent>): string[] {
 	const newContent: string[] = []
@@ -2323,7 +2294,7 @@ function contentArrayToStringContent(content: Array<string | PromptContent>): st
 
 // a piece of context, e.g. a scraped doc, could include <|im_end|> strings and mess up the prompt... so please don't use it unless necessary
 // it also does not have <breaktoken> support
-export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPrompt): string {
+export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPrompt, tokenizer: PriomptTokenizer): string {
 	if (isPlainPrompt(prompt)) {
 		// we should just encode it as a plain prompt!
 		let s = "";
@@ -2341,11 +2312,7 @@ export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPr
 			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
 				throw new Error(`BUG!! promptToString got a chat prompt with a function message, which is not supported yet!`);
 			} else {
-				let headerTokens =
-					msg.role === 'assistant' ? CL100K_ASSISTANT_TOKENS_STRING : msg.role === 'system' ? CL100K_SYSTEM_TOKENS_STRING : CL100K_USER_TOKENS_STRING;
-				if ('name' in msg && msg.name !== undefined) {
-					headerTokens = injectNameString(headerTokens, msg.name);
-				}
+				const headerTokens = tokenizer.getHeaderStringForMessage(msg);
 				let newContent: string[] | string | undefined = undefined
 				if (Array.isArray(msg.content)) {
 					// We just combine the tokens to a string array to get around images
@@ -2353,13 +2320,13 @@ export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPr
 				} else {
 					newContent = msg.content;
 				}
-				return headerTokens + (newContent !== undefined ? (promptToString_VULNERABLE_TO_PROMPT_INJECTION(newContent)) : "");
+				return headerTokens + (newContent !== undefined ? (promptToString_VULNERABLE_TO_PROMPT_INJECTION(newContent, tokenizer)) : "");
 			}
 		});
 		let final: string = "";
 		for (const part of parts) {
 			if (final.length > 0) {
-				final += CL100K_END_TOKEN_STRING;
+				final += tokenizer.getEosToken();
 			}
 			final += part;
 		}
@@ -2369,17 +2336,17 @@ export function promptToString_VULNERABLE_TO_PROMPT_INJECTION(prompt: RenderedPr
 }
 
 // always leaves the last message "open"
-export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTokenizer): Promise<number[]> {
-	if (tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens') {
-		throw new Error("promptToTokens only supports the cl100k_base tokenizer for now!")
+export async function promptToTokens(prompt: RenderedPrompt, tokenizer: PriomptTokenizer): Promise<number[]> {
+	if (tokenizer.name !== CL100K.name && tokenizer.name !== CL100K_SPECIAL_TOKENS.name) {
+		throw new Error(`promptToTokens only supports the cl100k_base tokenizer for now! Got ${tokenizer}`)
 	}
 	if (isPlainPrompt(prompt)) {
 		// we should just encode it as a plain prompt!
 		if (Array.isArray(prompt)) {
-			const tokens = await Promise.all(prompt.map(s => encodeTokens(s, { tokenizer })));
+			const tokens = await Promise.all(prompt.map(s => tokenizer.encodeTokens(s)));
 			return tokens.reduce((a, b) => a.concat(b), []);
 		}
-		return encodeTokens(prompt, { tokenizer });
+		return tokenizer.encodeTokens(prompt);
 	} else if (isChatPrompt(prompt)) {
 		// THIS IS HYPERSPECIFIC TO CL100K
 
@@ -2390,27 +2357,7 @@ export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTo
 			} else if (msg.role === 'assistant' && msg.functionCall !== undefined) {
 				throw new Error(`BUG!! promptToTokens got a chat prompt with a function message, which is not supported yet!`);
 			} else {
-				let headerTokens: number[];
-				switch (msg.role) {
-					case 'assistant':
-						headerTokens = CL100K_ASSISTANT_TOKENS;
-						break;
-					case 'system':
-						headerTokens = CL100K_SYSTEM_TOKENS;
-						break;
-					case 'user':
-						headerTokens = CL100K_USER_TOKENS;
-						break;
-					case 'tool':
-						headerTokens = CL100K_TOOL_TOKENS;
-						break;
-				}
-				if ('name' in msg && msg.name !== undefined) {
-					headerTokens = await injectName(headerTokens, msg.name);
-				}
-				if ('to' in msg && msg.to !== undefined) {
-					headerTokens = await injectTo(headerTokens, msg.to);
-				}
+				const headerTokens = await tokenizer.getHeaderTokensForMessage(msg);
 				let newContent: string[] | string | undefined = undefined
 				if (Array.isArray(msg.content)) {
 					// We just combine the tokens to a string array to get around images
@@ -2426,8 +2373,8 @@ export async function promptToTokens(prompt: RenderedPrompt, tokenizer: UsableTo
 		}));
 		const final: number[] = [];
 		for (const part of parts) {
-			if (final.length > 0) {
-				final.push(...CL100K_END_TOKEN);
+			if (final.length > 0 && tokenizer.shouldAddEosTokenToEachMessage) {
+				final.push(tokenizer.getEosTokenId());
 			}
 			final.push(...part);
 		}
@@ -2551,10 +2498,10 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 	throw new Error(`BUG!! promptToOpenAIChatMessagesgot an invalid prompt`);
 }
 
-export function countMsgTokensFast_UNSAFE(message: ChatPromptMessage, tokenizer: UsableTokenizer): number {
+function countMsgTokensFast_UNSAFE(message: ChatPromptMessage, tokenizer: PriomptTokenizer): number {
 	if (message.role === 'function') {
 		// add an extra 2 tokens for good measure
-		return (estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(message.name, { tokenizer })) + (numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) + 2;
+		return (tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(message.name)) + (numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) + 2;
 	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
 		return (countFunctionCallMessageTokensFast_UNSAFE(message.functionCall, tokenizer)) + (message.content !== undefined ? (numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) : 0);
 	} else {
@@ -2568,10 +2515,10 @@ export function countMsgTokensFast_UNSAFE(message: ChatPromptMessage, tokenizer:
 		return numTokens;
 	}
 }
-export async function countMsgTokens(message: ChatPromptMessage, tokenizer: UsableTokenizer): Promise<number> {
+export async function countMsgTokens(message: ChatPromptMessage, tokenizer: PriomptTokenizer): Promise<number> {
 	if (message.role === 'function') {
 		// add an extra 2 tokens for good measure
-		return (await numTokens(message.name, { tokenizer })) + (await numTokensPromptString(message.content, tokenizer)) + 2;
+		return (await tokenizer.numTokens(message.name)) + (await numTokensPromptString(message.content, tokenizer)) + 2;
 	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
 		return (await countFunctionCallMessageTokens(message.functionCall, tokenizer)) + (message.content !== undefined ? (await numTokensPromptString(message.content, tokenizer)) : 0);
 	} else {
@@ -2585,16 +2532,16 @@ export async function countMsgTokens(message: ChatPromptMessage, tokenizer: Usab
 	}
 }
 
-async function countFunctionCallMessageTokens(functionCall: { name: string; arguments: string; }, tokenizer: UsableTokenizer): Promise<number> {
+async function countFunctionCallMessageTokens(functionCall: { name: string; arguments: string; }, tokenizer: PriomptTokenizer): Promise<number> {
 	// add some constant factor here because who knows what's actually going on with functions
-	return (await numTokens(functionCall.name, { tokenizer })) + (await numTokens(functionCall.arguments, { tokenizer })) + 5;
+	return (await tokenizer.numTokens(functionCall.name)) + (await tokenizer.numTokens(functionCall.arguments)) + 5;
 }
-function countFunctionCallMessageTokensFast_UNSAFE(functionCall: { name: string; arguments: string; }, tokenizer: UsableTokenizer): number {
+function countFunctionCallMessageTokensFast_UNSAFE(functionCall: { name: string; arguments: string; }, tokenizer: PriomptTokenizer): number {
 	// add some constant factor here because who knows what's actually going on with functions
-	return (estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.name, { tokenizer })) + (estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.arguments, { tokenizer })) + 5;
+	return (tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.name)) + (tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.arguments)) + 5;
 }
 
-async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): Promise<number> {
+async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: PriomptTokenizer): Promise<number> {
 	// hmmmm how do we count these tokens? openai has been quite unclear
 	// for now we JSON stringify and count tokens, and hope that that is reasonably close
 	const stringifiedFunction = JSON.stringify({
@@ -2603,11 +2550,11 @@ async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunc
 		parameters: functionDefinition.parameters,
 	}, null, 2);
 	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
-	const raw = await numTokens(stringifiedFunction, { tokenizer });
+	const raw = await tokenizer.numTokens(stringifiedFunction);
 	return Math.ceil(raw * 1.5) + 10;
 }
 
-function countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): number {
+function countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: PriomptTokenizer): number {
 	// hmmmm how do we count these tokens? openai has been quite unclear
 	// for now we JSON stringify and count tokens, and hope that that is reasonably close
 	const stringifiedFunction = JSON.stringify({
@@ -2616,23 +2563,23 @@ function countFunctionTokensApprox_SYNCHRONOUS_BE_CAREFUL(functionDefinition: Ch
 		parameters: functionDefinition.parameters,
 	}, null, 2);
 	// we multiply by 1.5 and add 10 just to be safe until we've done more testing
-	const raw = estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(stringifiedFunction, { tokenizer });
+	const raw = tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(stringifiedFunction);
 	return Math.ceil(raw * 1.5) + 10;
 }
 
 
-function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: UsableTokenizer): [number, number] {
+function estimateFunctionTokensUsingCharcount(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: PriomptTokenizer): [number, number] {
 	const stringifiedFunction = JSON.stringify({
 		name: functionDefinition.name,
 		description: functionDefinition.description,
 		parameters: functionDefinition.parameters,
 	}, null, 2);
-	const raw = estimateTokensUsingCharcount(stringifiedFunction, tokenizer);
+	const raw = tokenizer.estimateTokensUsingCharCount(stringifiedFunction);
 	// we multiply by 1.5 and add 10 just to be safe until we've done more testing for the upper bound
 	return [Math.ceil(raw[0] * 0.5), Math.ceil(raw[1] * 1.5) + 10];
 }
 
-function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, tokenizer: UsableTokenizer): number {
+function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, tokenizer: PriomptTokenizer): number {
 	if (prompt === undefined) {
 		return 0;
 	}
@@ -2641,19 +2588,19 @@ function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, t
 		contentTokens = prompt.messages.reduce((a, b) => {
 			if (b.role === 'function') {
 				// since this is a lower bound, we assume there are no extra tokens here
-				return a + estimateTokensUsingCharcount(b.name + b.content, tokenizer)[0];
+				return a + tokenizer.estimateTokensUsingCharCount(b.name + b.content)[0];
 			} else if (b.role === 'assistant' && b.functionCall !== undefined) {
-				return a + estimateTokensUsingCharcount(b.functionCall.name + b.functionCall.arguments + (b.content ?? ""), tokenizer)[0];
+				return a + tokenizer.estimateTokensUsingCharCount(b.functionCall.name + b.functionCall.arguments + (b.content ?? ""))[0];
 			} else {
-				return a + estimateTokensUsingCharcount(b.content !== undefined ? promptStringToString(b.content) : "", tokenizer)[0];
+				return a + tokenizer.estimateTokensUsingCharCount(b.content !== undefined ? promptStringToString(b.content) : "")[0];
 			}
 		}, 0);
 	} else if (isPlainPrompt(prompt)) {
-		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt), tokenizer)[0];
+		contentTokens = tokenizer.estimateTokensUsingCharCount(promptStringToString(prompt))[0];
 	} else if (isPromptContent(prompt)) {
-		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt.content), tokenizer)[0];
+		contentTokens = tokenizer.estimateTokensUsingCharCount(promptStringToString(prompt.content))[0];
 	} else {
-		contentTokens = estimateTokensUsingCharcount(promptStringToString(prompt.text), tokenizer)[0];
+		contentTokens = tokenizer.estimateTokensUsingCharCount(promptStringToString(prompt.text))[0];
 	}
 
 	const functionTokens = (promptHasFunctions(prompt) ? prompt.functions.reduce((a, b) => (a + estimateFunctionTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);

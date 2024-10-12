@@ -9,6 +9,7 @@ import {
 } from "./lib";
 import { PromptElement, PromptProps } from "./types";
 import { AssistantMessage, SystemMessage, UserMessage } from "./components";
+import { getTokenizerByName } from './tokenizer';
 
 describe("isolate", () => {
   function Isolate(
@@ -69,7 +70,7 @@ describe("isolate", () => {
   it("should have isolate work", async () => {
     const renderedIsolated = await render(Test({ isolate: true }), {
       tokenLimit: 1000,
-      tokenizer: "cl100k_base",
+      tokenizer: getTokenizerByName("cl100k_base"),
     });
     expect(renderedIsolated.tokenCount).toBeLessThanOrEqual(1000);
     expect(isPlainPrompt(renderedIsolated.prompt)).toBe(true);
@@ -83,7 +84,7 @@ describe("isolate", () => {
 
     const renderedUnIsolated = await render(Test({ isolate: false }), {
       tokenLimit: 1000,
-      tokenizer: "cl100k_base",
+      tokenizer: getTokenizerByName("cl100k_base"),
     });
     expect(renderedUnIsolated.tokenCount).toBeLessThanOrEqual(1000);
     expect(isPlainPrompt(renderedUnIsolated.prompt)).toBe(true);
@@ -110,9 +111,9 @@ describe("isolate", () => {
   it("promptToTokens should work", async () => {
     const donotbreak = await render(SimplePrompt({ breaktoken: false }), {
       tokenLimit: 1000,
-      tokenizer: "cl100k_base",
+      tokenizer: getTokenizerByName("cl100k_base"),
     });
-    const toTokens = await promptToTokens(donotbreak.prompt, "cl100k_base");
+    const toTokens = await promptToTokens(donotbreak.prompt, getTokenizerByName("cl100k_base"));
     expect(donotbreak.tokenCount).toBe(toTokens.length);
     expect(toTokens).toStrictEqual([
       2028, 374, 279, 1212, 315, 279, 10137, 13, 1115, 374, 279, 2132, 961, 315,
@@ -121,10 +122,10 @@ describe("isolate", () => {
 
     const dobreak = await render(SimplePrompt({ breaktoken: true }), {
       tokenLimit: 1000,
-      tokenizer: "cl100k_base",
+      tokenizer: getTokenizerByName("cl100k_base"),
     });
     expect(dobreak.tokenCount).toBe(donotbreak.tokenCount + 1);
-    const toTokens2 = await promptToTokens(dobreak.prompt, "cl100k_base");
+    const toTokens2 = await promptToTokens(dobreak.prompt, getTokenizerByName("cl100k_base"));
     expect(dobreak.tokenCount).toBe(toTokens2.length);
     expect(toTokens2).toStrictEqual([
       2028, 374, 279, 1212, 315, 279, 281, 15091, 13, 1115, 374, 279, 2132, 961,
@@ -154,11 +155,11 @@ describe("isolate", () => {
       SimpleMessagePrompt({ breaktoken: false }),
       {
         tokenLimit: 1000,
-        tokenizer: "cl100k_base",
+        tokenizer: getTokenizerByName("cl100k_base"),
         lastMessageIsIncomplete: true,
       }
     );
-    const toTokens = await promptToTokens(donotbreak.prompt, "cl100k_base");
+    const toTokens = await promptToTokens(donotbreak.prompt, getTokenizerByName("cl100k_base"));
     expect(donotbreak.tokenCount).toBe(toTokens.length);
     expect(toTokens).toStrictEqual([
       100264, 9125, 100266, 2028, 374, 279, 1212, 315, 279, 10137, 382, 2028,
@@ -168,11 +169,11 @@ describe("isolate", () => {
 
     const dobreak = await render(SimpleMessagePrompt({ breaktoken: true }), {
       tokenLimit: 1000,
-      tokenizer: "cl100k_base",
+      tokenizer: getTokenizerByName("cl100k_base"),
       lastMessageIsIncomplete: true,
     });
     expect(dobreak.tokenCount).toBe(donotbreak.tokenCount + 1);
-    const toTokens2 = await promptToTokens(dobreak.prompt, "cl100k_base");
+    const toTokens2 = await promptToTokens(dobreak.prompt, getTokenizerByName("cl100k_base"));
     expect(dobreak.tokenCount).toBe(toTokens2.length);
     expect(toTokens2).toStrictEqual([
       100264, 9125, 100266, 2028, 374, 279, 1212, 315, 279, 10137, 627, 198,
@@ -194,11 +195,11 @@ describe("isolate", () => {
   it("handle special tokens", async () => {
     const specialTokens = await render(SpecialTokensPrompt(), {
       tokenLimit: 1000,
-      tokenizer: "cl100k_base",
+      tokenizer: getTokenizerByName("cl100k_base"),
       lastMessageIsIncomplete: true,
     });
     expect(specialTokens.tokenCount).toBeGreaterThanOrEqual(24);
-    const toTokens = await promptToTokens(specialTokens.prompt, "cl100k_base");
+    const toTokens = await promptToTokens(specialTokens.prompt, getTokenizerByName("cl100k_base"));
     expect(specialTokens.tokenCount).toBe(toTokens.length);
   });
 });
@@ -219,7 +220,7 @@ describe("config", () => {
   it("should have config work", async () => {
     const rendered = await render(TestConfig({ numConfigs: 1 }), {
       tokenLimit: 1000,
-      tokenizer: "cl100k_base",
+      tokenizer: getTokenizerByName("cl100k_base"),
     });
     expect(rendered.tokenCount).toBeLessThanOrEqual(1000);
     expect(isPlainPrompt(rendered.prompt)).toBe(true);
