@@ -1105,7 +1105,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					type: 'prompt_content',
 					content: [],
 					images: [{
-						type: 'image',
+						type: 'image_url',
 						image_url: {
 							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
 							detail: elem.detail,
@@ -1438,7 +1438,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 					type: 'prompt_content',
 					content: [],
 					images: [{
-						type: 'image',
+						type: 'image_url',
 						image_url: {
 							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
 							detail: elem.detail,
@@ -1955,7 +1955,7 @@ function renderWithLevel(
 					type: 'prompt_content',
 					content: [],
 					images: [{
-						type: 'image',
+						type: 'image_url',
 						image_url: {
 							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
 							detail: elem.detail,
@@ -2456,7 +2456,7 @@ function contentArrayToStringContent(content: Array<string | PromptContent>): st
 			newContent.push(c);
 		} else if (c.type === 'text') {
 			newContent.push(c.text);
-		} else if (c.type === 'image') {
+		} else if (c.type === 'image_url') {
 			// Do nothing with images
 		}
 	});
@@ -2574,7 +2574,7 @@ export function openAIChatMessagesToPrompt(messages: ChatCompletionRequestMessag
 					role: m.role,
 					to: undefined,
 					content: m.content.map(c => c.type === 'text' ? c.text : "").join(""),
-					images: m.content.filter(c => c.type === 'image') as ImagePromptContent[],
+					images: m.content.filter(c => c.type === 'image_url') as ImagePromptContent[],
 				}
 				return c;
 			} else {

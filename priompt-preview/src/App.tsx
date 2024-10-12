@@ -39,7 +39,7 @@ import {
   PromptString,
 } from "@anysphere/priompt/dist/types";
 import { Content } from "@anysphere/priompt/dist/openai";
-import { PreviewManagerGetPromptOutputQuery } from '@anysphere/priompt/dist/preview';
+import { PreviewManagerGetPromptOutputQuery } from "@anysphere/priompt/dist/preview";
 
 const userId = uuidv4();
 
@@ -163,7 +163,7 @@ function openAIChatMessagesToPrompt(
             .map((c) => (c.type === "text" ? c.text : ""))
             .join(""),
           images: m.content.filter(
-            (c) => c.type === "image"
+            (c) => c.type === "image_url"
           ) as ImagePromptContent[],
         };
         return c;
@@ -327,7 +327,7 @@ const App = () => {
         body: JSON.stringify(body),
       })
         .then((response) => {
-          console.log(`FETCHED http://localhost:3000/priompt/getPromptOutput`)
+          console.log(`FETCHED http://localhost:3000/priompt/getPromptOutput`);
           if (!response.ok) {
             throw new Error("Error getting output: " + response.statusText);
           }
@@ -686,7 +686,7 @@ const App = () => {
         `http://localhost:3000/priompt/getPrompt?${new URLSearchParams(query)}`
       )
         .then((response) => {
-          console.log('FETCHED priompt/getPrompt')
+          console.log("FETCHED priompt/getPrompt");
           if (!response.ok) {
             throw new Error("Error fetching prompt: " + response.statusText);
           }
@@ -940,7 +940,7 @@ const App = () => {
       `http://localhost:3000/priompt/liveMode?${new URLSearchParams(query)}`
     )
       .then((response) => {
-        console.log('FETCHED priompt/liveMode')
+        console.log("FETCHED priompt/liveMode");
         if (!response.ok) {
           throw new Error("Error fetching live mode: " + response.statusText);
         }
@@ -1790,7 +1790,7 @@ const App = () => {
                   )}`
                 )
                   .then((response) => {
-                    console.log('FETCHED priompt/liveModeResult')
+                    console.log("FETCHED priompt/liveModeResult");
                     if (!response.ok) {
                       throw new Error(
                         "Error submitting live mode result: " +
@@ -1837,7 +1837,7 @@ const App = () => {
                     )}`
                   )
                     .then((response) => {
-                      console.log('FETCHED priompt/liveModeResult')
+                      console.log("FETCHED priompt/liveModeResult");
                       if (!response.ok) {
                         throw new Error(
                           "Error submitting live mode result: " +

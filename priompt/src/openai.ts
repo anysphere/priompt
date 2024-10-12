@@ -56,7 +56,7 @@ export type Content = {
 	type: 'text';
 	text: string;
 } | {
-	type: 'image';
+	type: 'image_url';
 	image_url: {
 		url: string,
 		detail?: 'low' | 'high' | 'auto'
@@ -65,7 +65,7 @@ export type Content = {
 			width: number;
 			height: number;
 		}
-	},
+	}
 }
 
 
