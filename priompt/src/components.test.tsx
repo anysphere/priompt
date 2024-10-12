@@ -235,7 +235,7 @@ describe("All kinds of messages", () => {
     expect(openaiMessage[3].role).toBe("function");
     expect(openaiMessage[4].role).toBe("assistant");
     // the tool shall not be sent to openai! it's unsupported
-    expect(openaiMessage[5].role).toBe("system");
+    expect(openaiMessage[5].role).toBe("tool");
     // assert none of them contain "to"
     expect("to" in openaiMessage[4]).toBe(false);
     expect("to" in openaiMessage[5]).toBe(false);

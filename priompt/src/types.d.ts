@@ -2,9 +2,8 @@
 // First picks out the first child (in order) that is prioritized enough
 
 import { JSONSchema7 } from 'json-schema';
-import { ChatCompletionResponseMessage } from 'openai';
 import { PriomptTokenizer, UsableTokenizer } from './tokenizer';
-import { StreamChatCompletionResponse } from './openai';
+import { ChatCompletionResponseMessage, StreamChatCompletionResponse } from './openai';
 
 export type FunctionBody = {
 	name: string;
@@ -99,6 +98,14 @@ export type ChatUserSystemMessage = {
 	children: Node[];
 }
 
+export type ChatAssistantFunctionToolCall = {
+	type: 'function';
+	function: {
+		name: string;
+		arguments: string; // json string
+	}
+}
+
 export type ChatAssistantMessage = {
 	type: 'chat';
 	role: 'assistant';
@@ -110,6 +117,13 @@ export type ChatAssistantMessage = {
 		name: string;
 		arguments: string; // json string
 	};
+
+	// the toolCalls are provided by the assistant
+	toolCalls?: {
+		index: number;
+		id: string;
+		tool: ChatAssistantFunctionToolCall;
+	}[]
 }
 
 export type ChatFunctionResultMessage = {
@@ -137,7 +151,22 @@ export type FunctionDefinition = {
 	parameters: JSONSchema7;
 }
 
-export type Node = FunctionDefinition | BreakToken | First | Isolate | Capture | Config | Scope | Empty | ChatMessage | ChatImage | string | null | undefined | number | false;
+export type ToolDefinition = {
+	type: 'toolDefinition';
+	tool: FunctionToolDefinition;
+}
+
+export type FunctionToolDefinition = {
+	type: 'function';
+	function: {
+		name: string;
+		description: string;
+		parameters: JSONSchema7;
+		strict?: boolean;
+	}
+}
+
+export type Node = FunctionDefinition | ToolDefinition | BreakToken | First | Isolate | Capture | Config | Scope | Empty | ChatMessage | ChatImage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -232,6 +261,11 @@ export type ChatPromptAssistantMessage = {
 		name: string;
 		arguments: string; // json string
 	}
+	toolCalls?: {
+		index: number;
+		id: string;
+		tool: ChatAssistantFunctionToolCall;
+	}[]
 }
 
 export type ChatPromptFunctionResultMessage = {
@@ -243,8 +277,8 @@ export type ChatPromptFunctionResultMessage = {
 
 export type ChatPromptToolResultMessage = {
 	role: 'tool';
-	name: string;
-	to?: string | undefined;
+	name?: string;
+	to: string | undefined;
 	content: PromptString;
 };
 
@@ -270,11 +304,25 @@ export type FunctionPrompt = {
 	functions: ChatAndFunctionPromptFunction[];
 }
 
+// https://platform.openai.com/docs/api-reference/chat/create
+export type ChatAndToolPromptToolFunction = {
+	type: 'function';
+	function: {
+		name: string;
+		description?: string;
+		parameters?: JSONSchema7;
+	}
+}
+
+export type ToolPrompt = {
+	tools: ChatAndToolPromptToolFunction[];
+}
+
 // the p is used to specify the priority of the handler
 // higher priority handler will be called first in case there are multiple
 export type OutputHandler<T> = (output: T, options?: { p?: number }) => Promise<void>;
 
-export type RenderedPrompt = PromptString | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt) | PromptContentWrapper;
+export type RenderedPrompt = PromptString | ChatPrompt | (ChatPrompt & FunctionPrompt) | (ChatPrompt & ToolPrompt) | (TextPrompt & FunctionPrompt) | (TextPrompt & ToolPrompt) | PromptContentWrapper;
 
 export type Prompt<PropsT, ReturnT = never> = ((props: PromptProps<PropsT, ReturnT>) => (PromptElement | Promise<PromptElement>)) & {
 	config?: PreviewConfig<PropsT, ReturnT>;
