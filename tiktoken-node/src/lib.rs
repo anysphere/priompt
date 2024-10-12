@@ -168,16 +168,18 @@ impl TokenizerActor {
     TokenizerActor { receiver, encodings }
   }
 
+  fn get_encoding(&self, encoding: SupportedEncoding) -> &tiktoken::Encoding {
+    match encoding {
+      SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
+      SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
+      SupportedEncoding::O200k => &self.encodings.o200k_encoding,
+    }
+  }
+
   fn handle_message(&self, msg: TokenizerMessage) {
     match msg {
       TokenizerMessage::ExactNumTokens { respond_to, text, encoding, special_token_handling } => {
-        let enc = match encoding {
-          SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
-          SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
-          SupportedEncoding::O200k => &self.encodings.o200k_encoding,
-        };
-
-        let tokens = enc.encode(&text, &special_token_handling).context("Error encoding string");
+        let tokens = self.get_encoding(encoding).encode(&text, &special_token_handling).context("Error encoding string");
 
         let num_tokens = match tokens {
           Ok(t) => Ok(t.len() as i32),
@@ -188,13 +190,7 @@ impl TokenizerActor {
         let _ = respond_to.send(num_tokens);
       }
       TokenizerMessage::EncodeTokens { respond_to, text, encoding, special_token_handling } => {
-        let enc = match encoding {
-          SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
-          SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
-          SupportedEncoding::O200k => &self.encodings.o200k_encoding,
-        };
-
-        let tokens = enc.encode(&text, &special_token_handling).context("Error encoding string");
+        let tokens = self.get_encoding(encoding).encode(&text, &special_token_handling).context("Error encoding string");
 
         let tokens = match tokens {
           Ok(t) => Ok(t.into_iter().map(|t| t as u32).collect()),
@@ -205,13 +201,7 @@ impl TokenizerActor {
         let _ = respond_to.send(tokens);
       }
       TokenizerMessage::EncodeSingleToken { respond_to, bytes, encoding } => {
-        let enc = match encoding {
-          SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
-          SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
-          SupportedEncoding::O200k => &self.encodings.o200k_encoding,
-        };
-
-        let token = enc.encode_single_token_bytes(&bytes);
+        let token = self.get_encoding(encoding).encode_single_token_bytes(&bytes);
 
         let token = match token {
           Ok(t) => Ok(t as u32),
@@ -222,12 +212,7 @@ impl TokenizerActor {
         let _ = respond_to.send(token);
       }
       TokenizerMessage::DecodeTokenBytes { respond_to, token, encoding } => {
-        let enc = match encoding {
-          SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
-          SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
-          SupportedEncoding::O200k => &self.encodings.o200k_encoding,
-        };
-        let bytes = enc.decode_single_token_bytes(token as usize);
+        let bytes = self.get_encoding(encoding).decode_single_token_bytes(token as usize);
         let bytes = match bytes {
           Ok(b) => Ok(b),
           Err(e) => Err(anyhow::anyhow!(e)),
@@ -235,25 +220,13 @@ impl TokenizerActor {
         let _ = respond_to.send(bytes);
       }
       TokenizerMessage::DecodeTokens { respond_to, tokens, encoding } => {
-        let enc = match encoding {
-          SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
-          SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
-          SupportedEncoding::O200k => &self.encodings.o200k_encoding,
-        };
-
-        let text = enc.decode(&tokens.into_iter().map(|t| t as usize).collect::<Vec<_>>());
+        let text = self.get_encoding(encoding).decode(&tokens.into_iter().map(|t| t as usize).collect::<Vec<_>>());
 
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(Ok(text));
       }
       TokenizerMessage::ApproximateNumTokens { respond_to, text, encoding } => {
-        let enc = match encoding {
-          SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
-          SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
-          SupportedEncoding::O200k => &self.encodings.o200k_encoding,
-        };
-
-        let tokens = enc.estimate_num_tokens_no_special_tokens_fast(&text);
+        let tokens = self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text);
 
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(Ok(tokens as i32));
@@ -504,12 +477,15 @@ impl SyncTokenizer {
 
   #[napi]
   pub fn approx_num_tokens(&self, text: String, encoding: SupportedEncoding) -> Result<i32, Error> {
-    let enc = match encoding {
+    Ok(self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text) as i32)
+  }
+
+  fn get_encoding(&self, encoding: SupportedEncoding) -> &tiktoken::Encoding {
+    match encoding {
       SupportedEncoding::Cl100k => &self.encodings.cl100k_encoding,
       SupportedEncoding::Llama3 => &self.encodings.llama3_encoding,
       SupportedEncoding::O200k => &self.encodings.o200k_encoding,
-    };
-    Ok(enc.estimate_num_tokens_no_special_tokens_fast(&text) as i32)
+    }
   }
 }
 
