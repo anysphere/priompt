@@ -40,7 +40,6 @@ import {
 } from "@anysphere/priompt/dist/types";
 import { Content } from "@anysphere/priompt/dist/openai";
 import { PreviewManagerGetPromptOutputQuery } from "@anysphere/priompt/dist/preview";
-
 const userId = uuidv4();
 
 function isPlainPrompt(
@@ -1268,6 +1267,24 @@ const App = () => {
     derivedTokenCount,
   ]);
 
+  // Support auto-loading from ?requestId=...
+  const reqIdInSearchParams = new URLSearchParams(window.location.search).get(
+    "requestId"
+  );
+
+  const [requestId, setRequestId] = useState(
+    Array.isArray(reqIdInSearchParams)
+      ? reqIdInSearchParams[0]
+      : reqIdInSearchParams ?? ""
+  );
+
+  useEffect(() => {
+    const button = document.getElementById("fetch-request-id");
+    if (button && requestId.length > 0) {
+      button.click();
+    }
+  });
+
   return (
     <>
       <CommandMenu
@@ -1325,9 +1342,13 @@ const App = () => {
                 style={{
                   width: "500px",
                 }}
+                value={requestId}
                 placeholder="Enter request id"
+                onChange={(e) => setRequestId(e.target.value)}
               />
-              <button type="submit">Fetch Request Id</button>
+              <button id="fetch-request-id" type="submit">
+                Fetch Request Id
+              </button>
             </form>
             <form
               onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
