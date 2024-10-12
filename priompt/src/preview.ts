@@ -306,7 +306,7 @@ class PreviewManagerImpl implements IPreviewManager {
       }
     }
     if (config.prompt.config?.id !== undefined && config.prompt.config.id !== config.id && process.env.NODE_ENV === 'development') {
-      throw new Error(`Prompt id ${config.prompt.config.id} does not match config id ${config.id}. Prompts and configs need to be in a 1-to-1 mapping!`);
+      throw new Error(`Prompt id ${config.prompt.config.id} does not match config id ${config.id}. Prompts and configs need to be in a 1-to-1 mapping, because otherwise the serialization/deserialization of props becomes unclear and may cause bugs for you. (If you want to register an alias name for a prompt, just wrap the prompt in another prompt and register that one.)`);
     }
     config.prompt.config = config;
     this.previews[config.id] = config;
