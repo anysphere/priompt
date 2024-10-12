@@ -1166,7 +1166,7 @@ const App = () => {
                         text !== undefined || c?.content !== undefined
                           ? (c?.content ?? "") + (text ?? "")
                           : undefined,
-                      function_call:
+                      functionCall:
                         c?.functionCall !== undefined ||
                         function_call !== undefined
                           ? {
