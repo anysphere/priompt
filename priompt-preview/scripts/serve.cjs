@@ -70,5 +70,10 @@ const requestListener = (req, res) => {
 
 const server = http.createServer(requestListener);
 server.listen(port, () => {
-	console.log(`Server is running on http://localhost:${port}`);
+	console.log(JSON.stringify({
+		"level": "info",
+		"time": new Date().getTime(),
+		"pid": process.pid,
+		"msg": `Server is running on http://localhost:${port}`
+	}));
 });
