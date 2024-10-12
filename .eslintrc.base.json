@@ -3,14 +3,14 @@
     "es2021": true,
     "node": true
   },
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
-  ],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   "rules": {
     "@typescript-eslint/require-array-sort-compare": "error",
     "@typescript-eslint/strict-boolean-expressions": ["error"],
-    "@typescript-eslint/no-floating-promises": ["error", {"ignoreVoid": false}],
+    "@typescript-eslint/no-floating-promises": [
+      "error",
+      { "ignoreVoid": false }
+    ],
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/no-misused-promises": "error",
     "constructor-super": "error",
@@ -48,7 +48,7 @@
       "orientation",
       "context"
     ],
-    "no-var": "error",
+    "no-var": "off",
     "semi": "off",
     "@typescript-eslint/naming-convention": [
       "error",
@@ -63,8 +63,7 @@
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module",
-    "project": "./tsconfig.json",
-    "extraFileExtensions": ["ipynb"]
+    "project": "./tsconfig.json"
   },
   "ignorePatterns": ["node_modules/"],
   "plugins": ["@typescript-eslint", "sonarjs"]
