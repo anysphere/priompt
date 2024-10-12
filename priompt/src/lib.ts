@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, StreamChatCompletionResponse, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
 import { OpenAIMessageRole, PriomptTokenizer, numTokensForImage } from './tokenizer';
-import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap, ToolPrompt, ToolDefinition, ChatAndToolPromptToolFunction } from './types';
+import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap, ToolPrompt, ToolDefinition, ChatAndToolPromptToolFunction, AbsoluteSourceMap } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 
@@ -794,7 +794,7 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 	if (getIsDevelopment()) {
 		startTimeHydratingIsolates = performance.now();
 	}
-	await hydrateIsolates(elem, tokenizer);
+	await hydrateIsolates(elem, tokenizer, shouldBuildSourceMap);
 	if (getIsDevelopment()) {
 		const endTimeHydratingIsolates = performance.now();
 		console.debug(`Hydrating isolates took ${endTimeHydratingIsolates - (startTimeHydratingIsolates ?? 0)} ms`);
@@ -1833,12 +1833,12 @@ function hydrateEmptyTokenCount(elem: PromptElement, tokenizer: PriomptTokenizer
 	}
 }
 
-function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer): Promise<void> | undefined {
+function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer, shouldBuildSourceMap: boolean | undefined): Promise<void> | undefined {
 	if (elem === undefined || elem === null || elem === false) {
 		return;
 	}
 	if (Array.isArray(elem)) {
-		const results = elem.map(e => hydrateIsolates(e, tokenizer));
+		const results = elem.map(e => hydrateIsolates(e, tokenizer, shouldBuildSourceMap));
 		if (results.some(r => r !== undefined)) {
 			return Promise.all(results.filter(r => r !== undefined)).then(() => { });
 		} else {
@@ -1853,7 +1853,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer): Prom
 	}
 	switch (elem.type) {
 		case 'first': {
-			return hydrateIsolates(elem.children, tokenizer);
+			return hydrateIsolates(elem.children, tokenizer, shouldBuildSourceMap);
 		}
 		case 'capture':
 		case 'empty':
@@ -1871,6 +1871,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer): Prom
 					elem.cachedRenderOutput = await render(elem.children, {
 						tokenizer,
 						tokenLimit: elem.tokenLimit,
+						shouldBuildSourceMap,
 					})
 				})();
 				return promise;
@@ -1878,10 +1879,10 @@ function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer): Prom
 			return;
 		}
 		case 'chat': {
-			return hydrateIsolates(elem.children, tokenizer);
+			return hydrateIsolates(elem.children, tokenizer, shouldBuildSourceMap);
 		}
 		case 'scope': {
-			return hydrateIsolates(elem.children, tokenizer);
+			return hydrateIsolates(elem.children, tokenizer, shouldBuildSourceMap);
 		}
 	}
 }
@@ -2374,6 +2375,33 @@ const mergeSourceMaps = (sourceMaps: (SourceMap | undefined)[], sourceName: stri
 		start: 0,
 		end: shiftedSourceMaps.reduce((a, b) => Math.max(a, b.end), 0)
 	}
+}
+
+export const absolutifySourceMap = (sourceMap: SourceMap, offset: number = 0): AbsoluteSourceMap => {
+	const absoluteStart = sourceMap.start + offset;
+	return {
+		...sourceMap,
+		start: absoluteStart,
+		end: sourceMap.end + offset,
+		children: sourceMap.children?.map(child => absolutifySourceMap(child, absoluteStart)) || undefined,
+		__brand: 'absolute'
+	};
+}
+
+export const querySourceMap = (absoluteSourceMap: AbsoluteSourceMap, position: number, sourceName: string = ''): string => {
+	if (position < absoluteSourceMap.start || position >= absoluteSourceMap.end) {
+		console.error('Position out of bounds', JSON.stringify({ position, sourceName, start: absoluteSourceMap.start, end: absoluteSourceMap.end }, null, 2))
+		throw new Error('Position out of bounds');
+	}
+	const combinedName = [sourceName, absoluteSourceMap.name].filter(Boolean).join('.');
+	if (absoluteSourceMap.children !== undefined) {
+		for (const child of absoluteSourceMap.children) {
+			if (position >= child.start && position < child.end) {
+				return querySourceMap(child, position, combinedName);
+			}
+		}
+	}
+	return combinedName;
 }
 
 

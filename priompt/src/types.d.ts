@@ -370,12 +370,17 @@ export type RenderOptions = {
 // as to the characters it represents (start and end) which are *relative*
 // to the range of its parent. A leaf has undefined children, and leaves which
 // are strings have `string` filled in for validation.
-type SourceMap = {
+export type SourceMap = {
 	name: string;
 	children?: SourceMap[];
 	string?: string,
 	start: number;
 	end: number;
+}
+
+export type AbsoluteSourceMap = Omit<SourceMap, 'children'> & {
+	children?: AbsoluteSourceMap[];
+	__brand: 'absolute';
 }
 
 export type RenderOutput = {

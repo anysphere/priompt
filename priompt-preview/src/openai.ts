@@ -3,10 +3,10 @@ import { encodingForModel } from "js-tiktoken";
 
 
 export const OSS_MODELS = [
-	{ displayName: "cpp-ds-06-06", modelKey: "accounts/anysphere/models/cpp-deepseek-coder-6-7b-instruct-v9-fp8" },
-	{ displayName: "cpp-ds-rvf-06-10", modelKey: "accounts/anysphere/models/cpp-deepseek-2024-06-10" },
 	{ displayName: "cpp-dsv2-06-21", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-lite-06-21-fp8" },
 	{ displayName: "cpp-dsv2-07-18", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-07-18-long" },
+	{ displayName: "cpp-dsv2-08-10", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-08-10-long" },
+	{ displayName: "cpp-dsv2-08-25", modelKey: "accounts/anysphere/models/cpp-deepseek-v2-08-25-long-dpo" },
 ]
 
 export async function* streamChatLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal) {
