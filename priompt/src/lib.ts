@@ -1552,128 +1552,98 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 	prompt: RenderedPrompt | undefined;
 	emptyTokenCount: number;
 } {
-	if (elem === undefined || elem === null || elem === false) {
-		return {
-			prompt: undefined,
-			emptyTokenCount: 0
-		};
-	}
-	if (Array.isArray(elem)) {
-		const results = elem.map(e => renderWithLevelAndEarlyExitWithTokenEstimation(e, level, tokenizer, tokenLimit));
-		return results.reduce((a, b) => {
-			const sum = sumPrompts(a.prompt, b.prompt);
-			const lowerBound = estimateLowerBoundTokensForPrompt(sum, tokenizer);
+
+	// High level, rather than constructing a new object at each recursive call, we'll just accumulate the result into
+	// these variables. This saves on a massive amount of allocations for large prompt trees and significantly improves
+	// performance (around 10x for this function based on benchmarks).
+	let prompt: RenderedPrompt | undefined = undefined;
+	let emptyTokenCount = 0;
+
+	function renderInPlace(elem: PromptElement) {
+		if (elem === undefined || elem === null || elem === false) {
+			return;
+		}
+		if (Array.isArray(elem)) {
+			elem.forEach(e => renderInPlace(e));
+			const lowerBound = estimateLowerBoundTokensForPrompt(prompt, tokenizer);
 			if (lowerBound > tokenLimit) {
 				throw new Error(`Token limit exceeded!`);
 			}
-			return {
-				prompt: sum,
-				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount
-			};
-		}, {
-			prompt: undefined,
-			emptyTokenCount: 0
-		});
-	}
-	if (typeof elem === 'string') {
-		return {
-			prompt: elem,
-			emptyTokenCount: 0
-		};
-	}
-	if (typeof elem === 'number') {
-		return {
-			prompt: elem.toString(),
-			emptyTokenCount: 0
-		};
-	}
-	switch (elem.type) {
-		case 'first': {
-			for (const child of elem.children) {
-				if (child.absolutePriority === undefined) {
-					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
-				}
-				if (child.absolutePriority >= level) {
-					return renderWithLevelAndEarlyExitWithTokenEstimation(child, level, tokenizer, tokenLimit);
-				}
-			}
-			// nothing returned from first, which is ok
-			return {
-				prompt: undefined,
-				emptyTokenCount: 0
-			};
+			return;
 		}
-		case 'capture': {
-			// we're not rendering the capture here
-			return {
-				prompt: undefined,
-				emptyTokenCount: 0
-			}
+		if (typeof elem === 'string') {
+			prompt = (sumPrompts(prompt, elem));
+			return;
 		}
-		case 'config': {
-			// we're not rendering the config here
-			return {
-				prompt: undefined,
-				emptyTokenCount: 0
-			}
+		if (typeof elem === 'number') {
+			prompt = sumPrompts(prompt, elem.toString());
+			return;
 		}
-		case 'breaktoken': {
-			return {
-				prompt: ['', ''],
-				emptyTokenCount: 0
-			}
-		}
-		case 'empty': {
-			if (elem.tokenCount === undefined) {
-				throw new Error(`BUG!! empty token count is undefined.THIS SHOULD NEVER HAPPEN.BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
-			}
-			return {
-				prompt: undefined,
-				emptyTokenCount: elem.tokenCount
-			}
-		}
-		case 'functionDefinition': {
-			const prompt: (TextPrompt & FunctionPrompt) = {
-				type: 'text',
-				text: "",
-				functions: [
-					{
-						name: elem.name,
-						description: elem.description,
-						parameters: elem.parameters,
+		switch (elem.type) {
+			case 'first': {
+				for (const child of elem.children) {
+					if (child.absolutePriority === undefined) {
+						throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
 					}
-				]
-			};
-			return {
-				prompt,
-				emptyTokenCount: 0
+					if (child.absolutePriority >= level) {
+						renderInPlace(child);
+						return;
+					}
+				}
+				// nothing rendered for first, which is ok
+				return;
 			}
-		}
-		case 'toolDefinition': {
-			const prompt: (TextPrompt & ToolPrompt) = {
-				type: 'text',
-				text: "",
-				tools: [
-					{
-						type: 'function',
-						function: {
-							name: elem.tool.function.name,
-							description: elem.tool.function.description,
-							parameters: elem.tool.function.parameters,
+			case 'capture':
+			case 'config': {
+				// we're not rendering the config or capture here
+				return;
+			}
+			case 'breaktoken': {
+				prompt = sumPrompts(prompt, ['', '']);
+				return;
+			}
+			case 'empty': {
+				if (elem.tokenCount === undefined) {
+					throw new Error(`BUG!! empty token count is undefined.THIS SHOULD NEVER HAPPEN.BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
+				}
+				emptyTokenCount += elem.tokenCount;
+				return;
+			}
+			case 'functionDefinition': {
+				prompt = sumPrompts(prompt, {
+					type: 'text',
+					text: "",
+					functions: [
+						{
+							name: elem.name,
+							description: elem.description,
+							parameters: elem.parameters,
 						}
-					}
-				]
-			};
-			return {
-				prompt,
-				emptyTokenCount: 0
+					]
+				});
+				return;
 			}
-		}
-		case 'image': {
-			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
-			const mediaType = getImageMimeType(elem.bytes);
-			return {
-				prompt: {
+			case 'toolDefinition': {
+				prompt = sumPrompts(prompt, {
+					type: 'text',
+					text: "",
+					tools: [
+						{
+							type: 'function',
+							function: {
+								name: elem.tool.function.name,
+								description: elem.tool.function.description,
+								parameters: elem.tool.function.parameters,
+							}
+						}
+					]
+				});
+				return;
+			}
+			case 'image': {
+				const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+				const mediaType = getImageMimeType(elem.bytes);
+				prompt = sumPrompts(prompt, {
 					type: 'prompt_content',
 					content: [],
 					images: [{
@@ -1684,128 +1654,131 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 							dimensions: elem.dimensions,
 						}
 					}],
-				},
-				// Count the number of tokens for the image
-				emptyTokenCount: 0,
+				});
+				return;
 			}
-		}
-		case 'isolate': {
-			// check if we have a cached prompt
-			if (elem.cachedRenderOutput === undefined) {
-				// throw error! we need to hydrate the isolates first!
-				throw new Error(`BUG!! Isolates should have been hydrated before calling renderWithLevelAndEarlyExitWithTokenEstimation`);
+			case 'isolate': {
+				// check if we have a cached prompt
+				if (elem.cachedRenderOutput === undefined) {
+					// throw error! we need to hydrate the isolates first!
+					throw new Error(`BUG!! Isolates should have been hydrated before calling renderWithLevelAndEarlyExitWithTokenEstimation`);
+				}
+				prompt = sumPrompts(prompt, elem.cachedRenderOutput.prompt);
+				emptyTokenCount += elem.cachedRenderOutput.tokensReserved;
+				return;
 			}
-			return {
-				prompt: elem.cachedRenderOutput.prompt,
-				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
+			case 'scope': {
+				if (elem.absolutePriority === undefined) {
+					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
+				}
+				if (elem.absolutePriority >= level) {
+					renderInPlace(elem.children);
+				}
+				return;
 			}
-		}
-		case 'chat': {
-			const p = renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
-			if (isChatPrompt(p.prompt)) {
-				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
-			}
+			case 'chat': {
+				// Chat requires special handling because we need to check if any of the children are chat messages
+				// along with a lot of special logic based on the child types, so just use the outer renderWithLevel
+				// rather than a renderInPlace. Chat prompts don't show up that often in the tree, so its fine to do this.
+				const p = renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
+				if (isChatPrompt(p.prompt)) {
+					throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
+				}
 
-			let message: ChatPromptMessage;
-			if (elem.role === 'user') {
-				if (isPromptContent(p.prompt)) {
-					message = {
-						role: elem.role,
-						name: elem.name,
-						to: elem.to,
-						content: p.prompt.content,
-						images: p.prompt.images,
-					};
-				} else {
+				let message: ChatPromptMessage;
+				if (elem.role === 'user') {
+					if (isPromptContent(p.prompt)) {
+						message = {
+							role: elem.role,
+							name: elem.name,
+							to: elem.to,
+							content: p.prompt.content,
+							images: p.prompt.images,
+						};
+					} else {
+						message = {
+							role: elem.role,
+							to: elem.to,
+							name: elem.name,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+						};
+					}
+				} else if (elem.role === 'system') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in system message')
+					}
 					message = {
 						role: elem.role,
 						to: elem.to,
 						name: elem.name,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					};
-				}
-			} else if (elem.role === 'system') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in system message')
-				}
-				message = {
-					role: elem.role,
-					to: elem.to,
-					name: elem.name,
-					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-				};
-			} else if (elem.role === 'assistant') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in assistant message')
-				}
-				if (elem.functionCall !== undefined) {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
-						functionCall: elem.functionCall,
+				} else if (elem.role === 'assistant') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in assistant message')
 					}
-				} else if (elem.toolCalls !== undefined) {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
-						toolCalls: elem.toolCalls,
+					if (elem.functionCall !== undefined) {
+						message = {
+							role: elem.role,
+							to: elem.to,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+							functionCall: elem.functionCall,
+						}
+					} else if (elem.toolCalls !== undefined) {
+						message = {
+							role: elem.role,
+							to: elem.to,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+							toolCalls: elem.toolCalls,
+						}
+					} else {
+						message = {
+							role: elem.role,
+							to: elem.to,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+						}
 					}
-				} else {
+				} else if (elem.role === 'function') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in function message')
+					}
 					message = {
 						role: elem.role,
+						name: elem.name,
 						to: elem.to,
 						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
 					}
+				} else if (elem.role === 'tool') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in tool message')
+					}
+					message = {
+						role: elem.role,
+						name: elem.name,
+						to: elem.to,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}
+				} else {
+					const x: never = elem.role;
+					throw new Error(`BUG!! Invalid role ${elem.role}`);
 				}
-			} else if (elem.role === 'function') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in function message')
-				}
-				message = {
-					role: elem.role,
-					name: elem.name,
-					to: elem.to,
-					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-				}
-			} else if (elem.role === 'tool') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in tool message')
-				}
-				message = {
-					role: elem.role,
-					name: elem.name,
-					to: elem.to,
-					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-				}
-			} else {
-				const x: never = elem.role;
-				throw new Error(`BUG!! Invalid role ${elem.role}`);
-			}
 
-			return {
-				prompt: {
+				prompt = sumPrompts(prompt, {
 					type: 'chat',
 					messages: [message],
 					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined,
 					tools: promptHasTools(p.prompt) ? p.prompt.tools : undefined,
-				},
-				emptyTokenCount: p.emptyTokenCount,
+				});
+				emptyTokenCount += p.emptyTokenCount;
+				return;
 			}
 		}
-		case 'scope': {
-			if (elem.absolutePriority === undefined) {
-				throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
-			}
-			if (elem.absolutePriority >= level) {
-				return renderWithLevelAndEarlyExitWithTokenEstimation(elem.children, level, tokenizer, tokenLimit);
-			}
-			return {
-				prompt: undefined,
-				emptyTokenCount: 0
-			}
-		}
+	}
+
+	renderInPlace(elem);
+	return {
+		prompt,
+		emptyTokenCount,
 	}
 }
 
@@ -1939,374 +1912,167 @@ function renderWithLevel(
 	callEjectedCallback?: boolean,
 	sourceInfo?: SourceInfo
 ): RenderWithLevelPartialType {
-	if (elem === undefined || elem === null || elem === false) {
-		return {
-			prompt: undefined,
-			emptyTokenCount: 0,
-			outputHandlers: [],
-			streamHandlers: [],
-			streamResponseObjectHandlers: [],
-			sourceMap: undefined,
-			config: {
-				stop: undefined,
-				maxResponseTokens: undefined,
-			}
-		};
-	}
-	if (Array.isArray(elem)) {
-		const results = elem.map(
-			(e, i) => renderWithLevel(
-				e, level, tokenizer, callEjectedCallback,
-				sourceInfo !== undefined ? {
-					name: `${i}`,
-					isLast: (sourceInfo.isLast === undefined || sourceInfo.isLast === true) && i === elem.length - 1,
-				} : undefined
-			)
-		);
-		const reducedResult = results.reduce((a, b) => {
-			// Modifying a in place is safe because we start the reduction with a new empty object with new arrays
-			// Merging by creating new arrays in each reduction step creates lots of new objects and requires lots of garbage collection
-			a.prompt = sumPrompts(a.prompt, b.prompt);
-			a.emptyTokenCount += b.emptyTokenCount;
-			b.outputHandlers.forEach((handler) => a.outputHandlers.push(handler));
-			b.streamHandlers.forEach((handler) => a.streamHandlers.push(handler));
-			b.streamResponseObjectHandlers.forEach((handler) => a.streamResponseObjectHandlers.push(handler));
-			a.config = mergeConfigsInPlace(a.config, b.config);
-			return a;
-		}, {
-			prompt: undefined,
-			emptyTokenCount: 0,
-			outputHandlers: [],
-			streamHandlers: [],
-			streamResponseObjectHandlers: [],
-			config: emptyConfig(),
-		});
-		return {
-			...reducedResult,
-			sourceMap: sourceInfo === undefined ? undefined : mergeSourceMaps(results.map(r => r.sourceMap), sourceInfo.name)
+
+	// High level, rather than constructing a new object at each recursive call, we'll just accumulate the result as we go.
+	// This saves on a massive amount of allocations for large prompt trees and significantly improves
+	// performance (around 10x for this function based on benchmarks).
+	const result: RenderWithLevelPartialType = {
+		prompt: undefined,
+		emptyTokenCount: 0,
+		outputHandlers: [],
+		streamHandlers: [],
+		streamResponseObjectHandlers: [],
+		config: emptyConfig(),
+	};
+
+	function renderWithLevelInPlace(elem: PromptElement, sourceInfo?: SourceInfo): SourceMap | undefined {
+		if (elem === undefined || elem === null || elem === false) {
+			return undefined;
 		}
-	}
-	if (typeof elem === 'string') {
-		return {
-			prompt: elem,
-			emptyTokenCount: 0,
-			outputHandlers: [],
-			streamHandlers: [],
-			streamResponseObjectHandlers: [],
-			sourceMap: sourceInfo !== undefined ? {
+		if (Array.isArray(elem)) {
+			const sourceMaps = elem.map(
+				(e, i) => renderWithLevelInPlace(
+					e,
+					sourceInfo !== undefined ? {
+						name: `${i}`,
+						isLast: (sourceInfo.isLast === undefined || sourceInfo.isLast === true) && i === elem.length - 1,
+					} : undefined
+				)
+			);
+			return sourceInfo === undefined ? undefined : mergeSourceMaps(sourceMaps, sourceInfo.name);
+		}
+		if (typeof elem === 'string') {
+			result.prompt = sumPrompts(result.prompt, elem);
+			return sourceInfo === undefined ? undefined : {
 				name: sourceInfo.name,
 				children: undefined,
 				start: 0,
 				end: elem.length,
 				string: elem
-			} : undefined,
-			config: emptyConfig(),
-		};
-	}
-	if (typeof elem === 'number') {
-		const prompt = elem.toString();
-		return {
-			prompt,
-			emptyTokenCount: 0,
-			outputHandlers: [],
-			streamHandlers: [],
-			streamResponseObjectHandlers: [],
-			sourceMap: sourceInfo !== undefined ? {
+			}
+		}
+		if (typeof elem === 'number') {
+			const prompt = elem.toString();
+			result.prompt = sumPrompts(result.prompt, prompt);
+			return sourceInfo === undefined ? undefined : {
 				name: sourceInfo.name,
 				start: 0,
 				end: prompt.length,
 				string: prompt
-			} : undefined,
-			config: emptyConfig(),
-		};
-	}
-	switch (elem.type) {
-		case 'first': {
-			for (const [i, child] of elem.children.entries()) {
-				if (child.absolutePriority === undefined) {
-					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
-				}
-				if (child.absolutePriority >= level) {
-					elem.onInclude?.();
-					const result = renderWithLevel(child, level, tokenizer, callEjectedCallback, sourceInfo !== undefined ? {
-						name: `${sourceInfo.name}.${i}`,
-						isLast: (sourceInfo.isLast === undefined || sourceInfo.isLast === true) && i === elem.children.length - 1,
-					} : undefined);
-					return result
-				} else if (callEjectedCallback === true) {
-					recursivelyEject(child);
-				}
-			}
-			// nothing returned from first, which is ok
-			return {
-				prompt: undefined,
-				sourceMap: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
 			};
 		}
-		case 'capture': {
-			return {
-				prompt: undefined,
-				sourceMap: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: elem.onOutput ? [
-					elem.onOutput
-				] : [],
-				streamHandlers: elem.onStream ? [
-					elem.onStream
-				] : [],
-				streamResponseObjectHandlers: elem.onStreamResponseObject ? [
-					elem.onStreamResponseObject
-				] : [],
-				config: emptyConfig(),
-			}
-		}
-		case 'config': {
-			return {
-				prompt: undefined,
-				sourceMap: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: elem
-			}
-		}
-		case 'breaktoken': {
-			return {
-				prompt: ['', ''],
-				sourceMap: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
-			}
-		}
-		case 'empty': {
-			if (elem.tokenCount === undefined) {
-				throw new Error(`BUG!! empty token count is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
-			}
-			return {
-				prompt: undefined,
-				sourceMap: undefined,
-				emptyTokenCount: elem.tokenCount,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
-			}
-		}
-		case 'functionDefinition': {
-			const prompt: (TextPrompt & FunctionPrompt) = {
-				type: 'text',
-				text: "",
-				functions: [
-					{
-						name: elem.name,
-						description: elem.description,
-						parameters: elem.parameters,
+		switch (elem.type) {
+			case 'first': {
+				for (const [i, child] of elem.children.entries()) {
+					if (child.absolutePriority === undefined) {
+						throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all children of first`);
 					}
-				]
-			};
-			return {
-				prompt,
-				sourceMap: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
+					if (child.absolutePriority >= level) {
+						elem.onInclude?.();
+						return renderWithLevelInPlace(child, sourceInfo !== undefined ? {
+							name: `${sourceInfo.name}.${i}`,
+							isLast: (sourceInfo.isLast === undefined || sourceInfo.isLast === true) && i === elem.children.length - 1,
+						} : undefined);
+					} else if (callEjectedCallback === true) {
+						recursivelyEject(child);
+					}
+				}
+				// nothing rendered from first, which is ok
+				return undefined;
 			}
-		}
-		case 'toolDefinition': {
-			const prompt: (TextPrompt & ToolPrompt) = {
-				type: 'text',
-				text: "",
-				tools: [
-					{
-						type: 'function',
-						function: {
-							name: elem.tool.function.name,
-							description: elem.tool.function.description,
-							parameters: elem.tool.function.parameters,
+			case 'capture': {
+				if (elem.onOutput !== undefined) result.outputHandlers.push(elem.onOutput);
+				if (elem.onStream !== undefined) result.streamHandlers.push(elem.onStream);
+				if (elem.onStreamResponseObject !== undefined) result.streamResponseObjectHandlers.push(elem.onStreamResponseObject);
+				return undefined;
+			}
+			case 'config': {
+				result.config = mergeConfigsInPlace(result.config, elem);
+				return undefined;
+			}
+			case 'breaktoken': {
+				result.prompt = sumPrompts(result.prompt, ['', '']);
+				return undefined;
+			}
+			case 'empty': {
+				if (elem.tokenCount === undefined) {
+					throw new Error(`BUG!! empty token count is undefined. THIS SHOULD NEVER HAPPEN. BUG IN PRIOMPT.Empty token count should've been hydrated first!`);
+				}
+				result.emptyTokenCount += elem.tokenCount;
+				return undefined;
+			}
+			case 'functionDefinition': {
+				result.prompt = sumPrompts(result.prompt, {
+					type: 'text',
+					text: "",
+					functions: [
+						{
+							name: elem.name,
+							description: elem.description,
+							parameters: elem.parameters,
 						}
-					}
-				]
-			};
-			return {
-				prompt,
-				sourceMap: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
+					]
+				});
+				// Function defintions don't have source maps
+				return undefined;
 			}
-		}
-		case 'isolate': {
-			// check if we have a cached prompt
-			if (elem.cachedRenderOutput === undefined) {
-				// throw error! we need to hydrate the isolates first!
-				throw new Error(`BUG!! Isolates should have been hydrated before calling renderWithLevelAndEarlyExitWithTokenEstimation`);
+			case 'toolDefinition': {
+				result.prompt = sumPrompts(result.prompt, {
+					type: 'text',
+					text: "",
+					tools: [
+						{
+							type: 'function',
+							function: {
+								name: elem.tool.function.name,
+								description: elem.tool.function.description,
+								parameters: elem.tool.function.parameters,
+							}
+						}
+					]
+				});
+				// Tool definitions don't have source maps
+				return undefined;
 			}
-			return {
-				prompt: elem.cachedRenderOutput.prompt,
-				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
-				outputHandlers: elem.cachedRenderOutput.outputHandlers,
-				streamHandlers: elem.cachedRenderOutput.streamHandlers,
-				streamResponseObjectHandlers: elem.cachedRenderOutput.streamResponseObjectHandlers,
-				sourceMap: elem.cachedRenderOutput.sourceMap,
-				config: emptyConfig(),
+			case 'isolate': {
+				// check if we have a cached prompt
+				if (elem.cachedRenderOutput === undefined) {
+					// throw error! we need to hydrate the isolates first!
+					throw new Error(`BUG!! Isolates should have been hydrated before calling renderWithLevelAndEarlyExitWithTokenEstimation`);
+				}
+				result.prompt = sumPrompts(result.prompt, elem.cachedRenderOutput.prompt);
+				result.emptyTokenCount += elem.cachedRenderOutput.tokensReserved;
+				result.outputHandlers.push(...elem.cachedRenderOutput.outputHandlers);
+				result.streamHandlers.push(...elem.cachedRenderOutput.streamHandlers);
+				result.streamResponseObjectHandlers.push(...elem.cachedRenderOutput.streamResponseObjectHandlers);
+				return elem.cachedRenderOutput.sourceMap;
 			}
-		}
-		case 'chat': {
-			const p = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback, sourceInfo !== undefined ? {
-				name: `${elem.role}-message`,
-				isLast: undefined,
-			} : undefined);
-			if (isChatPrompt(p.prompt)) {
-				throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
-			}
-
-			let message: ChatPromptMessage;
-			if (elem.role === 'user') {
-				if (isPromptContent(p.prompt)) {
-					message = {
-						role: elem.role,
-						name: elem.name,
-						to: elem.to,
-						content: p.prompt.content,
-						images: p.prompt.images
-					};
-				} else {
-					message = {
-						role: elem.role,
-						name: elem.name,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-					};
+			case 'scope': {
+				if (elem.absolutePriority === undefined) {
+					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
 				}
-			} else if (elem.role === 'system') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in system message')
-				}
-				message = {
-					role: elem.role,
-					to: elem.to,
-					name: elem.name,
-					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-				};
-			} else if (elem.role === 'assistant') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in assistant message')
-				}
-				if (elem.functionCall !== undefined) {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
-						functionCall: elem.functionCall,
-					}
-				} else if (elem.toolCalls !== undefined) {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
-						toolCalls: elem.toolCalls,
-					}
-				} else {
-					message = {
-						role: elem.role,
-						to: elem.to,
-						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-					}
-				}
-			} else if (elem.role === 'function') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in function message')
-				}
-				message = {
-					role: elem.role,
-					to: elem.to,
-					name: elem.name,
-					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-				}
-			} else if (elem.role === 'tool') {
-				if (isPromptContent(p.prompt)) {
-					throw new Error('Did not expect images in tool message')
-				}
-				message = {
-					role: elem.role,
-					name: elem.name,
-					to: elem.to,
-					content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
-				}
-			} else {
-				const x: never = elem.role;
-				throw new Error(`BUG!! Invalid role ${elem.role}`);
-			}
-			let sourceMap = p.sourceMap;
-			if (sourceInfo !== undefined && p.sourceMap !== undefined) {
-				sourceMap = getSourceMapForChat(message, tokenizer, p.sourceMap, sourceInfo);
-			}
-			return {
-				prompt: {
-					type: 'chat',
-					messages: [message],
-					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined,
-					tools: promptHasTools(p.prompt) ? p.prompt.tools : undefined,
-				},
-				sourceMap,
-				emptyTokenCount: p.emptyTokenCount,
-				outputHandlers: p.outputHandlers,
-				streamHandlers: p.streamHandlers,
-				streamResponseObjectHandlers: p.streamResponseObjectHandlers,
-				config: emptyConfig(),
-			}
-		}
-		case 'scope': {
-			if (elem.absolutePriority === undefined) {
-				throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
-			}
-			if (elem.absolutePriority >= level) {
-				elem.onInclude?.();
-				const result = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback, sourceInfo !== undefined ? {
-					name: elem.name ?? 'scope',
-					isLast: sourceInfo.isLast,
-				} : undefined);
-				return {
-					...result,
-					sourceMap: result.sourceMap !== undefined && sourceInfo !== undefined ? {
+				if (elem.absolutePriority >= level) {
+					elem.onInclude?.();
+					const sourceMap = renderWithLevelInPlace(elem.children, sourceInfo !== undefined ? {
+						name: elem.name ?? 'scope',
+						isLast: sourceInfo.isLast,
+					} : undefined);
+					return (sourceMap === undefined || sourceInfo === undefined) ? undefined : {
 						name: sourceInfo.name,
-						children: [result.sourceMap],
+						children: [sourceMap],
 						start: 0,
-						end: result.sourceMap.end
-					} : undefined
+						end: sourceMap.end
+					}
+				} else if (callEjectedCallback === true) {
+					recursivelyEject(elem);
 				}
-			} else if (callEjectedCallback === true) {
-				recursivelyEject(elem);
+				return undefined;
 			}
 
-			return {
-				prompt: undefined,
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				sourceMap: undefined,
-				config: emptyConfig(),
-			}
-		}
-		case 'image': {
-			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
-			const mediaType = getImageMimeType(elem.bytes);
-			return {
-				prompt: {
+			case 'image': {
+				const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+				const mediaType = getImageMimeType(elem.bytes);
+				result.prompt = sumPrompts(result.prompt, {
 					type: 'prompt_content',
 					content: [],
 					images: [{
@@ -2317,16 +2083,120 @@ function renderWithLevel(
 							dimensions: elem.dimensions,
 						}
 					}],
-				},
-				// Count the number of tokens for the image
-				emptyTokenCount: 0,
-				outputHandlers: [],
-				streamHandlers: [],
-				streamResponseObjectHandlers: [],
-				config: emptyConfig(),
+				});
+				// No source maps for images
+				return undefined;
+			}
+			case 'chat': {
+				// Chat requires special handling because we need to check if any of the children are chat messages
+				// along with a lot of special logic based on the child types, so just use the outer renderWithLevel
+				// rather than a renderInPlace. Chat prompts don't show up that often in the tree, so its fine to do this.
+				const p = renderWithLevel(elem.children, level, tokenizer, callEjectedCallback, sourceInfo !== undefined ? {
+					name: `${elem.role}-message`,
+					isLast: undefined,
+				} : undefined);
+				if (isChatPrompt(p.prompt)) {
+					throw new Error(`Incorrect prompt: we have nested chat messages, which is not allowed!`);
+				}
+
+				let message: ChatPromptMessage;
+				if (elem.role === 'user') {
+					if (isPromptContent(p.prompt)) {
+						message = {
+							role: elem.role,
+							name: elem.name,
+							to: elem.to,
+							content: p.prompt.content,
+							images: p.prompt.images
+						};
+					} else {
+						message = {
+							role: elem.role,
+							name: elem.name,
+							to: elem.to,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+						};
+					}
+				} else if (elem.role === 'system') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in system message')
+					}
+					message = {
+						role: elem.role,
+						to: elem.to,
+						name: elem.name,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					};
+				} else if (elem.role === 'assistant') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in assistant message')
+					}
+					if (elem.functionCall !== undefined) {
+						message = {
+							role: elem.role,
+							to: elem.to,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+							functionCall: elem.functionCall,
+						}
+					} else if (elem.toolCalls !== undefined) {
+						message = {
+							role: elem.role,
+							to: elem.to,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text),
+							toolCalls: elem.toolCalls,
+						}
+					} else {
+						message = {
+							role: elem.role,
+							to: elem.to,
+							content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+						}
+					}
+				} else if (elem.role === 'function') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in function message')
+					}
+					message = {
+						role: elem.role,
+						to: elem.to,
+						name: elem.name,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}
+				} else if (elem.role === 'tool') {
+					if (isPromptContent(p.prompt)) {
+						throw new Error('Did not expect images in tool message')
+					}
+					message = {
+						role: elem.role,
+						name: elem.name,
+						to: elem.to,
+						content: isPlainPrompt(p.prompt) ? p.prompt : (p.prompt?.text ?? ""),
+					}
+				} else {
+					const x: never = elem.role;
+					throw new Error(`BUG!! Invalid role ${elem.role}`);
+				}
+				let sourceMap = p.sourceMap;
+				if (sourceInfo !== undefined && p.sourceMap !== undefined) {
+					sourceMap = getSourceMapForChat(message, tokenizer, p.sourceMap, sourceInfo);
+				}
+				result.prompt = sumPrompts(result.prompt, {
+					type: 'chat',
+					messages: [message],
+					functions: promptHasFunctions(p.prompt) ? p.prompt.functions : undefined,
+					tools: promptHasTools(p.prompt) ? p.prompt.tools : undefined,
+				});
+				result.emptyTokenCount += p.emptyTokenCount;
+				result.outputHandlers.push(...p.outputHandlers);
+				result.streamHandlers.push(...p.streamHandlers);
+				result.streamResponseObjectHandlers.push(...p.streamResponseObjectHandlers);
+				return sourceMap;
 			}
 		}
 	}
+	const sourceMap = renderWithLevelInPlace(elem, sourceInfo);
+	result.sourceMap = sourceMap;
+	return result;
 }
 
 const getSourceMapForChat = (message: ChatPromptMessage, tokenizer: PriomptTokenizer, sourceMap: SourceMap, sourceInfo: SourceInfo) => {
@@ -2399,22 +2269,23 @@ const mergeSourceMaps = (sourceMaps: (SourceMap | undefined)[], sourceName: stri
 		return undefined
 	}
 	const shiftedSourceMaps = [filteredSourceMaps[0]]
-	for (const nextSourceMap of filteredSourceMaps.slice(1)) {
+	let maxEnd = filteredSourceMaps[0].end;
+	for (let i = 1; i < filteredSourceMaps.length; i++) {
+		const nextSourceMap = filteredSourceMaps[i];
 		if (nextSourceMap === undefined) {
 			continue;
 		}
 		const newBase = shiftedSourceMaps[shiftedSourceMaps.length - 1].end;
-		shiftedSourceMaps.push({
-			...nextSourceMap,
-			start: nextSourceMap.start + newBase,
-			end: nextSourceMap.end + newBase
-		})
+		nextSourceMap.start += newBase;
+		nextSourceMap.end += newBase;
+		maxEnd = Math.max(maxEnd, nextSourceMap.end);
+		shiftedSourceMaps.push(nextSourceMap)
 	}
 	return {
 		name: sourceName,
 		children: shiftedSourceMaps,
 		start: 0,
-		end: shiftedSourceMaps.reduce((a, b) => Math.max(a, b.end), 0)
+		end: maxEnd,
 	}
 }
 

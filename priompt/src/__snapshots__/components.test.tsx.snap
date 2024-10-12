@@ -1,0 +1,2403 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Complex PromptElement Regression Tests > should render a PromptElement with config and complex nested structures 1`] = `
+{
+  "config": {
+    "maxResponseTokens": 100,
+    "stop": [
+      "STOP",
+      "END",
+    ],
+    "type": "config",
+  },
+  "outputHandlers": [],
+  "priorityCutoff": 940,
+  "prompt": {
+    "functions": undefined,
+    "messages": [
+      {
+        "content": "System message for complex nested structures test
+New line in system message",
+        "name": undefined,
+        "role": "system",
+        "to": undefined,
+      },
+      {
+        "content": "User message with nested structures",
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": "Assistant message with function call
+New line in assistant message",
+        "functionCall": {
+          "arguments": "{"param1":"test","param2":42}",
+          "name": "testFunction",
+        },
+        "role": "assistant",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Function result for complex nested test",
+          "After break in function message",
+        ],
+        "name": "testFunction",
+        "role": "function",
+        "to": undefined,
+      },
+    ],
+    "tools": undefined,
+    "type": "chat",
+  },
+  "sourceMap": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 28,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 49,
+                "name": "0",
+                "start": 0,
+                "string": "System message for complex nested structures test",
+              },
+              {
+                "children": undefined,
+                "end": 50,
+                "name": "1.scope.0",
+                "start": 49,
+              },
+              {
+                "children": undefined,
+                "end": 76,
+                "name": "2",
+                "start": 50,
+                "string": "New line in system message",
+              },
+            ],
+            "end": 104,
+            "name": "system-message",
+            "start": 28,
+          },
+          {
+            "children": undefined,
+            "end": 114,
+            "name": "eos",
+            "start": 104,
+          },
+        ],
+        "end": 114,
+        "name": "1.scope.chat",
+        "start": 0,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 26,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 61,
+            "name": "user-message.0",
+            "start": 26,
+          },
+          {
+            "children": undefined,
+            "end": 71,
+            "name": "eos",
+            "start": 61,
+          },
+        ],
+        "end": 185,
+        "name": "2.scope.chat",
+        "start": 114,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 31,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 36,
+                "name": "0",
+                "start": 0,
+                "string": "Assistant message with function call",
+              },
+              {
+                "children": undefined,
+                "end": 37,
+                "name": "1.scope.0",
+                "start": 36,
+              },
+              {
+                "children": undefined,
+                "end": 66,
+                "name": "2",
+                "start": 37,
+                "string": "New line in assistant message",
+              },
+            ],
+            "end": 97,
+            "name": "assistant-message",
+            "start": 31,
+          },
+          {
+            "children": undefined,
+            "end": 107,
+            "name": "eos",
+            "start": 97,
+          },
+        ],
+        "end": 292,
+        "name": "3.scope.chat",
+        "start": 185,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 0,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 39,
+                "name": "0",
+                "start": 0,
+                "string": "Function result for complex nested test",
+              },
+              {
+                "children": undefined,
+                "end": 70,
+                "name": "2",
+                "start": 39,
+                "string": "After break in function message",
+              },
+            ],
+            "end": 70,
+            "name": "function-message",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 80,
+            "name": "eos",
+            "start": 70,
+          },
+        ],
+        "end": 372,
+        "name": "4.testFunction.chat",
+        "start": 292,
+      },
+    ],
+    "end": 372,
+    "name": "root.scope",
+    "start": 0,
+  },
+  "streamHandlers": [],
+  "streamResponseObjectHandlers": [],
+  "tokenCount": 81,
+  "tokenLimit": 1500,
+  "tokenizer": {
+    "applyChatTemplate": [Function],
+    "applyChatTemplateTokens": [Function],
+    "decodeTokens": [Function],
+    "encodeTokens": [Function],
+    "estimateNumTokensFast": [Function],
+    "estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL": [Function],
+    "estimateTokensUsingCharCount": [Function],
+    "getEosToken": [Function],
+    "getEosTokenId": [Function],
+    "getHeaderStringForMessage": [Function],
+    "getHeaderTokensForMessage": [Function],
+    "name": "cl100k_base",
+    "numTokens": [Function],
+    "shouldAddEosTokenToEachMessage": true,
+  },
+  "tokensReserved": 10,
+}
+`;
+
+exports[`Complex PromptElement Regression Tests > should render a PromptElement with isolate and capture elements 1`] = `
+{
+  "capturedOutput": [
+    {
+      "content": "Test output",
+      "role": "assistant",
+    },
+  ],
+  "capturedStream": [
+    "{"role":"assistant","content":"Stream "}",
+    "{"role":"assistant","content":"test "}",
+    "{"role":"assistant","content":"output"}",
+  ],
+  "capturedStreamResponse": [],
+  "rendered": {
+    "config": {
+      "maxResponseTokens": undefined,
+      "stop": undefined,
+    },
+    "outputHandlers": [
+      [Function],
+    ],
+    "priorityCutoff": 850,
+    "prompt": {
+      "functions": undefined,
+      "messages": [
+        {
+          "content": "System message for isolate and capture test",
+          "name": undefined,
+          "role": "system",
+          "to": undefined,
+        },
+        {
+          "content": "This is an isolated user message with a token limit of 200High priority isolated contentMedium priority isolated contentLow priority isolated content",
+          "name": undefined,
+          "role": "user",
+          "to": undefined,
+        },
+        {
+          "content": "Assistant message after captureVery high priority contentHigh priority content",
+          "role": "assistant",
+          "to": undefined,
+        },
+      ],
+      "tools": undefined,
+      "type": "chat",
+    },
+    "sourceMap": {
+      "children": [
+        {
+          "children": [
+            {
+              "children": undefined,
+              "end": 28,
+              "name": "header",
+              "start": 0,
+            },
+            {
+              "children": undefined,
+              "end": 71,
+              "name": "system-message.0",
+              "start": 28,
+            },
+            {
+              "children": undefined,
+              "end": 81,
+              "name": "eos",
+              "start": 71,
+            },
+          ],
+          "end": 81,
+          "name": "0.scope.chat",
+          "start": 0,
+        },
+        {
+          "children": [
+            {
+              "children": undefined,
+              "end": 26,
+              "name": "header",
+              "start": 0,
+            },
+            {
+              "children": [
+                {
+                  "children": undefined,
+                  "end": 58,
+                  "name": "0",
+                  "start": 0,
+                  "string": "This is an isolated user message with a token limit of 200",
+                },
+                {
+                  "children": undefined,
+                  "end": 88,
+                  "name": "1.scope.0",
+                  "start": 58,
+                },
+                {
+                  "children": undefined,
+                  "end": 120,
+                  "name": "2.scope.0",
+                  "start": 88,
+                },
+                {
+                  "children": undefined,
+                  "end": 149,
+                  "name": "3.scope.0",
+                  "start": 120,
+                },
+              ],
+              "end": 175,
+              "name": "user-message",
+              "start": 26,
+            },
+          ],
+          "end": 256,
+          "name": "1.scope.root.0.scope.chat",
+          "start": 81,
+        },
+        {
+          "children": [
+            {
+              "children": undefined,
+              "end": 31,
+              "name": "header",
+              "start": 0,
+            },
+            {
+              "children": [
+                {
+                  "children": undefined,
+                  "end": 31,
+                  "name": "0",
+                  "start": 0,
+                  "string": "Assistant message after capture",
+                },
+                {
+                  "children": undefined,
+                  "end": 57,
+                  "name": "1.scope.0",
+                  "start": 31,
+                },
+                {
+                  "children": undefined,
+                  "end": 78,
+                  "name": "2.scope.0",
+                  "start": 57,
+                },
+              ],
+              "end": 109,
+              "name": "assistant-message",
+              "start": 31,
+            },
+          ],
+          "end": 365,
+          "name": "3.scope.chat",
+          "start": 256,
+        },
+      ],
+      "end": 365,
+      "name": "root.scope",
+      "start": 0,
+    },
+    "streamHandlers": [
+      [Function],
+    ],
+    "streamResponseObjectHandlers": [],
+    "tokenCount": 58,
+    "tokenLimit": 1000,
+    "tokenizer": {
+      "applyChatTemplate": [Function],
+      "applyChatTemplateTokens": [Function],
+      "decodeTokens": [Function],
+      "encodeTokens": [Function],
+      "estimateNumTokensFast": [Function],
+      "estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL": [Function],
+      "estimateTokensUsingCharCount": [Function],
+      "getEosToken": [Function],
+      "getEosTokenId": [Function],
+      "getHeaderStringForMessage": [Function],
+      "getHeaderTokensForMessage": [Function],
+      "name": "cl100k_base",
+      "numTokens": [Function],
+      "shouldAddEosTokenToEachMessage": true,
+    },
+    "tokensReserved": 0,
+  },
+}
+`;
+
+exports[`Complex PromptElement Regression Tests > should render a PromptElement with multiple nested arrays and conditional elements 1`] = `
+{
+  "config": {
+    "maxResponseTokens": undefined,
+    "stop": undefined,
+  },
+  "outputHandlers": [],
+  "priorityCutoff": 1000,
+  "prompt": {
+    "functions": undefined,
+    "messages": [
+      {
+        "content": "System message for nested arrays and conditional elements test",
+        "name": undefined,
+        "role": "system",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 1",
+          "Choice 1 for 1",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 2",
+          "Choice 1 for 2",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 3",
+          "Choice 1 for 3",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 4",
+          "Choice 1 for 4",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 5",
+          "Choice 1 for 5",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 6",
+          "Choice 1 for 6",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": "",
+        "role": "assistant",
+        "to": undefined,
+      },
+    ],
+    "tools": undefined,
+    "type": "chat",
+  },
+  "sourceMap": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 28,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 90,
+            "name": "system-message.0",
+            "start": 28,
+          },
+          {
+            "children": undefined,
+            "end": 100,
+            "name": "eos",
+            "start": 90,
+          },
+        ],
+        "end": 100,
+        "name": "0.scope.chat",
+        "start": 0,
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "1",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 7,
+                        "name": "0",
+                        "start": 0,
+                        "string": "Choice ",
+                      },
+                      {
+                        "end": 8,
+                        "name": "1",
+                        "start": 7,
+                        "string": "1",
+                      },
+                      {
+                        "children": undefined,
+                        "end": 13,
+                        "name": "2",
+                        "start": 8,
+                        "string": " for ",
+                      },
+                      {
+                        "end": 14,
+                        "name": "3",
+                        "start": 13,
+                        "string": "1",
+                      },
+                    ],
+                    "end": 36,
+                    "name": "2.scope.root.1.0.scope",
+                    "start": 22,
+                  },
+                ],
+                "end": 62,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 72,
+                "name": "eos",
+                "start": 62,
+              },
+            ],
+            "end": 72,
+            "name": "0.scope.chat",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "2",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 7,
+                        "name": "0",
+                        "start": 0,
+                        "string": "Choice ",
+                      },
+                      {
+                        "end": 8,
+                        "name": "1",
+                        "start": 7,
+                        "string": "1",
+                      },
+                      {
+                        "children": undefined,
+                        "end": 13,
+                        "name": "2",
+                        "start": 8,
+                        "string": " for ",
+                      },
+                      {
+                        "end": 14,
+                        "name": "3",
+                        "start": 13,
+                        "string": "2",
+                      },
+                    ],
+                    "end": 36,
+                    "name": "2.scope.root.1.0.scope",
+                    "start": 22,
+                  },
+                ],
+                "end": 62,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 72,
+                "name": "eos",
+                "start": 62,
+              },
+            ],
+            "end": 144,
+            "name": "1.scope.chat",
+            "start": 72,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "3",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 7,
+                        "name": "0",
+                        "start": 0,
+                        "string": "Choice ",
+                      },
+                      {
+                        "end": 8,
+                        "name": "1",
+                        "start": 7,
+                        "string": "1",
+                      },
+                      {
+                        "children": undefined,
+                        "end": 13,
+                        "name": "2",
+                        "start": 8,
+                        "string": " for ",
+                      },
+                      {
+                        "end": 14,
+                        "name": "3",
+                        "start": 13,
+                        "string": "3",
+                      },
+                    ],
+                    "end": 36,
+                    "name": "2.scope.root.1.0.scope",
+                    "start": 22,
+                  },
+                ],
+                "end": 62,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 72,
+                "name": "eos",
+                "start": 62,
+              },
+            ],
+            "end": 216,
+            "name": "2.scope.chat",
+            "start": 144,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "4",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 7,
+                        "name": "0",
+                        "start": 0,
+                        "string": "Choice ",
+                      },
+                      {
+                        "end": 8,
+                        "name": "1",
+                        "start": 7,
+                        "string": "1",
+                      },
+                      {
+                        "children": undefined,
+                        "end": 13,
+                        "name": "2",
+                        "start": 8,
+                        "string": " for ",
+                      },
+                      {
+                        "end": 14,
+                        "name": "3",
+                        "start": 13,
+                        "string": "4",
+                      },
+                    ],
+                    "end": 36,
+                    "name": "2.scope.root.1.0.scope",
+                    "start": 22,
+                  },
+                ],
+                "end": 62,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 72,
+                "name": "eos",
+                "start": 62,
+              },
+            ],
+            "end": 288,
+            "name": "3.scope.chat",
+            "start": 216,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "5",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 7,
+                        "name": "0",
+                        "start": 0,
+                        "string": "Choice ",
+                      },
+                      {
+                        "end": 8,
+                        "name": "1",
+                        "start": 7,
+                        "string": "1",
+                      },
+                      {
+                        "children": undefined,
+                        "end": 13,
+                        "name": "2",
+                        "start": 8,
+                        "string": " for ",
+                      },
+                      {
+                        "end": 14,
+                        "name": "3",
+                        "start": 13,
+                        "string": "5",
+                      },
+                    ],
+                    "end": 36,
+                    "name": "2.scope.root.1.0.scope",
+                    "start": 22,
+                  },
+                ],
+                "end": 62,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 72,
+                "name": "eos",
+                "start": 62,
+              },
+            ],
+            "end": 360,
+            "name": "4.scope.chat",
+            "start": 288,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "6",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 7,
+                        "name": "0",
+                        "start": 0,
+                        "string": "Choice ",
+                      },
+                      {
+                        "end": 8,
+                        "name": "1",
+                        "start": 7,
+                        "string": "1",
+                      },
+                      {
+                        "children": undefined,
+                        "end": 13,
+                        "name": "2",
+                        "start": 8,
+                        "string": " for ",
+                      },
+                      {
+                        "end": 14,
+                        "name": "3",
+                        "start": 13,
+                        "string": "6",
+                      },
+                    ],
+                    "end": 36,
+                    "name": "2.scope.root.1.0.scope",
+                    "start": 22,
+                  },
+                ],
+                "end": 62,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 72,
+                "name": "eos",
+                "start": 62,
+              },
+            ],
+            "end": 432,
+            "name": "5.scope.chat",
+            "start": 360,
+          },
+        ],
+        "end": 532,
+        "name": "1.scope",
+        "start": 100,
+      },
+    ],
+    "end": 532,
+    "name": "root.scope",
+    "start": 0,
+  },
+  "streamHandlers": [],
+  "streamResponseObjectHandlers": [],
+  "tokenCount": 110,
+  "tokenLimit": 5000,
+  "tokenizer": {
+    "applyChatTemplate": [Function],
+    "applyChatTemplateTokens": [Function],
+    "decodeTokens": [Function],
+    "encodeTokens": [Function],
+    "estimateNumTokensFast": [Function],
+    "estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL": [Function],
+    "estimateTokensUsingCharCount": [Function],
+    "getEosToken": [Function],
+    "getEosTokenId": [Function],
+    "getHeaderStringForMessage": [Function],
+    "getHeaderTokensForMessage": [Function],
+    "name": "cl100k_base",
+    "numTokens": [Function],
+    "shouldAddEosTokenToEachMessage": true,
+  },
+  "tokensReserved": 0,
+}
+`;
+
+exports[`Complex PromptElement Regression Tests > should render a PromptElement with multiple nested arrays and first elements 1`] = `
+{
+  "config": {
+    "maxResponseTokens": undefined,
+    "stop": undefined,
+  },
+  "outputHandlers": [],
+  "priorityCutoff": 600,
+  "prompt": {
+    "functions": undefined,
+    "messages": [
+      {
+        "content": "System message for nested arrays test
+New line in system message",
+        "name": undefined,
+        "role": "system",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 1",
+          "After break in nested messageFirst choice for 1",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 2",
+          "After break in nested messageFirst choice for 2",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 3",
+          "After break in nested messageFirst choice for 3",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Nested array message 4",
+          "After break in nested messageFirst choice for 4",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "High priority assistant response",
+          "After break in high priority",
+        ],
+        "role": "assistant",
+        "to": undefined,
+      },
+    ],
+    "tools": undefined,
+    "type": "chat",
+  },
+  "sourceMap": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 28,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 37,
+                "name": "0",
+                "start": 0,
+                "string": "System message for nested arrays test",
+              },
+              {
+                "children": undefined,
+                "end": 38,
+                "name": "1.scope.0",
+                "start": 37,
+              },
+              {
+                "children": undefined,
+                "end": 64,
+                "name": "2",
+                "start": 38,
+                "string": "New line in system message",
+              },
+            ],
+            "end": 92,
+            "name": "system-message",
+            "start": 28,
+          },
+          {
+            "children": undefined,
+            "end": 102,
+            "name": "eos",
+            "start": 92,
+          },
+        ],
+        "end": 102,
+        "name": "0.scope.chat",
+        "start": 0,
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "1",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 51,
+                    "name": "3",
+                    "start": 22,
+                    "string": "After break in nested message",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 17,
+                        "name": "0",
+                        "start": 0,
+                        "string": "First choice for ",
+                      },
+                      {
+                        "end": 18,
+                        "name": "1",
+                        "start": 17,
+                        "string": "1",
+                      },
+                    ],
+                    "end": 69,
+                    "name": "4.0.scope",
+                    "start": 51,
+                  },
+                ],
+                "end": 95,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 105,
+                "name": "eos",
+                "start": 95,
+              },
+            ],
+            "end": 105,
+            "name": "0.scope.chat",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "2",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 51,
+                    "name": "3",
+                    "start": 22,
+                    "string": "After break in nested message",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 17,
+                        "name": "0",
+                        "start": 0,
+                        "string": "First choice for ",
+                      },
+                      {
+                        "end": 18,
+                        "name": "1",
+                        "start": 17,
+                        "string": "2",
+                      },
+                    ],
+                    "end": 69,
+                    "name": "4.0.scope",
+                    "start": 51,
+                  },
+                ],
+                "end": 95,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 105,
+                "name": "eos",
+                "start": 95,
+              },
+            ],
+            "end": 210,
+            "name": "1.scope.chat",
+            "start": 105,
+          },
+        ],
+        "end": 312,
+        "name": "1.scope",
+        "start": 102,
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "3",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 51,
+                    "name": "3",
+                    "start": 22,
+                    "string": "After break in nested message",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 17,
+                        "name": "0",
+                        "start": 0,
+                        "string": "First choice for ",
+                      },
+                      {
+                        "end": 18,
+                        "name": "1",
+                        "start": 17,
+                        "string": "3",
+                      },
+                    ],
+                    "end": 69,
+                    "name": "4.0.scope",
+                    "start": 51,
+                  },
+                ],
+                "end": 95,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 105,
+                "name": "eos",
+                "start": 95,
+              },
+            ],
+            "end": 105,
+            "name": "0.scope.chat",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 26,
+                "name": "header",
+                "start": 0,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 21,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested array message ",
+                  },
+                  {
+                    "end": 22,
+                    "name": "1",
+                    "start": 21,
+                    "string": "4",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 51,
+                    "name": "3",
+                    "start": 22,
+                    "string": "After break in nested message",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": undefined,
+                        "end": 17,
+                        "name": "0",
+                        "start": 0,
+                        "string": "First choice for ",
+                      },
+                      {
+                        "end": 18,
+                        "name": "1",
+                        "start": 17,
+                        "string": "4",
+                      },
+                    ],
+                    "end": 69,
+                    "name": "4.0.scope",
+                    "start": 51,
+                  },
+                ],
+                "end": 95,
+                "name": "user-message",
+                "start": 26,
+              },
+              {
+                "children": undefined,
+                "end": 105,
+                "name": "eos",
+                "start": 95,
+              },
+            ],
+            "end": 210,
+            "name": "1.scope.chat",
+            "start": 105,
+          },
+        ],
+        "end": 522,
+        "name": "2.scope",
+        "start": 312,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 31,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 32,
+                "name": "0",
+                "start": 0,
+                "string": "High priority assistant response",
+              },
+              {
+                "children": undefined,
+                "end": 60,
+                "name": "2",
+                "start": 32,
+                "string": "After break in high priority",
+              },
+            ],
+            "end": 91,
+            "name": "assistant-message.0.0.scope",
+            "start": 31,
+          },
+        ],
+        "end": 613,
+        "name": "3.scope.chat",
+        "start": 522,
+      },
+    ],
+    "end": 613,
+    "name": "root.scope",
+    "start": 0,
+  },
+  "streamHandlers": [],
+  "streamResponseObjectHandlers": [],
+  "tokenCount": 108,
+  "tokenLimit": 1000,
+  "tokenizer": {
+    "applyChatTemplate": [Function],
+    "applyChatTemplateTokens": [Function],
+    "decodeTokens": [Function],
+    "encodeTokens": [Function],
+    "estimateNumTokensFast": [Function],
+    "estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL": [Function],
+    "estimateTokensUsingCharCount": [Function],
+    "getEosToken": [Function],
+    "getEosTokenId": [Function],
+    "getHeaderStringForMessage": [Function],
+    "getHeaderTokensForMessage": [Function],
+    "name": "cl100k_base",
+    "numTokens": [Function],
+    "shouldAddEosTokenToEachMessage": true,
+  },
+  "tokensReserved": 0,
+}
+`;
+
+exports[`Complex PromptElement Regression Tests > should render a complex PromptElement with nested elements 1`] = `
+{
+  "config": {
+    "maxResponseTokens": undefined,
+    "stop": undefined,
+  },
+  "outputHandlers": [
+    [Function],
+  ],
+  "priorityCutoff": 1000,
+  "prompt": {
+    "functions": [
+      {
+        "description": "A test function",
+        "name": "testFunction",
+        "parameters": {
+          "properties": {
+            "param1": {
+              "type": "string",
+            },
+            "param2": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "param1",
+          ],
+          "type": "object",
+        },
+      },
+    ],
+    "messages": [
+      {
+        "content": "This is a complex system message with high priority content and .
+New line in system message.",
+        "name": undefined,
+        "role": "system",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "User message with a ",
+          " break and 
+ line break.",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Assistant response with lower priority information",
+          "After break token in assistant message",
+        ],
+        "role": "assistant",
+        "to": undefined,
+      },
+      {
+        "content": "Function result with nested scopes:",
+        "name": "testFunction",
+        "role": "function",
+        "to": undefined,
+      },
+      {
+        "content": "Message 1 in array
+",
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": "Message 2 in array
+",
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": "Message 3 in array
+",
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+    ],
+    "tools": undefined,
+    "type": "chat",
+  },
+  "sourceMap": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 28,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 37,
+                "name": "0",
+                "start": 0,
+                "string": "This is a complex system message with",
+              },
+              {
+                "children": undefined,
+                "end": 38,
+                "name": "1",
+                "start": 37,
+                "string": " ",
+              },
+              {
+                "children": undefined,
+                "end": 59,
+                "name": "2.scope.0",
+                "start": 38,
+              },
+              {
+                "children": undefined,
+                "end": 63,
+                "name": "3",
+                "start": 59,
+                "string": " and",
+              },
+              {
+                "children": undefined,
+                "end": 64,
+                "name": "4",
+                "start": 63,
+                "string": " ",
+              },
+              {
+                "children": undefined,
+                "end": 65,
+                "name": "6",
+                "start": 64,
+                "string": ".",
+              },
+              {
+                "children": undefined,
+                "end": 66,
+                "name": "7.scope.0",
+                "start": 65,
+              },
+              {
+                "children": undefined,
+                "end": 93,
+                "name": "8",
+                "start": 66,
+                "string": "New line in system message.",
+              },
+            ],
+            "end": 121,
+            "name": "system-message",
+            "start": 28,
+          },
+          {
+            "children": undefined,
+            "end": 131,
+            "name": "eos",
+            "start": 121,
+          },
+        ],
+        "end": 131,
+        "name": "0.scope.chat",
+        "start": 0,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 26,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 20,
+                "name": "0",
+                "start": 0,
+                "string": "User message with a ",
+              },
+              {
+                "children": undefined,
+                "end": 31,
+                "name": "2",
+                "start": 20,
+                "string": " break and ",
+              },
+              {
+                "children": undefined,
+                "end": 32,
+                "name": "3.scope.0",
+                "start": 31,
+              },
+              {
+                "children": undefined,
+                "end": 44,
+                "name": "4",
+                "start": 32,
+                "string": " line break.",
+              },
+            ],
+            "end": 70,
+            "name": "user-message",
+            "start": 26,
+          },
+          {
+            "children": undefined,
+            "end": 80,
+            "name": "eos",
+            "start": 70,
+          },
+        ],
+        "end": 211,
+        "name": "1.scope.chat",
+        "start": 131,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 31,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 23,
+                "name": "0",
+                "start": 0,
+                "string": "Assistant response with",
+              },
+              {
+                "children": undefined,
+                "end": 24,
+                "name": "1",
+                "start": 23,
+                "string": " ",
+              },
+              {
+                "children": undefined,
+                "end": 50,
+                "name": "2.scope.0",
+                "start": 24,
+              },
+              {
+                "children": undefined,
+                "end": 88,
+                "name": "4",
+                "start": 50,
+                "string": "After break token in assistant message",
+              },
+            ],
+            "end": 119,
+            "name": "assistant-message",
+            "start": 31,
+          },
+          {
+            "children": undefined,
+            "end": 129,
+            "name": "eos",
+            "start": 119,
+          },
+        ],
+        "end": 340,
+        "name": "2.scope.chat",
+        "start": 211,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 0,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 35,
+            "name": "function-message.0",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 45,
+            "name": "eos",
+            "start": 35,
+          },
+        ],
+        "end": 385,
+        "name": "4.testFunction.chat",
+        "start": 340,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 26,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 8,
+                "name": "0",
+                "start": 0,
+                "string": "Message ",
+              },
+              {
+                "end": 9,
+                "name": "1",
+                "start": 8,
+                "string": "1",
+              },
+              {
+                "children": undefined,
+                "end": 18,
+                "name": "2",
+                "start": 9,
+                "string": " in array",
+              },
+              {
+                "children": undefined,
+                "end": 19,
+                "name": "4.scope.0",
+                "start": 18,
+              },
+            ],
+            "end": 45,
+            "name": "user-message",
+            "start": 26,
+          },
+          {
+            "children": undefined,
+            "end": 55,
+            "name": "eos",
+            "start": 45,
+          },
+        ],
+        "end": 440,
+        "name": "5.scope.chat",
+        "start": 385,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 26,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 8,
+                "name": "0",
+                "start": 0,
+                "string": "Message ",
+              },
+              {
+                "end": 9,
+                "name": "1",
+                "start": 8,
+                "string": "2",
+              },
+              {
+                "children": undefined,
+                "end": 18,
+                "name": "2",
+                "start": 9,
+                "string": " in array",
+              },
+              {
+                "children": undefined,
+                "end": 19,
+                "name": "4.scope.0",
+                "start": 18,
+              },
+            ],
+            "end": 45,
+            "name": "user-message",
+            "start": 26,
+          },
+          {
+            "children": undefined,
+            "end": 55,
+            "name": "eos",
+            "start": 45,
+          },
+        ],
+        "end": 495,
+        "name": "6.scope.chat",
+        "start": 440,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 26,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 8,
+                "name": "0",
+                "start": 0,
+                "string": "Message ",
+              },
+              {
+                "end": 9,
+                "name": "1",
+                "start": 8,
+                "string": "3",
+              },
+              {
+                "children": undefined,
+                "end": 18,
+                "name": "2",
+                "start": 9,
+                "string": " in array",
+              },
+              {
+                "children": undefined,
+                "end": 19,
+                "name": "4.scope.0",
+                "start": 18,
+              },
+            ],
+            "end": 45,
+            "name": "user-message",
+            "start": 26,
+          },
+          {
+            "children": undefined,
+            "end": 55,
+            "name": "eos",
+            "start": 45,
+          },
+        ],
+        "end": 550,
+        "name": "7.scope.chat",
+        "start": 495,
+      },
+    ],
+    "end": 550,
+    "name": "root.scope",
+    "start": 0,
+  },
+  "streamHandlers": [],
+  "streamResponseObjectHandlers": [],
+  "tokenCount": 235,
+  "tokenLimit": 1000,
+  "tokenizer": {
+    "applyChatTemplate": [Function],
+    "applyChatTemplateTokens": [Function],
+    "decodeTokens": [Function],
+    "encodeTokens": [Function],
+    "estimateNumTokensFast": [Function],
+    "estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL": [Function],
+    "estimateTokensUsingCharCount": [Function],
+    "getEosToken": [Function],
+    "getEosTokenId": [Function],
+    "getHeaderStringForMessage": [Function],
+    "getHeaderTokensForMessage": [Function],
+    "name": "cl100k_base",
+    "numTokens": [Function],
+    "shouldAddEosTokenToEachMessage": true,
+  },
+  "tokensReserved": 5,
+}
+`;
+
+exports[`Complex PromptElement Regression Tests > should render a complex PromptElement with nested elements and arrays 1`] = `
+{
+  "config": {
+    "maxResponseTokens": undefined,
+    "stop": undefined,
+  },
+  "outputHandlers": [
+    [Function],
+    [Function],
+    [Function],
+  ],
+  "priorityCutoff": 950,
+  "prompt": {
+    "functions": [
+      {
+        "description": "Test function 1",
+        "name": "testFunction1",
+        "parameters": {
+          "properties": {
+            "param1": {
+              "type": "string",
+            },
+            "param2": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "param1",
+          ],
+          "type": "object",
+        },
+      },
+      {
+        "description": "Test function 2",
+        "name": "testFunction2",
+        "parameters": {
+          "properties": {
+            "param1": {
+              "type": "string",
+            },
+            "param2": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "param1",
+          ],
+          "type": "object",
+        },
+      },
+      {
+        "description": "Test function 3",
+        "name": "testFunction3",
+        "parameters": {
+          "properties": {
+            "param1": {
+              "type": "string",
+            },
+            "param2": {
+              "type": "number",
+            },
+          },
+          "required": [
+            "param1",
+          ],
+          "type": "object",
+        },
+      },
+    ],
+    "messages": [
+      {
+        "content": "This is a complex system message with nested elements and arrays.",
+        "name": undefined,
+        "role": "system",
+        "to": undefined,
+      },
+      {
+        "content": [
+          "Priority level 1000 message",
+          "Nested scope 1 in priority 1000
+Nested scope 2 in priority 1000
+",
+        ],
+        "name": undefined,
+        "role": "user",
+        "to": undefined,
+      },
+      {
+        "content": "Assistant message with nested elements",
+        "role": "assistant",
+        "to": undefined,
+      },
+      {
+        "content": "Function 1 result with nested scopes:",
+        "name": "testFunction1",
+        "role": "function",
+        "to": undefined,
+      },
+      {
+        "content": "Function 2 result with nested scopes:",
+        "name": "testFunction2",
+        "role": "function",
+        "to": undefined,
+      },
+      {
+        "content": "Function 3 result with nested scopes:",
+        "name": "testFunction3",
+        "role": "function",
+        "to": undefined,
+      },
+    ],
+    "tools": undefined,
+    "type": "chat",
+  },
+  "sourceMap": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 28,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 93,
+            "name": "system-message.0",
+            "start": 28,
+          },
+          {
+            "children": undefined,
+            "end": 103,
+            "name": "eos",
+            "start": 93,
+          },
+        ],
+        "end": 103,
+        "name": "0.scope.chat",
+        "start": 0,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 26,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 15,
+                "name": "0",
+                "start": 0,
+                "string": "Priority level ",
+              },
+              {
+                "end": 19,
+                "name": "1",
+                "start": 15,
+                "string": "1000",
+              },
+              {
+                "children": undefined,
+                "end": 27,
+                "name": "2",
+                "start": 19,
+                "string": " message",
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 13,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested scope ",
+                  },
+                  {
+                    "end": 14,
+                    "name": "1",
+                    "start": 13,
+                    "string": "1",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 27,
+                    "name": "2",
+                    "start": 14,
+                    "string": " in priority ",
+                  },
+                  {
+                    "end": 31,
+                    "name": "3",
+                    "start": 27,
+                    "string": "1000",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 32,
+                    "name": "4.scope.0",
+                    "start": 31,
+                  },
+                ],
+                "end": 59,
+                "name": "4.scope",
+                "start": 27,
+              },
+              {
+                "children": [
+                  {
+                    "children": undefined,
+                    "end": 13,
+                    "name": "0",
+                    "start": 0,
+                    "string": "Nested scope ",
+                  },
+                  {
+                    "end": 14,
+                    "name": "1",
+                    "start": 13,
+                    "string": "2",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 27,
+                    "name": "2",
+                    "start": 14,
+                    "string": " in priority ",
+                  },
+                  {
+                    "end": 31,
+                    "name": "3",
+                    "start": 27,
+                    "string": "1000",
+                  },
+                  {
+                    "children": undefined,
+                    "end": 32,
+                    "name": "4.scope.0",
+                    "start": 31,
+                  },
+                ],
+                "end": 91,
+                "name": "5.scope",
+                "start": 59,
+              },
+            ],
+            "end": 117,
+            "name": "user-message",
+            "start": 26,
+          },
+          {
+            "children": undefined,
+            "end": 127,
+            "name": "eos",
+            "start": 117,
+          },
+        ],
+        "end": 230,
+        "name": "1.scope.0.scope.chat",
+        "start": 103,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 31,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 69,
+            "name": "assistant-message.0",
+            "start": 31,
+          },
+          {
+            "children": undefined,
+            "end": 79,
+            "name": "eos",
+            "start": 69,
+          },
+        ],
+        "end": 309,
+        "name": "7.scope.chat",
+        "start": 230,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 0,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 9,
+                "name": "0",
+                "start": 0,
+                "string": "Function ",
+              },
+              {
+                "end": 10,
+                "name": "1",
+                "start": 9,
+                "string": "1",
+              },
+              {
+                "children": undefined,
+                "end": 37,
+                "name": "2",
+                "start": 10,
+                "string": " result with nested scopes:",
+              },
+            ],
+            "end": 37,
+            "name": "function-message",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 47,
+            "name": "eos",
+            "start": 37,
+          },
+        ],
+        "end": 356,
+        "name": "12.testFunction1.chat",
+        "start": 309,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 0,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 9,
+                "name": "0",
+                "start": 0,
+                "string": "Function ",
+              },
+              {
+                "end": 10,
+                "name": "1",
+                "start": 9,
+                "string": "2",
+              },
+              {
+                "children": undefined,
+                "end": 37,
+                "name": "2",
+                "start": 10,
+                "string": " result with nested scopes:",
+              },
+            ],
+            "end": 37,
+            "name": "function-message",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 47,
+            "name": "eos",
+            "start": 37,
+          },
+        ],
+        "end": 403,
+        "name": "13.testFunction2.chat",
+        "start": 356,
+      },
+      {
+        "children": [
+          {
+            "children": undefined,
+            "end": 0,
+            "name": "header",
+            "start": 0,
+          },
+          {
+            "children": [
+              {
+                "children": undefined,
+                "end": 9,
+                "name": "0",
+                "start": 0,
+                "string": "Function ",
+              },
+              {
+                "end": 10,
+                "name": "1",
+                "start": 9,
+                "string": "3",
+              },
+              {
+                "children": undefined,
+                "end": 37,
+                "name": "2",
+                "start": 10,
+                "string": " result with nested scopes:",
+              },
+            ],
+            "end": 37,
+            "name": "function-message",
+            "start": 0,
+          },
+          {
+            "children": undefined,
+            "end": 47,
+            "name": "eos",
+            "start": 37,
+          },
+        ],
+        "end": 450,
+        "name": "14.testFunction3.chat",
+        "start": 403,
+      },
+    ],
+    "end": 450,
+    "name": "root.scope",
+    "start": 0,
+  },
+  "streamHandlers": [],
+  "streamResponseObjectHandlers": [],
+  "tokenCount": 523,
+  "tokenLimit": 5000,
+  "tokenizer": {
+    "applyChatTemplate": [Function],
+    "applyChatTemplateTokens": [Function],
+    "decodeTokens": [Function],
+    "encodeTokens": [Function],
+    "estimateNumTokensFast": [Function],
+    "estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL": [Function],
+    "estimateTokensUsingCharCount": [Function],
+    "getEosToken": [Function],
+    "getEosTokenId": [Function],
+    "getHeaderStringForMessage": [Function],
+    "getHeaderTokensForMessage": [Function],
+    "name": "cl100k_base",
+    "numTokens": [Function],
+    "shouldAddEosTokenToEachMessage": true,
+  },
+  "tokensReserved": 10,
+}
+`;
