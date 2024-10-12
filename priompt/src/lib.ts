@@ -9,6 +9,7 @@ import { OpenAIMessageRole, PriomptTokenizer, numTokensForImage } from './tokeni
 import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap, ToolPrompt, ToolDefinition, ChatAndToolPromptToolFunction, AbsoluteSourceMap, RenderunCountTokensFast_UNSAFE } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
+import { statsd } from './statsd';
 
 function getImageMimeType(bytes: Uint8Array): string {
 	// Check the magic numbers
@@ -872,10 +873,19 @@ export async function renderBinarySearch(
 	if (shouldPrintVerboseLogs()) {
 		startExactTokenCount = performance.now();
 	}
+	const renderWithLevelStartTime = performance.now();
 	const prompt = renderWithLevel(elem, sortedPriorityLevels[inclusiveUpperBound], tokenizer, true, shouldBuildSourceMap === true ? {
 		name: 'root',
 		isLast: undefined,
 	} : undefined);
+	const renderWithLevelEndTime = performance.now();
+
+
+	const bucketedLength = Math.pow(2, Math.floor(Math.log2(sortedPriorityLevels.length)));
+
+	statsd.distribution('priompt.renderWithLevel', renderWithLevelEndTime - renderWithLevelStartTime, undefined, {
+		'bucketedLength': bucketedLength.toString()
+	});
 	if (prompt.sourceMap !== undefined) {
 		prompt.sourceMap = normalizeSourceMap(prompt.sourceMap);
 	}

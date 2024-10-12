@@ -68,14 +68,15 @@
     "tiny-glob": "^0.2.9",
     "tsx": "^3.12.6",
     "typescript": "^5.2.0",
-    "vitest": "^1.2.2",
     "vite": "^5.0.12",
+    "vitest": "^1.2.2",
     "wireit": "^0.14.0"
   },
   "dependencies": {
+    "@anysphere/tiktoken-node": "workspace:*",
+    "hot-shots": "^10.0.0",
     "js-yaml": "https://github.com/anysphere/js-yaml.git#4761daebc257cf86e64bb775ba00696f30d7ff22",
     "openai": "^3.3.0",
-    "@anysphere/tiktoken-node": "workspace:*",
     "zod": "^3.21.4",
     "zod-to-json-schema": "^3.21.3"
   }
