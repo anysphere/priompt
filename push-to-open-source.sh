@@ -9,12 +9,6 @@ if [[ -n $(git status --porcelain) ]]; then
   exit 1
 fi
 
-# make sure we are on main, otherwise print warning
-if [[ $(git branch --show-current) != "main" ]]; then
-  echo "WARNING: You are not on main branch, please switch to main branch before running this script."
-  exit 1
-fi
-
 # copy over the eslintrc.base.json
 cp -f "$SCRIPT_DIR"/../../.eslintrc.base.json "$SCRIPT_DIR"/.eslintrc.base.json
 if [[ -n $(git status --porcelain) ]]; then
