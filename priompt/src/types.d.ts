@@ -4,6 +4,7 @@
 import { JSONSchema7 } from 'json-schema';
 import { ChatCompletionResponseMessage } from 'openai';
 import { PriomptTokenizer, UsableTokenizer } from './tokenizer';
+import { StreamChatCompletionResponse } from './openai';
 
 export type FunctionBody = {
 	name: string;
@@ -57,6 +58,7 @@ export type ChatImage = {
 export type CaptureProps = {
 	onOutput?: OutputHandler<ChatCompletionResponseMessage>;
 	onStream?: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>;
+	onStreamResponseObject?: OutputHandler<AsyncIterable<StreamChatCompletionResponse>>;
 }
 
 export type IsolateProps = {
@@ -336,6 +338,7 @@ export type RenderOutput = {
 	priorityCutoff: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
+	streamResponseObjectHandlers: OutputHandler<AsyncIterable<StreamChatCompletionResponse>>[];
 	config: ConfigProps;
 	durationMs?: number;
 	sourceMap?: SourceMap

@@ -3,7 +3,7 @@
 
 // TODO: add an IDE plugin or something that renders the prompt when you hover over it (and has a slider for the priority)
 
-import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, } from './openai';
+import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, StreamChatCompletionResponse, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
 import { CL100K, CL100K_SPECIAL_TOKENS, OpenAIMessageRole, PriomptTokenizer, estimateTokensUsingCharcount, numTokensForImage } from './tokenizer';
 import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap } from './types';
@@ -464,7 +464,7 @@ export async function renderun<
 	renderedMessagesCallback?: (messages: ChatCompletionRequestMessage[]) => void
 	modelCall: (
 		args: ReturnType<typeof promptToOpenAIChatRequest>
-	) => Promise<{ type: "output", value: CreateChatCompletionResponse } | { type: "stream", value: AsyncIterable<ChatCompletionResponseMessage> }>;
+	) => Promise<{ type: "output", value: CreateChatCompletionResponse } | { type: "stream", value: AsyncIterable<ChatCompletionResponseMessage> } | { type: "streamResponseObject", value: AsyncIterable<StreamChatCompletionResponse> }>;
 	loggingOptions?: {
 		promptElementRef?: { current: PromptElement | undefined };
 		renderOutputRef?: { current: RenderOutput | undefined };
@@ -524,7 +524,7 @@ export async function renderun<
 		await Promise.all(
 			rendered.outputHandlers.map((handler) => handler(modelOutputMessage))
 		);
-	} else {
+	} else if (modelOutput.type === "stream") {
 		// If no stream handlers, the default is to just return the first output
 		if (rendered.streamHandlers.length === 0) {
 			const awaitable = async function* (): AsyncIterable<ChatCompletionResponseMessage> {
@@ -536,6 +536,21 @@ export async function renderun<
 		} else {
 			await Promise.all(
 				rendered.streamHandlers.map((handler) => handler(modelOutput.value))
+			);
+
+		}
+	} else {
+		// If no stream handlers, the default is to just return the first output
+		if (rendered.streamResponseObjectHandlers.length === 0) {
+			const awaitable = async function* (): AsyncIterable<StreamChatCompletionResponse> {
+				for await (const message of modelOutput.value) {
+					yield message
+				}
+			}
+			await outputCatcher.onOutput(awaitable() as ReturnT);
+		} else {
+			await Promise.all(
+				rendered.streamResponseObjectHandlers.map((handler) => handler(modelOutput.value))
 			);
 
 		}
@@ -670,6 +685,7 @@ export function renderCumulativeSum(
 		durationMs: duration,
 		outputHandlers: prompt.outputHandlers,
 		streamHandlers: prompt.streamHandlers,
+		streamResponseObjectHandlers: prompt.streamResponseObjectHandlers,
 		priorityCutoff: bestTokenLevel,
 		config: prompt.config,
 	};
@@ -830,6 +846,7 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 		durationMs: duration,
 		outputHandlers: prompt.outputHandlers,
 		streamHandlers: prompt.streamHandlers,
+		streamResponseObjectHandlers: prompt.streamResponseObjectHandlers,
 		priorityCutoff: sortedPriorityLevels[inclusiveUpperBound],
 		sourceMap: prompt.sourceMap,
 		config: prompt.config,
@@ -971,6 +988,7 @@ export async function renderBackwardsLinearSearch(elem: PromptElement, { tokenLi
 		tokenizer,
 		outputHandlers: prevPrompt.outputHandlers,
 		streamHandlers: prevPrompt.streamHandlers,
+		streamResponseObjectHandlers: prevPrompt.streamResponseObjectHandlers,
 		durationMs: duration,
 		priorityCutoff: prevLevel ?? BASE_PRIORITY,
 		config: prevPrompt.config,
@@ -1086,6 +1104,7 @@ type RenderWithLevelPartialType = {
 	emptyTokenCount: number;
 	outputHandlers: OutputHandler<ChatCompletionResponseMessage>[];
 	streamHandlers: OutputHandler<AsyncIterable<ChatCompletionResponseMessage>>[];
+	streamResponseObjectHandlers: OutputHandler<AsyncIterable<StreamChatCompletionResponse>>[];
 	config: ConfigProps;
 	sourceMap?: SourceMap;
 };
@@ -1101,6 +1120,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
 				outputHandlers: [...a.outputHandlers, ...b.outputHandlers],
 				streamHandlers: [...a.streamHandlers, ...b.streamHandlers],
+				streamResponseObjectHandlers: [...a.streamResponseObjectHandlers, ...b.streamResponseObjectHandlers],
 				config: mergeConfigs(a.config, b.config),
 			};
 		}, {
@@ -1109,6 +1129,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			streamResponseObjectHandlers: [],
 			config: {},
 		});
 	}
@@ -1129,6 +1150,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {},
 			};
 		}
@@ -1153,6 +1175,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				tokenCount: numTokensForImage(elem.dimensions, elem.detail),
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {},
 			}
 		}
@@ -1163,6 +1186,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: elem.onOutput !== undefined ? [elem.onOutput] : [],
 				streamHandlers: elem.onStream !== undefined ? [elem.onStream] : [],
+				streamResponseObjectHandlers: elem.onStreamResponseObject !== undefined ? [elem.onStreamResponseObject] : [],
 				config: {},
 			}
 		}
@@ -1173,6 +1197,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: elem
 			}
 		}
@@ -1184,6 +1209,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {},
 			}
 		}
@@ -1200,6 +1226,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: elem.tokenCount,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {},
 			}
 		}
@@ -1224,6 +1251,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {},
 			}
 		}
@@ -1241,6 +1269,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
 				outputHandlers: elem.cachedRenderOutput.outputHandlers,
 				streamHandlers: elem.cachedRenderOutput.streamHandlers,
+				streamResponseObjectHandlers: elem.cachedRenderOutput.streamResponseObjectHandlers,
 				config: {}
 			}
 		}
@@ -1337,6 +1366,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: p.emptyTokenCount,
 				outputHandlers: p.outputHandlers,
 				streamHandlers: p.streamHandlers,
+				streamResponseObjectHandlers: p.streamResponseObjectHandlers,
 				config: {}
 			}
 		}
@@ -1353,6 +1383,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {}
 			}
 		}
@@ -1366,6 +1397,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {}
 			};
 		}
@@ -1738,6 +1770,7 @@ function renderWithLevel(
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			streamResponseObjectHandlers: [],
 			sourceMap: undefined,
 			config: {}
 		};
@@ -1758,6 +1791,7 @@ function renderWithLevel(
 				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
 				outputHandlers: a.outputHandlers.concat(b.outputHandlers),
 				streamHandlers: a.streamHandlers.concat(b.streamHandlers),
+				streamResponseObjectHandlers: a.streamResponseObjectHandlers.concat(b.streamResponseObjectHandlers),
 				config: mergeConfigs(a.config, b.config),
 			};
 		}, {
@@ -1765,6 +1799,7 @@ function renderWithLevel(
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			streamResponseObjectHandlers: [],
 			config: {}
 		});
 		return {
@@ -1778,6 +1813,7 @@ function renderWithLevel(
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			streamResponseObjectHandlers: [],
 			sourceMap: sourceInfo !== undefined ? {
 				name: sourceInfo.name,
 				children: undefined,
@@ -1795,6 +1831,7 @@ function renderWithLevel(
 			emptyTokenCount: 0,
 			outputHandlers: [],
 			streamHandlers: [],
+			streamResponseObjectHandlers: [],
 			sourceMap: sourceInfo !== undefined ? {
 				name: sourceInfo.name,
 				start: 0,
@@ -1828,6 +1865,7 @@ function renderWithLevel(
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {}
 			};
 		}
@@ -1842,6 +1880,9 @@ function renderWithLevel(
 				streamHandlers: elem.onStream ? [
 					elem.onStream
 				] : [],
+				streamResponseObjectHandlers: elem.onStreamResponseObject ? [
+					elem.onStreamResponseObject
+				] : [],
 				config: {}
 			}
 		}
@@ -1852,6 +1893,7 @@ function renderWithLevel(
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: elem
 			}
 		}
@@ -1862,6 +1904,7 @@ function renderWithLevel(
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {}
 			}
 		}
@@ -1875,6 +1918,7 @@ function renderWithLevel(
 				emptyTokenCount: elem.tokenCount,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {}
 			}
 		}
@@ -1896,6 +1940,7 @@ function renderWithLevel(
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {}
 			}
 		}
@@ -1910,6 +1955,7 @@ function renderWithLevel(
 				emptyTokenCount: elem.cachedRenderOutput.tokensReserved,
 				outputHandlers: elem.cachedRenderOutput.outputHandlers,
 				streamHandlers: elem.cachedRenderOutput.streamHandlers,
+				streamResponseObjectHandlers: elem.cachedRenderOutput.streamResponseObjectHandlers,
 				sourceMap: elem.cachedRenderOutput.sourceMap,
 				config: {}
 			}
@@ -2007,6 +2053,7 @@ function renderWithLevel(
 				emptyTokenCount: p.emptyTokenCount,
 				outputHandlers: p.outputHandlers,
 				streamHandlers: p.streamHandlers,
+				streamResponseObjectHandlers: p.streamResponseObjectHandlers,
 				config: {}
 			}
 		}
@@ -2038,6 +2085,7 @@ function renderWithLevel(
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				sourceMap: undefined,
 				config: {}
 			}
@@ -2061,6 +2109,7 @@ function renderWithLevel(
 				emptyTokenCount: 0,
 				outputHandlers: [],
 				streamHandlers: [],
+				streamResponseObjectHandlers: [],
 				config: {}
 			}
 		}
