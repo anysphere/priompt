@@ -2,30 +2,11 @@ import { ChatCompletionRequestMessage, CreateChatCompletionRequest, CreateComple
 import { encodingForModel } from "js-tiktoken";
 
 
-const API_KEY = 'PRIOMPT_PREVIEW_OPENAI_KEY';
-
-const s = "";
-const ossEndpointsJson = `PRIOMPT_PREVIEW_OSS_ENDPOINTS_JSON_STRING${s}`;
-
-const ossEndpoints = JSON.parse(ossEndpointsJson.includes("PREVIEW_OSS_ENDPOINTS_JSON_STRING") ? '{}' : ossEndpointsJson);
-
 export const OSS_MODELS = [
 	{ displayName: "deepseek-7b", modelKey: "trt-llm:deepseek-7b-cpp" },
 ]
 
-export function isOSS(model: string): boolean {
-	return model.includes('deepseek') || model.includes('mistral');
-}
-
-function getBaseUrl(model: string) {
-	let url = 'https://api.openai.com/v1/';
-	if (Object.keys(ossEndpoints).includes(model)) {
-		url = ossEndpoints[model as keyof typeof ossEndpoints];
-	}
-	return url;
-}
-
-export async function* streamChat(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
+export async function* streamChatLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal) {
 	let streamer: AsyncGenerator<StreamChatCompletionResponse> | undefined = undefined;
 
 	const newAbortSignal = new AbortController();
@@ -34,18 +15,16 @@ export async function* streamChat(createChatCompletionRequest: CreateChatComplet
 	});
 
 	let timeout = setTimeout(() => {
-		console.error("OpenAI request timed out after 40 seconds..... Not good.")
+		console.error("OpenAI request timed out after 200 seconds..... Not good.")
 		// Next, we abort the signal
 		newAbortSignal.abort();
-	}, 40_000);
+	}, 200_000);
 
 	try {
 		const requestOptions: RequestInit = {
 			...options,
 			method: 'POST',
 			headers: {
-				...options?.headers,
-				'Authorization': `Bearer ${API_KEY}`,
 				'Content-Type': 'application/json',
 			},
 			signal: newAbortSignal.signal,
@@ -55,8 +34,8 @@ export async function* streamChat(createChatCompletionRequest: CreateChatComplet
 			}),
 		};
 
-		const url = getBaseUrl(createChatCompletionRequest.model) + '/chat/completions';
-		const response = await fetch(url, requestOptions);
+		// const url = getBaseUrl(createChatCompletionRequest.model) + '/chat/completions';
+		const response = await fetch('http://localhost:8000/priompt/chat/completions', requestOptions);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}. message: ${await response.text()}`);
 		}
@@ -101,7 +80,8 @@ const enc = encodingForModel("gpt-4");
 const enc_old = encodingForModel("text-davinci-003");
 
 
-export async function* streamChatCompletion(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
+// TODO (Aman): Make this work for non-oai models (or error if it doesn't work for them)!
+export async function* streamChatCompletionLocalhost(createChatCompletionRequest: CreateChatCompletionRequest, options?: RequestInit, abortSignal?: AbortSignal): AsyncGenerator<StreamChatCompletionResponse> {
 	const prompt = joinMessages(createChatCompletionRequest.messages, true);
 	let tokens = enc.encode(prompt).length;
 	if (createChatCompletionRequest.model.includes('00')) {
@@ -123,17 +103,15 @@ export async function* streamChatCompletion(createChatCompletionRequest: CreateC
 	});
 
 	let timeout = setTimeout(() => {
-		console.error("OpenAI request timed out after 40 seconds..... Not good.")
+		console.error("OpenAI request timed out after 200 seconds..... Not good.")
 		newAbortSignal.abort();
-	}, 40_000);
+	}, 200_000);
 
 	try {
 		const requestOptions: RequestInit = {
 			...options,
 			method: 'POST',
 			headers: {
-				...options?.headers,
-				'Authorization': `Bearer ${API_KEY}`,
 				'Content-Type': 'application/json',
 			},
 			signal: newAbortSignal.signal,
@@ -143,8 +121,7 @@ export async function* streamChatCompletion(createChatCompletionRequest: CreateC
 			}),
 		};
 
-		const url = getBaseUrl(createChatCompletionRequest.model) + '/completions';
-		const response = await fetch(url, requestOptions);
+		const response = await fetch('http://localhost:8000/priompt/completions', requestOptions);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}. message: ${await response.text()}`);
 		}
