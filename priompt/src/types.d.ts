@@ -272,8 +272,29 @@ export type OutputHandler<T> = (output: T, options?: { p?: number }) => Promise<
 
 export type RenderedPrompt = PromptString | ChatPrompt | (ChatPrompt & FunctionPrompt) | (TextPrompt & FunctionPrompt) | PromptContentWrapper;
 
-export type Prompt<PropsT, ReturnT = never> = (props: PromptProps<PropsT, ReturnT>) => (PromptElement | Promise<PromptElement>);
-export type SynchronousPrompt<PropsT, ReturnT = never> = (props: PromptProps<PropsT, ReturnT>) => (PromptElement);
+export type Prompt<PropsT, ReturnT = never> = ((props: PromptProps<PropsT, ReturnT>) => (PromptElement | Promise<PromptElement>)) & {
+	config?: PreviewConfig<PropsT, ReturnT>;
+};
+export type SynchronousPrompt<PropsT, ReturnT = never> = ((props: PromptProps<PropsT, ReturnT>) => (PromptElement)) & {
+	config?: SynchronousPreviewConfig<PropsT, ReturnT>;
+};
+
+export type PreviewConfig<PropsT, ReturnT = never> = {
+	id: string;
+	prompt: Prompt<PropsT, ReturnT>;
+	// defaults to yaml but can be overridden
+	dump?: (props: Omit<PropsT, "onReturn">) => string;
+	hydrate?: (dump: string) => PropsT;
+}
+
+export type SynchronousPreviewConfig<PropsT, ReturnT = never> = {
+	id: string;
+	prompt: SynchronousPrompt<PropsT, ReturnT>;
+	// defaults to yaml but can be overridden
+	dump?: (props: Omit<PropsT, "onReturn">) => string;
+	hydrate?: (dump: string) => PropsT;
+	dumpExtension?: string;
+}
 
 // TODO: should the components have access to the token limit?
 // argument against: no, it should all be responsive to the token limit and we shouldn't need this

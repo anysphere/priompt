@@ -1,5 +1,5 @@
 import { render } from './lib';
-import { Prompt, PromptElement, PromptProps, RenderOutput, SynchronousPrompt } from './types';
+import { PreviewConfig, Prompt, PromptElement, PromptProps, RenderOutput, SynchronousPreviewConfig, SynchronousPrompt } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -74,12 +74,22 @@ function getProjectRoot(): string {
 }
 
 export function configFromPrompt<T, ReturnT = never>(prompt: Prompt<T, ReturnT>): PreviewConfig<T> {
+  if (prompt.config !== undefined) {
+    return prompt.config;
+  }
+
   return {
     id: prompt.name,
     prompt,
   };
 }
-export function configFromSynchronousPrompt<T, ReturnT = never>(prompt: SynchronousPrompt<T, ReturnT>): SynchronousPreviewConfig<T, ReturnT> {
+export function configFromSynchronousPrompt<T, ReturnT = never>(prompt: SynchronousPrompt<T, ReturnT>, options?: {
+  protoProps?: ProtoPropsType<T>;
+}): SynchronousPreviewConfig<T, ReturnT> {
+  if (prompt.config !== undefined) {
+    return prompt.config;
+  }
+
   return {
     id: prompt.name,
     prompt,
@@ -114,19 +124,12 @@ export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>,
   return dump;
 }
 
-export type PreviewConfig<PropsT, ReturnT = never> = {
-  id: string;
-  prompt: Prompt<PropsT, ReturnT>;
-  // defaults to yaml but can be overridden
-  dump?: (props: Omit<PropsT, "onReturn">) => string; hydrate?: (dump: string) => PropsT;
+// protoprops have a custom from-json/to-json!
+export type ProtoPropsType<T> = {
+  fromJsonString(jsonString: string): T;
 }
-
-export type SynchronousPreviewConfig<PropsT, ReturnT = never> = {
-  id: string;
-  prompt: SynchronousPrompt<PropsT, ReturnT>;
-  // defaults to yaml but can be overridden
-  dump?: (props: Omit<PropsT, "onReturn">) => string; hydrate?: (dump: string) => PropsT;
-
+export type ProtoProps = {
+  toJsonString(): string;
 }
 
 class PreviewManagerImpl implements IPreviewManager {
@@ -299,10 +302,28 @@ class PreviewManagerImpl implements IPreviewManager {
         throw new Error(`preview id ${config.id} already registered`);
       }
     }
+    if (config.prompt.config?.id !== undefined && config.prompt.config.id !== config.id && process.env.NODE_ENV === 'development') {
+      throw new Error(`Prompt id ${config.prompt.config.id} does not match config id ${config.id}. Prompts and configs need to be in a 1-to-1 mapping!`);
+    }
+    config.prompt.config = config;
     this.previews[config.id] = config;
   }
   register<T, ReturnT = never>(prompt: Prompt<T, ReturnT>) {
     const config = configFromPrompt(prompt);
+    this.registerConfig(config);
+  }
+  registerProtoPrompt<T extends ProtoProps, ReturnT = never>(prompt: Prompt<T, ReturnT>, protoProps: ProtoPropsType<T>) {
+    const config = configFromPrompt(prompt);
+    config.dump = (props) => props.toJsonString();
+    config.hydrate = (dump) => {
+      try {
+        return protoProps.fromJsonString(dump)
+      } catch (e) {
+        // we try parsing as yaml! for backwards compatibility!
+        const jsonS = JSON.stringify(yaml.load(dump));
+        return protoProps.fromJsonString(jsonS);
+      }
+    };
     this.registerConfig(config);
   }
 

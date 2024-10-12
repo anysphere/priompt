@@ -417,7 +417,7 @@ export async function render(elem: PromptElement, options: RenderOptions): Promi
 // may throw
 export async function renderun<
 	ReturnT,
-	PropsT extends Record<string, unknown>
+	PropsT extends object
 >({
 	prompt,
 	props,
