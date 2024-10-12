@@ -24,7 +24,8 @@ const usableTokenizers = [
 	P50K_BASE,
 	GPT2_TOKENIZER,
 	LLAMA3_TOKENIZER,
-	O200K_BASE
+	O200K_BASE,
+	'o200k_base_special_tokens'
 ] as const;
 
 export type UsableTokenizer = typeof usableTokenizers[number];
@@ -64,7 +65,7 @@ function contentArrayToStringContent(content: Array<string | PromptContent>): st
 }
 
 function openaiChatMessagesToPrompt(messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], tokenizer: UsableTokenizer): string {
-	if (tokenizer !== 'o200k_base' && tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens') {
+	if (tokenizer !== 'o200k_base' && tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens' && tokenizer !== 'o200k_base_special_tokens') {
 		throw new Error(`Invalid tokenizer: ${tokenizer}. Only o200k_base, cl100k_base, and cl100k_base_special_tokens tokenizers are supported.`);
 	}
 
@@ -78,7 +79,7 @@ function openaiChatMessagesToPrompt(messages: { role: OpenAIMessageRole, name?: 
 		}
 		if (i !== 0) {
 			// Openai always adds the eos token before every non-starting message
-			const endTokenString = tokenizer === O200K_BASE ? O200K_END_TOKEN_STRING : CL100K_END_TOKEN_STRING;
+			const endTokenString = (tokenizer === O200K_BASE || tokenizer === 'o200k_base_special_tokens') ? O200K_END_TOKEN_STRING : CL100K_END_TOKEN_STRING;
 			return endTokenString + headerString + newContent;
 		} else {
 			return headerString + newContent;
@@ -87,8 +88,8 @@ function openaiChatMessagesToPrompt(messages: { role: OpenAIMessageRole, name?: 
 	return parts.join('');
 }
 async function openaiChatMessagesToTokens(messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], tokenizer: UsableTokenizer): Promise<number[]> {
-	if (tokenizer !== 'o200k_base' && tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens') {
-		throw new Error(`Invalid tokenizer: ${tokenizer}. Only o200k_base, cl100k_base, and cl100k_base_special_tokens tokenizers are supported.`);
+	if (tokenizer !== 'o200k_base' && tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens' && tokenizer !== 'o200k_base_special_tokens') {
+		throw new Error(`Invalid tokenizer: ${tokenizer}. Only o200k_base, cl100k_base, and cl100k_base_special_tokens, o200k_base_special_tokens tokenizers are supported.`);
 	}
 
 	const parts = await Promise.all(messages.map(async (msg, i) => {
@@ -102,7 +103,7 @@ async function openaiChatMessagesToTokens(messages: { role: OpenAIMessageRole, n
 		}
 		if (i !== 0) {
 			// Openai always adds the eos token before every non-starting message
-			const eosTokenId = tokenizer === 'o200k_base' ? O200K_END_TOKEN : CL100K_END_TOKEN
+			const eosTokenId = (tokenizer === 'o200k_base' || tokenizer === 'o200k_base_special_tokens') ? O200K_END_TOKEN : CL100K_END_TOKEN
 			return [eosTokenId, ...headerTokens, ...contentTokens]
 		} else {
 			return [...headerTokens, ...contentTokens]
@@ -155,6 +156,21 @@ export const O200K: PriomptTokenizer = {
 	shouldAddEosTokenToEachMessage: true
 }
 
+export const O200K_SPECIAL_TOKENS: PriomptTokenizer = {
+	name: 'o200k_base_special_tokens',
+	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'o200k_base_special_tokens' }),
+	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base_special_tokens' }),
+	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base_special_tokens' }),
+	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base_special_tokens'),
+	getEosToken: () => O200K_END_TOKEN_STRING,
+	getEosTokenId: () => O200K_END_TOKEN,
+	getHeaderStringForMessage: (message) => openaiGetHeaderStringForMessage(message, 'o200k_base_special_tokens'),
+	getHeaderTokensForMessage: (message) => openaiGetHeaderTokensForMessage(message, 'o200k_base_special_tokens'),
+	applyChatTemplate: (messages) => openaiChatMessagesToPrompt(messages, 'o200k_base_special_tokens'),
+	applyChatTemplateTokens: async (messages) => openaiChatMessagesToTokens(messages, 'o200k_base_special_tokens'),
+	shouldAddEosTokenToEachMessage: true
+}
+
 export const getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS = (name: UsableTokenizer): PriomptTokenizer => {
 	switch (name) {
 		case 'cl100k_base':
@@ -179,6 +195,8 @@ export async function numTokens(text: string, opts: {
 			return await tokenizerObject.exactNumTokens(text, tiktoken.SupportedEncoding.Cl100k, tiktoken.SpecialTokenAction.Special, {});
 		case 'o200k_base':
 			return await tokenizerObject.exactNumTokensNoSpecialTokens(text, tiktoken.SupportedEncoding.O200k);
+		case 'o200k_base_special_tokens':
+			return await tokenizerObject.exactNumTokens(text, tiktoken.SupportedEncoding.O200k, tiktoken.SpecialTokenAction.Special, {});
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
@@ -196,6 +214,7 @@ export function estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text: string, opts:
 		case 'cl100k_base_special_tokens':
 			return syncTokenizer.approxNumTokens(text, tiktoken.SupportedEncoding.Cl100k);
 		case 'o200k_base':
+		case 'o200k_base_special_tokens':
 			return syncTokenizer.approxNumTokens(text, tiktoken.SupportedEncoding.O200k);
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
@@ -215,6 +234,8 @@ export async function encodeTokens(text: string, opts: {
 			return await tokenizerObject.encode(text, tiktoken.SupportedEncoding.Cl100k, tiktoken.SpecialTokenAction.Special, {});
 		case 'o200k_base':
 			return await tokenizerObject.encode(text, tiktoken.SupportedEncoding.O200k, tiktoken.SpecialTokenAction.NormalText, {});
+		case 'o200k_base_special_tokens':
+			return await tokenizerObject.encode(text, tiktoken.SupportedEncoding.O200k, tiktoken.SpecialTokenAction.Special, {});
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}
@@ -226,10 +247,9 @@ export function estimateTokensUsingBytecount(text: string, tokenizer: UsableToke
 	const byteLength = encoder.encode(text).length;
 	switch (tokenizer) {
 		case 'cl100k_base':
-			return [byteLength / 10, byteLength / 2.5];
 		case 'cl100k_base_special_tokens':
-			return [byteLength / 10, byteLength / 2.5];
 		case 'o200k_base':
+		case 'o200k_base_special_tokens':
 			return [byteLength / 10, byteLength / 2.5];
 		default:
 			// conservative!
@@ -240,10 +260,9 @@ export function estimateTokensUsingCharcount(text: string, tokenizer: UsableToke
 	const length = text.length;
 	switch (tokenizer) {
 		case 'cl100k_base':
-			return [length / 10, length / 1.5];
 		case 'cl100k_base_special_tokens':
-			return [length / 10, length / 1.5];
 		case 'o200k_base':
+		case 'o200k_base_special_tokens':
 			return [length / 10, length / 1.5];
 		default:
 			// conservative!
@@ -346,23 +365,23 @@ export const openaiGetHeaderTokensForMessage = async (message: { role: 'system' 
 }
 
 export const openaiGetHeaderStringForMessage = (message: { role: 'system' | 'user' | 'assistant' | 'tool', name?: string, to?: string }, tokenizer: UsableTokenizer): string => {
-	if (tokenizer !== 'o200k_base' && tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens') {
+	if (tokenizer !== 'o200k_base' && tokenizer !== 'cl100k_base' && tokenizer !== 'cl100k_base_special_tokens' && tokenizer !== 'o200k_base_special_tokens') {
 		throw new Error(`Invalid tokenizer: ${tokenizer}. Only o200k_base, cl100k_base, and cl100k_base_special_tokens tokenizers are supported.`);
 	}
 
 	let headerString = '';
 	switch (message.role) {
 		case 'system':
-			headerString = tokenizer === 'o200k_base' ? O200K_SYSTEM_TOKENS_STRING : CL100K_SYSTEM_TOKENS_STRING;
+			headerString = (tokenizer === 'o200k_base' || tokenizer === 'o200k_base_special_tokens') ? O200K_SYSTEM_TOKENS_STRING : CL100K_SYSTEM_TOKENS_STRING;
 			break
 		case 'user':
-			headerString = tokenizer === 'o200k_base' ? O200K_USER_TOKENS_STRING : CL100K_USER_TOKENS_STRING;
+			headerString = (tokenizer === 'o200k_base' || tokenizer === 'o200k_base_special_tokens') ? O200K_USER_TOKENS_STRING : CL100K_USER_TOKENS_STRING;
 			break
 		case 'assistant':
-			headerString = tokenizer === 'o200k_base' ? O200K_ASSISTANT_TOKENS_STRING : CL100K_ASSISTANT_TOKENS_STRING;
+			headerString = (tokenizer === 'o200k_base' || tokenizer === 'o200k_base_special_tokens') ? O200K_ASSISTANT_TOKENS_STRING : CL100K_ASSISTANT_TOKENS_STRING;
 			break
 		case 'tool':
-			headerString = tokenizer === 'o200k_base' ? O200K_TOOL_TOKENS_STRING : CL100K_USER_TOKENS_STRING;
+			headerString = (tokenizer === 'o200k_base' || tokenizer === 'o200k_base_special_tokens') ? O200K_TOOL_TOKENS_STRING : CL100K_USER_TOKENS_STRING;
 			break
 		default:
 			throw new Error(`Unknown role ${message.role}`)
