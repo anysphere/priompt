@@ -29,8 +29,7 @@ export async function* streamChatLocalhost(createChatCompletionRequest: CreateCh
 			},
 			signal: newAbortSignal.signal,
 			body: JSON.stringify({
-				// @ts-ignore
-				max_tokens: window.max_tokens ?? 4000,
+				max_tokens: (window as Window & { max_tokens?: number }).max_tokens ?? 4000,
 				...createChatCompletionRequest,
 				stream: true
 			}),
