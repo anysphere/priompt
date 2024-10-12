@@ -3,12 +3,6 @@
   "version": "0.1.27",
   "main": "index.js",
   "types": "index.d.ts",
-  "files": [
-    "index.js",
-    "tiktoken-node.node",
-    "tiktoken-node.*.node",
-    "package.json"
-  ],
   "napi": {
     "name": "tiktoken-node",
     "triples": {
