@@ -125,13 +125,14 @@ export function dumpProps<T, ReturnT = never>(config: PreviewConfig<T, ReturnT>,
 }
 
 export function defaultYamlDump<T>(props: T): string {
-  return yaml.dump(props, {
-    indent: 2,
-    lineWidth: -1,
-  });
+  // JSON is valid YAML, so yaml loads of this data will work fine.
+  // the YAML dump is synchronous and relatively slow, and JSON stringify is much faster.
+  return JSON.stringify(props, null, 2);
 }
 
 export function defaultYamlLoad<T>(dump: string): T {
+  // This has to load both yaml data (prior to 9-17-24) and json data (post 9-17-24)
+  // json is valid yaml so this will work, but yaml is not valid json, so a json load would not work.
   return yaml.load(dump) as T;
 }
 
