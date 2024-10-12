@@ -41,6 +41,7 @@ export type PriomptTokenizer = {
 	decodeTokens: (tokens: number[]) => Promise<string>;
 	numTokens: (text: string) => Promise<number>;
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text: string) => number;
+	estimateNumTokensFast: (text: string) => Promise<number>;
 	estimateTokensUsingCharCount: (text: string) => [number, number];
 	getHeaderStringForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => string;
 	getHeaderTokensForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => Promise<number[]>;
@@ -119,6 +120,7 @@ export const CL100K: PriomptTokenizer = {
 	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'cl100k_base' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base' }),
+	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'cl100k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base'),
 	getEosToken: () => CL100K_END_TOKEN_STRING,
 	getEosTokenId: () => CL100K_END_TOKEN,
@@ -134,6 +136,7 @@ export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
 	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'cl100k_base_special_tokens' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base_special_tokens' }),
+	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base_special_tokens'),
 	getEosToken: () => CL100K_END_TOKEN_STRING,
 	getEosTokenId: () => CL100K_END_TOKEN,
@@ -150,6 +153,7 @@ export const O200K: PriomptTokenizer = {
 	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'o200k_base' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base' }),
+	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'o200k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base'),
 	getEosToken: () => O200K_END_TOKEN_STRING,
 	getEosTokenId: () => O200K_END_TOKEN,
@@ -166,6 +170,7 @@ export const O200K_SPECIAL_TOKENS: PriomptTokenizer = {
 	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'o200k_base_special_tokens' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base_special_tokens' }),
+	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base_special_tokens'),
 	getEosToken: () => O200K_END_TOKEN_STRING,
 	getEosTokenId: () => O200K_END_TOKEN,
@@ -226,6 +231,22 @@ export function estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text: string, opts:
 	}
 }
 
+export async function estimateNumTokensFast(text: string, opts: {
+	tokenizer: UsableTokenizer;
+}): Promise<number> {
+	const tokenizerName = opts.tokenizer;
+
+	switch (tokenizerName) {
+		case 'cl100k_base':
+		case 'cl100k_base_special_tokens':
+			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.Cl100k);
+		case 'o200k_base':
+		case 'o200k_base_special_tokens':
+			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.O200k);
+		default:
+			throw new Error(`Unknown tokenizer ${tokenizerName}`);
+	}
+}
 
 export async function encodeTokens(text: string, opts: {
 	tokenizer: UsableTokenizer;

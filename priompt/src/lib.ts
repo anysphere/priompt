@@ -6,7 +6,7 @@
 import { ChatCompletionRequestMessage, ChatCompletionFunctions, ChatCompletionResponseMessage, CreateChatCompletionResponse, Content, StreamChatCompletionResponse, } from './openai';
 import { CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT, CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR, } from './openai';
 import { OpenAIMessageRole, PriomptTokenizer, numTokensForImage } from './tokenizer';
-import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap, ToolPrompt, ToolDefinition, ChatAndToolPromptToolFunction, AbsoluteSourceMap } from './types';
+import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElement, Scope, FunctionDefinition, FunctionPrompt, TextPrompt, ChatAndFunctionPromptFunction, ChatPromptMessage, ChatUserSystemMessage, ChatAssistantMessage, ChatFunctionResultMessage, Capture, OutputHandler, PromptProps, CaptureProps, BasePromptProps, ReturnProps, Isolate, RenderOutput, RenderOptions, PromptString, Prompt, BreakToken, PromptContentWrapper, PromptContent, ChatImage, ImagePromptContent, Config, ConfigProps, ChatToolResultMessage, SourceMap, ToolPrompt, ToolDefinition, ChatAndToolPromptToolFunction, AbsoluteSourceMap, RenderunCountTokensFast_UNSAFE } from './types';
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 
@@ -487,6 +487,7 @@ export async function renderPrompt<
 	return await render(promptElement, renderOptions);
 }
 
+
 // returns the highest-priority onOutput call
 // may throw
 export async function renderun<
@@ -502,7 +503,7 @@ export async function renderun<
 }: {
 	prompt: Prompt<PropsT, ReturnT>;
 	props: Omit<PropsT, "onReturn">;
-	renderOptions: RenderOptions;
+	renderOptions: Omit<RenderOptions, "countTokensFast_UNSAFE"> & { countTokensFast_UNSAFE?: RenderunCountTokensFast_UNSAFE };
 	renderedMessagesCallback?: (messages: ChatCompletionRequestMessage[]) => void
 	modelCall: (
 		args: ReturnType<typeof promptToOpenAIChatRequest>
@@ -537,7 +538,21 @@ export async function renderun<
 	if (loggingOptions?.promptElementRef !== undefined) {
 		loggingOptions.promptElementRef.current = promptElement;
 	}
-	const rendered = await render(promptElement, renderOptions);
+	let rendered: RenderOutput;
+	if (renderOptions.countTokensFast_UNSAFE === "try_retry") {
+		try {
+			rendered = await render(promptElement, { ...renderOptions, countTokensFast_UNSAFE: true });
+		} catch (e) {
+			if (e instanceof TooManyTokensForBasePriority) {
+				rendered = await render(promptElement, { ...renderOptions, countTokensFast_UNSAFE: false });
+			} else {
+				throw e
+			}
+		}
+	} else {
+		const countTokensFast = renderOptions.countTokensFast_UNSAFE === "yes";
+		rendered = await render(promptElement, { ...renderOptions, countTokensFast_UNSAFE: countTokensFast });
+	}
 	if (loggingOptions?.renderOutputRef !== undefined) {
 		loggingOptions.renderOutputRef.current = rendered;
 	}
@@ -741,7 +756,10 @@ export function renderCumulativeSum(
 }
 
 
-export async function renderBinarySearch(elem: PromptElement, { tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY, shouldBuildSourceMap }: RenderOptions): Promise<RenderOutput> {
+export async function renderBinarySearch(
+	elem: PromptElement,
+	{ tokenLimit, tokenizer, lastMessageIsIncomplete, countTokensFast_UNSAFE, shouldBuildSourceMap }: RenderOptions,
+): Promise<RenderOutput> {
 	let startTime: number | undefined;
 	if (getIsDevelopment()) {
 		startTime = performance.now();
@@ -774,7 +792,7 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 
 	// We lower the token limit if this is an approx count
 	let usedTokenlimit: number;
-	if (countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY === true) {
+	if (countTokensFast_UNSAFE === true) {
 		usedTokenlimit = tokenLimit * 0.95
 	} else {
 		usedTokenlimit = tokenLimit;
@@ -808,23 +826,19 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 	while (exclusiveLowerBound < inclusiveUpperBound - 1) {
 		const candidateLevelIndex = Math.floor((exclusiveLowerBound + inclusiveUpperBound) / 2);
 		const candidateLevel = sortedPriorityLevels[candidateLevelIndex];
-		if (getIsDevelopment()) {
-			console.debug(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
-		}
 		let start: number | undefined;
 		if (getIsDevelopment()) {
+			console.debug(`Trying candidate level ${candidateLevel} with index ${candidateLevelIndex}`)
 			start = performance.now();
 		}
 		let countStart: number | undefined;
 		let tokenCount = -1;
 		try {
 			const prompt = renderWithLevelAndEarlyExitWithTokenEstimation(elem, candidateLevel, tokenizer, tokenLimit);
-			if (getIsDevelopment()) {
-				countStart = performance.now();
-			}
+			countStart = performance.now();
 			// const prompt = renderWithLevel(elem, candidateLevel);
-			if (countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY === true) {
-				tokenCount = countTokensApproxFast_UNSAFE(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
+			if (countTokensFast_UNSAFE === true) {
+				tokenCount = await countTokensApproxFast_UNSAFE(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 			} else {
 				tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 			}
@@ -848,7 +862,9 @@ export async function renderBinarySearch(elem: PromptElement, { tokenLimit, toke
 
 	if (getIsDevelopment()) {
 		const endTimeRendering = performance.now();
-		console.debug(`Rendering prompt took ${endTimeRendering - (startTimeRendering ?? 0)} ms`);
+
+		const totalRenderingTime = endTimeRendering - (startTimeRendering ?? 0);
+		console.debug(`Rendering prompt took ${totalRenderingTime} ms spl=${sortedPriorityLevels.length}`);
 	}
 
 	let startExactTokenCount = undefined;
@@ -1862,7 +1878,7 @@ function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer, shoul
 						tokenizer,
 						tokenLimit: elem.tokenLimit,
 						shouldBuildSourceMap,
-					})
+					});
 				})();
 				return promise;
 			}
@@ -2705,30 +2721,34 @@ async function numTokensPromptString(p: PromptString, tokenizer: PriomptTokenize
 	return tokenizer.numTokens(p);
 }
 
-function numTokensPromptStringFast_UNSAFE(prompt: PromptString, tokenizer: PriomptTokenizer): number {
+async function numTokensPromptStringFast_UNSAFE(prompt: PromptString, tokenizer: PriomptTokenizer): Promise<number> {
 	if (Array.isArray(prompt)) {
-		return prompt.reduce((a, b) => a + numTokensPromptStringFast_UNSAFE(b, tokenizer), 0);
+		let tokens = 0;
+		for (const p of prompt) {
+			tokens += await numTokensPromptStringFast_UNSAFE(p, tokenizer);
+		}
+		return tokens;
 	}
-	return tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(prompt)
+	return tokenizer.estimateNumTokensFast(prompt);
 }
 
-function countTokensApproxFast_UNSAFE(tokenizer: PriomptTokenizer, prompt: RenderedPrompt, options: {
+async function countTokensApproxFast_UNSAFE(tokenizer: PriomptTokenizer, prompt: RenderedPrompt, options: {
 	lastMessageIsIncomplete?: boolean;
-}): number {
+}): Promise<number> {
 	let tokens = 0;
 	if (isPlainPrompt(prompt)) {
-		tokens += numTokensPromptStringFast_UNSAFE(prompt, tokenizer);
+		tokens += await numTokensPromptStringFast_UNSAFE(prompt, tokenizer);
 	} else if (isChatPrompt(prompt)) {
 		const msgTokens = prompt.messages.map(msg => countMsgTokensFast_UNSAFE(msg, tokenizer));
 		// docs here: https://platform.openai.com/docs/guides/chat/introduction
-		tokens += msgTokens.reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
+		tokens += (await Promise.all(msgTokens)).reduce((a, b) => a + b, 0) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_LINEAR_FACTOR * (prompt.messages.length) + CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT;
 		if (options.lastMessageIsIncomplete === true) {
 			// one for the <|im_end|>
 			tokens = tokens - (CHATML_PROMPT_EXTRA_TOKEN_COUNT_CONSTANT + 1);
 		}
 	} else if (isPromptContent(prompt)) {
 		// We count the tokens of each text element
-		tokens += numTokensPromptStringFast_UNSAFE(prompt.content, tokenizer);
+		tokens += await numTokensPromptStringFast_UNSAFE(prompt.content, tokenizer);
 		if (prompt.images) {
 			prompt.images.forEach(image => {
 				// Fine because sync anyways
@@ -2736,7 +2756,7 @@ function countTokensApproxFast_UNSAFE(tokenizer: PriomptTokenizer, prompt: Rende
 			});
 		}
 	} else {
-		tokens += numTokensPromptStringFast_UNSAFE(prompt.text, tokenizer);
+		tokens += await numTokensPromptStringFast_UNSAFE(prompt.text, tokenizer);
 	}
 	if (promptHasFunctions(prompt)) {
 		// we assume an extra 2 tokens per function
@@ -3028,14 +3048,14 @@ export function promptToOpenAIChatMessages(prompt: RenderedPrompt): Array<ChatCo
 	throw new Error(`BUG!! promptToOpenAIChatMessagesgot an invalid prompt`);
 }
 
-function countMsgTokensFast_UNSAFE(message: ChatPromptMessage, tokenizer: PriomptTokenizer): number {
+async function countMsgTokensFast_UNSAFE(message: ChatPromptMessage, tokenizer: PriomptTokenizer): Promise<number> {
 	if (message.role === 'function') {
 		// add an extra 2 tokens for good measure
-		return (tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(message.name)) + (numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) + 2;
+		return (await tokenizer.estimateNumTokensFast(message.name)) + (await numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) + 2;
 	} else if (message.role === 'assistant' && message.functionCall !== undefined) {
-		return (countFunctionCallMessageTokensFast_UNSAFE(message.functionCall, tokenizer)) + (message.content !== undefined ? (numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) : 0);
+		return (await countFunctionCallMessageTokensFast_UNSAFE(message.functionCall, tokenizer)) + (message.content !== undefined ? (await numTokensPromptStringFast_UNSAFE(message.content, tokenizer)) : 0);
 	} else {
-		let numTokens = numTokensPromptStringFast_UNSAFE(message.content ?? "", tokenizer);
+		let numTokens = await numTokensPromptStringFast_UNSAFE(message.content ?? "", tokenizer);
 		if (message.role === 'user' && message.images !== undefined) {
 			message.images.forEach(image => {
 				// numTokensForImage is synchronous and fast anyways, so nothing needed here
@@ -3066,9 +3086,9 @@ async function countFunctionCallMessageTokens(functionCall: { name: string; argu
 	// add some constant factor here because who knows what's actually going on with functions
 	return (await tokenizer.numTokens(functionCall.name)) + (await tokenizer.numTokens(functionCall.arguments)) + 5;
 }
-function countFunctionCallMessageTokensFast_UNSAFE(functionCall: { name: string; arguments: string; }, tokenizer: PriomptTokenizer): number {
+async function countFunctionCallMessageTokensFast_UNSAFE(functionCall: { name: string; arguments: string; }, tokenizer: PriomptTokenizer): Promise<number> {
 	// add some constant factor here because who knows what's actually going on with functions
-	return (tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.name)) + (tokenizer.estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(functionCall.arguments)) + 5;
+	return (await tokenizer.estimateNumTokensFast(functionCall.name)) + (await tokenizer.estimateNumTokensFast(functionCall.arguments)) + 5;
 }
 
 async function countFunctionTokens(functionDefinition: ChatAndFunctionPromptFunction, tokenizer: PriomptTokenizer): Promise<number> {

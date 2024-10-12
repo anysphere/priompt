@@ -354,11 +354,17 @@ export type SynchronousPreviewConfig<PropsT, ReturnT = never> = {
 export type RenderOptions = {
 	tokenLimit: number;
 	tokenizer: PriomptTokenizer;
-	countTokensFast_UNSAFE_CAN_THROW_TOOMANYTOKENS_INCORRECTLY?: boolean;
+	countTokensFast_UNSAFE?: boolean;
 	shouldBuildSourceMap?: boolean;
 
 	// if it is, then we need to count tokens differently
 	lastMessageIsIncomplete?: boolean;
+};
+
+export type RenderunCountTokensFast_UNSAFE = "try_retry" | "yes" | "no";
+
+export type RenderunOptions = Omit<RenderOptions, 'countTokensFast_UNSAFE'> & {
+	countTokensFast_UNSAFE?: RenderunCountTokensFast_UNSAFE;
 };
 
 // A sourcemap is an optional piece of data priompt can produce to map
