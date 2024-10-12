@@ -1,22 +1,34 @@
 use anyhow::Context;
+use base64::Engine;
 use napi::bindgen_prelude::Error;
 use napi::bindgen_prelude::FromNapiValue;
 use napi::bindgen_prelude::ToNapiValue;
 use napi_derive::napi;
+use pathdiff::diff_paths;
+use rustc_hash::FxHashMap;
+
 use std::collections::HashMap;
 
 // we use the actor pattern to have good cache locality
 // this means that no tokenization requests will ever run in parallel, but i think that's almost certainly fine
+use base64::engine::general_purpose::STANDARD;
 use napi::tokio::sync::{mpsc, oneshot};
+use std::env;
+use std::fs::File;
+use std::io::{self, BufRead};
+
+const LLAMA_PATH: &str = "./tokenizers/Meta-Llama-3-70B-Instruct";
 
 #[napi]
 pub enum SupportedEncoding {
   Cl100k = 0,
+  Llama3 = 1,
 }
 
 struct TokenizerActor {
   receiver: mpsc::Receiver<TokenizerMessage>,
   cl100k_encoding: tiktoken::Encoding,
+  llama3_encoding: tiktoken::Encoding,
 }
 enum TokenizerMessage {
   ExactNumTokens {
@@ -54,18 +66,84 @@ enum TokenizerMessage {
   },
 }
 
+fn llama_tokenizer() -> Result<tiktoken::Encoding, anyhow::Error> {
+  let pat_str = r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+";
+
+  let current_dir = env::current_dir().expect("Failed to get current directory");
+  let backend_dir = current_dir.ancestors().find(|p| p.ends_with("backend")).unwrap_or_else(|| {
+    eprintln!("Warning: Backend directory not found in path ancestors. Using `..` as a fallback.");
+    current_dir.parent().expect("Failed to access parent directory")
+  });
+
+  let mergeable_ranks_path = backend_dir.join(LLAMA_PATH).join("tokenizer.model");
+  let mergeable_ranks_file =
+    File::open(&mergeable_ranks_path).map_err(|e| anyhow::Error::msg(e.to_string()))?;
+  let mergeable_ranks_reader = io::BufReader::new(mergeable_ranks_file);
+
+  let mergeable_ranks: FxHashMap<Vec<u8>, usize> = mergeable_ranks_reader
+    .lines()
+    .filter_map(|line| line.ok())
+    .filter(|line| !line.is_empty())
+    .map(|line| {
+      let mut parts = line.split_whitespace();
+      let token = parts.next().expect("Token missing");
+      let rank = parts.next().expect("Rank missing");
+      let rank: usize = rank.parse().expect("Rank must be a number");
+      (STANDARD.decode(token).expect("Base64 decoding failed"), rank)
+    })
+    .collect();
+
+  let num_base_tokens = mergeable_ranks.len();
+  let mut special_tokens = vec![
+    "<|begin_of_text|>".to_string(),
+    "<|end_of_text|>".to_string(),
+    "<|reserved_special_token_0|>".to_string(),
+    "<|reserved_special_token_1|>".to_string(),
+    "<|reserved_special_token_2|>".to_string(),
+    "<|reserved_special_token_3|>".to_string(),
+    "<|start_header_id|>".to_string(),
+    "<|end_header_id|>".to_string(),
+    "<|reserved_special_token_4|>".to_string(),
+    "<|eot_id|>".to_string(), // end of turn
+  ];
+
+  let num_reserved_special_tokens = 256; // Assuming a total of 20 reserved tokens as an example
+  special_tokens.extend(
+    (5..num_reserved_special_tokens - 5).map(|i| format!("<|reserved_special_token_{}|>", i)),
+  );
+
+  let special_tokens_map: FxHashMap<String, usize> =
+    special_tokens.into_iter().enumerate().map(|(i, token)| (token, num_base_tokens + i)).collect();
+
+  let vocab_size = num_base_tokens + special_tokens_map.len();
+  let encoding = tiktoken::Encoding::new(
+    "llama3",
+    pat_str,
+    mergeable_ranks,
+    special_tokens_map,
+    Some(vocab_size),
+  )
+  .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+
+  Ok(encoding)
+}
+
 impl TokenizerActor {
   fn new(
     receiver: mpsc::Receiver<TokenizerMessage>,
   ) -> Result<Self, tiktoken::EncodingFactoryError> {
-    let cl100k_encoding = tiktoken::EncodingFactory::cl100k_im()?;
-    Ok(TokenizerActor { receiver, cl100k_encoding })
+    let cl100k_encoding = tiktoken::EncodingFactory::cl100k_im()
+      .map_err(|e| tiktoken::EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?;
+    let llama3_encoding = llama_tokenizer()
+      .map_err(|e| tiktoken::EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?;
+    Ok(TokenizerActor { receiver, cl100k_encoding, llama3_encoding })
   }
   fn handle_message(&mut self, msg: TokenizerMessage) {
     match msg {
       TokenizerMessage::ExactNumTokens { respond_to, text, encoding, special_token_handling } => {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
+          SupportedEncoding::Llama3 => &self.llama3_encoding,
         };
 
         let tokens = enc.encode(&text, &special_token_handling).context("Error encoding string");
@@ -81,6 +159,7 @@ impl TokenizerActor {
       TokenizerMessage::EncodeTokens { respond_to, text, encoding, special_token_handling } => {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
+          SupportedEncoding::Llama3 => &self.llama3_encoding,
         };
 
         let tokens = enc.encode(&text, &special_token_handling).context("Error encoding string");
@@ -96,6 +175,7 @@ impl TokenizerActor {
       TokenizerMessage::EncodeSingleToken { respond_to, bytes, encoding } => {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
+          SupportedEncoding::Llama3 => &self.llama3_encoding,
         };
 
         let token = enc.encode_single_token_bytes(&bytes);
@@ -111,6 +191,7 @@ impl TokenizerActor {
       TokenizerMessage::DecodeTokenBytes { respond_to, token, encoding } => {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
+          SupportedEncoding::Llama3 => &self.llama3_encoding,
         };
         let bytes = enc.decode_single_token_bytes(token as usize);
         let bytes = match bytes {
@@ -122,6 +203,7 @@ impl TokenizerActor {
       TokenizerMessage::DecodeTokens { respond_to, tokens, encoding } => {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
+          SupportedEncoding::Llama3 => &self.llama3_encoding,
         };
 
         let text = enc.decode(&tokens.into_iter().map(|t| t as usize).collect::<Vec<_>>());
@@ -132,6 +214,7 @@ impl TokenizerActor {
       TokenizerMessage::ApproximateNumTokens { respond_to, text, encoding } => {
         let enc = match encoding {
           SupportedEncoding::Cl100k => &self.cl100k_encoding,
+          SupportedEncoding::Llama3 => &self.llama3_encoding,
         };
 
         let tokens = enc.estimate_num_tokens_no_special_tokens_fast(&text);
@@ -188,15 +271,16 @@ impl Tokenizer {
   }
 
   #[napi]
-  pub async fn exact_num_tokens_cl100k_no_special_tokens(
+  pub async fn exact_num_tokens_no_special_tokens(
     &self,
     text: String,
+    encoding: SupportedEncoding,
   ) -> Result<i32, Error> {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::ExactNumTokens {
       respond_to: send,
       text,
-      encoding: SupportedEncoding::Cl100k,
+      encoding,
       special_token_handling: tiktoken::SpecialTokenHandling {
         // no special tokens!! everything is normal text
         // this is how tokenization is handled in the chat model api
@@ -341,16 +425,13 @@ impl Tokenizer {
     }
   }
   #[napi]
-  pub async fn decode_cl100k_byte(
+  pub async fn decode_byte(
     &self,
     token: u32,
+    encoding: SupportedEncoding,
   ) -> Result<napi::bindgen_prelude::Uint8Array, Error> {
     let (send, recv) = oneshot::channel();
-    let msg = TokenizerMessage::DecodeTokenBytes {
-      respond_to: send,
-      token,
-      encoding: SupportedEncoding::Cl100k,
-    };
+    let msg = TokenizerMessage::DecodeTokenBytes { respond_to: send, token, encoding };
 
     // Ignore send errors. If this send fails, so does the
     // recv.await below. There's no reason to check for the
@@ -365,13 +446,13 @@ impl Tokenizer {
   }
 
   #[napi]
-  pub async fn decode_cl100k(&self, encoded_tokens: Vec<u32>) -> Result<String, Error> {
+  pub async fn decode(
+    &self,
+    encoded_tokens: Vec<u32>,
+    encoding: SupportedEncoding,
+  ) -> Result<String, Error> {
     let (send, recv) = oneshot::channel();
-    let msg = TokenizerMessage::DecodeTokens {
-      respond_to: send,
-      tokens: encoded_tokens,
-      encoding: SupportedEncoding::Cl100k,
-    };
+    let msg = TokenizerMessage::DecodeTokens { respond_to: send, tokens: encoded_tokens, encoding };
 
     // Ignore send errors. If this send fails, so does the
     // recv.await below. There's no reason to check for the
@@ -387,6 +468,7 @@ impl Tokenizer {
 #[napi]
 pub struct SyncTokenizer {
   cl100k_encoding: tiktoken::Encoding,
+  llama3_encoding: tiktoken::Encoding,
 }
 
 #[napi]
@@ -396,14 +478,18 @@ impl SyncTokenizer {
     let cl100k_encoding = tiktoken::EncodingFactory::cl100k_im().map_err(|e| {
       napi::Error::from_reason(format!("Error creating tokenizer: {}", e.to_string()))
     })?;
+    let llama3_encoding = llama_tokenizer().map_err(|e| {
+      napi::Error::from_reason(format!("Error creating tokenizer: {}", e.to_string()))
+    })?;
 
-    Ok(Self { cl100k_encoding })
+    Ok(Self { cl100k_encoding, llama3_encoding })
   }
 
   #[napi]
   pub fn approx_num_tokens(&self, text: String, encoding: SupportedEncoding) -> Result<i32, Error> {
     let enc = match encoding {
       SupportedEncoding::Cl100k => &self.cl100k_encoding,
+      SupportedEncoding::Llama3 => &self.llama3_encoding,
     };
     Ok(enc.estimate_num_tokens_no_special_tokens_fast(&text) as i32)
   }
@@ -422,7 +508,7 @@ mod tests {
   async fn test_num_tokens() {
     let tokenizer = get_tokenizer().unwrap();
     let num_tokens = tokenizer
-      .exact_num_tokens_cl100k_no_special_tokens("hello, world".to_string())
+      .exact_num_tokens_no_special_tokens("hello, world".to_string(), SupportedEncoding::Cl100k)
       .await
       .unwrap();
     assert_eq!(num_tokens, 3);

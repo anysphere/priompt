@@ -14,6 +14,7 @@ const CL100K_BASE = 'cl100k_base';
 const R50K_BASE = 'r50k_base';
 const P50K_BASE = 'p50k_base';
 const GPT2_TOKENIZER = 'gpt2';
+const LLAMA3_TOKENIZER = 'llama3';
 
 
 const usableTokenizers = [
@@ -21,7 +22,8 @@ const usableTokenizers = [
 	'cl100k_base_special_tokens',
 	R50K_BASE,
 	P50K_BASE,
-	GPT2_TOKENIZER
+	GPT2_TOKENIZER,
+	LLAMA3_TOKENIZER
 ] as const;
 
 export type UsableTokenizer = typeof usableTokenizers[number];
@@ -144,7 +146,7 @@ export async function numTokens(text: string, opts: {
 
 	switch (tokenizerName) {
 		case 'cl100k_base':
-			return await tokenizerObject.exactNumTokensCl100KNoSpecialTokens(text);
+			return await tokenizerObject.exactNumTokensNoSpecialTokens(text, tiktoken.SupportedEncoding.Cl100k);
 		case 'cl100k_base_special_tokens':
 			return await tokenizerObject.exactNumTokens(text, tiktoken.SupportedEncoding.Cl100k, tiktoken.SpecialTokenAction.Special, {});
 		default:
