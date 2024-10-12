@@ -881,7 +881,7 @@ export async function renderBinarySearch(
 	const renderWithLevelEndTime = performance.now();
 
 
-	const bucketedLength = Math.pow(2, Math.floor(Math.log2(sortedPriorityLevels.length)));
+	const bucketedLength = Math.pow(2, Math.floor(Math.log2(sortedPriorityLevels.length + 1)));
 
 	statsd.distribution('priompt.renderWithLevel', renderWithLevelEndTime - renderWithLevelStartTime, undefined, {
 		'bucketedLength': bucketedLength.toString()
