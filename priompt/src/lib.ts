@@ -828,6 +828,7 @@ export async function renderBinarySearch(
 	// we choose an exclusive lower bound and an inclusive upper bound because we get the information
 	// if TOKEN LIMIT OK: then the answer has to be <= to the candidate
 	// if TOKEN LIMIT NOT OK: then the answer has to be > than the candidate
+	let largestTokenCountSeen = 0;
 	let exclusiveLowerBound = -1;
 	let inclusiveUpperBound = sortedPriorityLevels.length - 1;
 
@@ -850,6 +851,7 @@ export async function renderBinarySearch(
 			} else {
 				tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 			}
+			largestTokenCountSeen = Math.max(largestTokenCountSeen, tokenCount);
 			if (tokenCount + prompt.emptyTokenCount > usedTokenlimit) {
 				// this means that the candidateLevel is too low
 				exclusiveLowerBound = candidateLevelIndex;
@@ -867,6 +869,9 @@ export async function renderBinarySearch(
 			}
 		}
 	}
+	statsd.distribution('priompt.largestTokenCountSeen', largestTokenCountSeen, {
+		'bucketedLength': bucketedLength.toString()
+	});
 
 	const renderingDuration = performance.now() - startTimeRendering;
 	statsd.distribution('priompt.rendering', renderingDuration, {
@@ -900,6 +905,9 @@ export async function renderBinarySearch(
 	const tokenCount = await countTokensExact(tokenizer, prompt.prompt ?? "", { lastMessageIsIncomplete });
 	const exactTokenCountDuration = performance.now() - startExactTokenCount;
 	statsd.distribution('priompt.countTokensExact', exactTokenCountDuration, {
+		'bucketedLength': bucketedLength.toString()
+	});
+	statsd.distribution('priompt.countTokensExactTokenCount', tokenCount, {
 		'bucketedLength': bucketedLength.toString()
 	});
 	if (shouldPrintVerboseLogs()) {
