@@ -73,7 +73,38 @@ export function hasImages(message: ChatCompletionRequestMessage) {
 	return typeof message.content !== 'string';
 }
 
+export function hasNoImages(message: ChatCompletionRequestMessage): message is ChatCompletionRequestMessageWithoutImages {
+	return typeof message.content === 'string';
+}
+
 export interface ChatCompletionRequestMessage {
+	/**
+	 * The role of the messages author. One of `system`, `user`, `assistant`, or `function`.
+	 * @type {string}
+	 * @memberof ChatCompletionRequestMessage
+	 */
+	'role': ChatCompletionRequestMessageRoleEnum;
+	/**
+	 * The contents of the message. `content` is required for all messages except assistant messages with function calls.
+	 * @type {string}
+	 * @memberof ChatCompletionRequestMessage
+	 */
+	'content'?: string | Content[];
+	/**
+	 * The name of the author of this message. `name` is required if role is `function`, and it should be the name of the function whose response is in the `content`. May contain a-z, A-Z, 0-9, and underscores, with a maximum length of 64 characters.
+	 * @type {string}
+	 * @memberof ChatCompletionRequestMessage
+	 */
+	'name'?: string;
+	/**
+	 *
+	 * @type {ChatCompletionRequestMessageFunctionCall}
+	 * @memberof ChatCompletionRequestMessage
+	 */
+	'function_call'?: ChatCompletionRequestMessageFunctionCall;
+}
+
+export interface ChatCompletionRequestMessageWithoutImages {
 	/**
 	 * The role of the messages author. One of `system`, `user`, `assistant`, or `function`.
 	 * @type {string}
