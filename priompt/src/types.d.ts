@@ -39,9 +39,10 @@ export type Config = {
 } & ConfigProps;
 
 export type ConfigProps = {
-	maxResponseTokens?: number | "tokensReserved" | "tokensRemaining";
+	maxResponseTokens: number | "tokensReserved" | "tokensRemaining" | undefined;
 	// at most 4 of these
-	stop?: string | string[];
+	stop: string | string[] | undefined;
+	cacheKey: string | undefined;
 }
 
 export type Isolate = {
@@ -172,7 +173,7 @@ export namespace JSX {
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
 		capture: Omit<BaseProps, 'children'> & CaptureProps;
 		isolate: BaseProps & IsolateProps;
-		config: Omit<BaseProps, 'children'> & ConfigProps;
+		config: Omit<BaseProps, 'children'> & Partial<ConfigProps>;
 	}
 	type Element = PromptElement;
 	interface ElementAttributesProperty {

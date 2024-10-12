@@ -97,6 +97,13 @@ function sumPromptStrings(a: PromptString, b: PromptString): PromptString {
 	return a + b;
 }
 
+function emptyConfig(): ConfigProps {
+	return {
+		maxResponseTokens: undefined,
+		stop: undefined,
+		cacheKey: undefined,
+	};
+}
 // TODO: we probably want to merge based on depth-in-tree (not priority, i think)
 // so that things higher up in the tree take precedence
 // this is just to make sure that a component cannot affect a parent component unexpectedly
@@ -235,12 +242,20 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					}
 					stop = props.stop;
 				}
+				let cacheKey: string | undefined = undefined;
+				if (props && 'cacheKey' in props && props.cacheKey !== null && props.cacheKey !== undefined) {
+					if (typeof props.cacheKey !== 'string') {
+						throw new Error(`cacheKey must be a string, got ${props.cacheKey}`);
+					}
+					cacheKey = props.cacheKey;
+				}
 				return {
 					type: 'scope',
 					children: [{
 						type: 'config',
 						maxResponseTokens: maxResponseTokens,
 						stop: stop,
+						cacheKey: cacheKey,
 					}],
 					absolutePriority: (props && typeof props.p === 'number') ? props.p : undefined,
 					name: (props && typeof props.name === 'string') ? props.name : undefined,
@@ -1130,7 +1145,11 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 			outputHandlers: [],
 			streamHandlers: [],
 			streamResponseObjectHandlers: [],
-			config: {},
+			config: {
+				maxResponseTokens: undefined,
+				stop: undefined,
+				cacheKey: undefined,
+			},
 		});
 	}
 	switch (elem.type) {
@@ -1151,7 +1170,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {},
+				config: emptyConfig(),
 			};
 		}
 		case 'image': {
@@ -1176,7 +1195,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {},
+				config: emptyConfig(),
 			}
 		}
 		case 'capture': {
@@ -1187,7 +1206,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: elem.onOutput !== undefined ? [elem.onOutput] : [],
 				streamHandlers: elem.onStream !== undefined ? [elem.onStream] : [],
 				streamResponseObjectHandlers: elem.onStreamResponseObject !== undefined ? [elem.onStreamResponseObject] : [],
-				config: {},
+				config: emptyConfig(),
 			}
 		}
 		case 'config': {
@@ -1210,7 +1229,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {},
+				config: emptyConfig(),
 			}
 		}
 		case 'empty': {
@@ -1227,7 +1246,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {},
+				config: emptyConfig(),
 			}
 		}
 		case 'functionDefinition': {
@@ -1252,7 +1271,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {},
+				config: emptyConfig(),
 			}
 		}
 		case 'isolate': {
@@ -1270,7 +1289,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: elem.cachedRenderOutput.outputHandlers,
 				streamHandlers: elem.cachedRenderOutput.streamHandlers,
 				streamResponseObjectHandlers: elem.cachedRenderOutput.streamResponseObjectHandlers,
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'chat': {
@@ -1367,7 +1386,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: p.outputHandlers,
 				streamHandlers: p.streamHandlers,
 				streamResponseObjectHandlers: p.streamResponseObjectHandlers,
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'scope': {
@@ -1384,7 +1403,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'normalizedString': {
@@ -1398,7 +1417,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {}
+				config: emptyConfig(),
 			};
 		}
 	}
@@ -1772,7 +1791,11 @@ function renderWithLevel(
 			streamHandlers: [],
 			streamResponseObjectHandlers: [],
 			sourceMap: undefined,
-			config: {}
+			config: {
+				stop: undefined,
+				maxResponseTokens: undefined,
+				cacheKey: undefined,
+			}
 		};
 	}
 	if (Array.isArray(elem)) {
@@ -1800,7 +1823,7 @@ function renderWithLevel(
 			outputHandlers: [],
 			streamHandlers: [],
 			streamResponseObjectHandlers: [],
-			config: {}
+			config: emptyConfig(),
 		});
 		return {
 			...reducedResult,
@@ -1821,7 +1844,7 @@ function renderWithLevel(
 				end: elem.length,
 				string: elem
 			} : undefined,
-			config: {}
+			config: emptyConfig(),
 		};
 	}
 	if (typeof elem === 'number') {
@@ -1838,7 +1861,7 @@ function renderWithLevel(
 				end: prompt.length,
 				string: prompt
 			} : undefined,
-			config: {}
+			config: emptyConfig(),
 		};
 	}
 	switch (elem.type) {
@@ -1866,7 +1889,7 @@ function renderWithLevel(
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {}
+				config: emptyConfig(),
 			};
 		}
 		case 'capture': {
@@ -1883,7 +1906,7 @@ function renderWithLevel(
 				streamResponseObjectHandlers: elem.onStreamResponseObject ? [
 					elem.onStreamResponseObject
 				] : [],
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'config': {
@@ -1905,7 +1928,7 @@ function renderWithLevel(
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'empty': {
@@ -1919,7 +1942,7 @@ function renderWithLevel(
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'functionDefinition': {
@@ -1941,7 +1964,7 @@ function renderWithLevel(
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'isolate': {
@@ -1957,7 +1980,7 @@ function renderWithLevel(
 				streamHandlers: elem.cachedRenderOutput.streamHandlers,
 				streamResponseObjectHandlers: elem.cachedRenderOutput.streamResponseObjectHandlers,
 				sourceMap: elem.cachedRenderOutput.sourceMap,
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'chat': {
@@ -2054,7 +2077,7 @@ function renderWithLevel(
 				outputHandlers: p.outputHandlers,
 				streamHandlers: p.streamHandlers,
 				streamResponseObjectHandlers: p.streamResponseObjectHandlers,
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'scope': {
@@ -2087,7 +2110,7 @@ function renderWithLevel(
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
 				sourceMap: undefined,
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 		case 'image': {
@@ -2110,7 +2133,7 @@ function renderWithLevel(
 				outputHandlers: [],
 				streamHandlers: [],
 				streamResponseObjectHandlers: [],
-				config: {}
+				config: emptyConfig(),
 			}
 		}
 	}
