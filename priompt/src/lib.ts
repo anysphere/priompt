@@ -10,6 +10,21 @@ import { BaseProps, Node, ChatPrompt, Empty, First, RenderedPrompt, PromptElemen
 import { NewOutputCatcher } from './outputCatcher.ai';
 import { PreviewManager } from './preview';
 
+function getImageMimeType(bytes: Uint8Array): string {
+	// Check the magic numbers
+	if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+		return "image/jpeg";
+	} else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+		return "image/png";
+	} else if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+		return "image/gif";
+	} else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+		return "image/webp";
+	} else {
+		throw new Error("Unsupported image type");
+	}
+}
+
 
 export function chatPromptToString(prompt: ChatPrompt): string {
 	return prompt.messages.map((message) => {
@@ -1175,6 +1190,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 		}
 		case 'image': {
 			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+			const mediaType = getImageMimeType(elem.bytes);
 			return {
 				prompt: {
 					type: 'prompt_content',
@@ -1182,7 +1198,7 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 					images: [{
 						type: 'image_url',
 						image_url: {
-							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
+							url: `data:${mediaType};base64,${base64EncodedBytes}`,
 							detail: elem.detail,
 							// Temporary addition to be removed before sent to openai
 							dimensions: elem.dimensions,
@@ -1527,6 +1543,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 		}
 		case 'image': {
 			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+			const mediaType = getImageMimeType(elem.bytes);
 			return {
 				prompt: {
 					type: 'prompt_content',
@@ -1534,7 +1551,7 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 					images: [{
 						type: 'image_url',
 						image_url: {
-							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
+							url: `data:${mediaType};base64,${base64EncodedBytes}`,
 							detail: elem.detail,
 							dimensions: elem.dimensions,
 						}
@@ -2115,6 +2132,7 @@ function renderWithLevel(
 		}
 		case 'image': {
 			const base64EncodedBytes = Buffer.from(elem.bytes).toString('base64');
+			const mediaType = getImageMimeType(elem.bytes);
 			return {
 				prompt: {
 					type: 'prompt_content',
@@ -2122,7 +2140,7 @@ function renderWithLevel(
 					images: [{
 						type: 'image_url',
 						image_url: {
-							url: `data:image/jpeg;base64,${base64EncodedBytes}`,
+							url: `data:${mediaType};base64,${base64EncodedBytes}`,
 							detail: elem.detail,
 							dimensions: elem.dimensions,
 						}
