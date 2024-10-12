@@ -97,7 +97,7 @@ function sumPromptStrings(a: PromptString, b: PromptString): PromptString {
 	return a + b;
 }
 
-function emptyConfig(): ConfigProps {
+export function emptyConfig(): ConfigProps {
 	return {
 		maxResponseTokens: undefined,
 		stop: undefined,
