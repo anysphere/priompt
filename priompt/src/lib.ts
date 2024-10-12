@@ -105,13 +105,27 @@ function sumPromptStrings(a: PromptString, b: PromptString): PromptString {
 		return a;
 	}
 	if (Array.isArray(a) && Array.isArray(b)) {
-		return [...a.slice(0, -1), a[a.length - 1] + b[0], ...b.slice(1)];
+		// Manual array allocation and assigment is around 3x faster for small arrays (<100 elements)
+		// than spreading slices, e.g. [...a.slice(0, -1), a[a.length - 1] + b[0], ...b.slice(1)];
+		const result = new Array(a.length + b.length - 1);
+		for (let i = 0; i < a.length - 1; i++) {
+			result[i] = a[i];
+		}
+		result[a.length - 1] = a[a.length - 1] + b[0];
+		for (let i = 1; i < b.length; i++) {
+			result[a.length - 1 + i] = b[i];
+		}
+		return result;
 	}
 	if (Array.isArray(a)) {
-		return [...a.slice(0, -1), a[a.length - 1] + b,];
+		const result = a.slice();
+		result[result.length - 1] += b;
+		return result;
 	}
 	if (Array.isArray(b)) {
-		return [a + b[0], ...b.slice(1)];
+		const result = b.slice();
+		result[0] = a + result[0];
+		return result;
 	}
 	return a + b;
 }
@@ -125,12 +139,13 @@ export function emptyConfig(): ConfigProps {
 // TODO: we probably want to merge based on depth-in-tree (not priority, i think)
 // so that things higher up in the tree take precedence
 // this is just to make sure that a component cannot affect a parent component unexpectedly
-function mergeConfigs(a: ConfigProps, b: ConfigProps): ConfigProps {
-	return Object.keys(b).reduce((result, key) => {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		result[key as keyof ConfigProps] = (a[key as keyof ConfigProps] === undefined ? b[key as keyof ConfigProps] : a[key as keyof ConfigProps]) as any;
-		return result;
-	}, { ...a });
+function mergeConfigsInPlace(a: ConfigProps, b: ConfigProps): ConfigProps {
+	for (const key of Object.keys(b) as (keyof ConfigProps)[]) {
+		if (a[key] === undefined) {
+			a[key] = b[key] as any; // eslint-disable-line
+		}
+	}
+	return a;
 }
 
 function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined): RenderedPrompt | undefined {
@@ -142,11 +157,11 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	}
 	// These are non-intersecting messages, so we are fine
 	if ((isChatPrompt(a) && isChatPrompt(b)) || (isChatPrompt(a) && promptGetText(b) === '') || (isChatPrompt(b) && promptGetText(a) === '')) {
-		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
-		const tools = [...(promptHasTools(a) ? a.tools : []), ...(promptHasTools(b) ? b.tools : [])];
+		const functions = (promptHasFunctions(a) ? a.functions : []).concat(promptHasFunctions(b) ? b.functions : []);
+		const tools = (promptHasTools(a) ? a.tools : []).concat(promptHasTools(b) ? b.tools : []);
 		const prompt: (ChatPrompt & FunctionPrompt) | (ChatPrompt & ToolPrompt) | ChatPrompt = {
 			type: 'chat',
-			messages: [...(isChatPrompt(a) ? a.messages : []), ...(isChatPrompt(b) ? b.messages : [])],
+			messages: (isChatPrompt(a) ? a.messages : []).concat(isChatPrompt(b) ? b.messages : []),
 			functions: functions.length > 0 ? functions : undefined,
 			tools: tools.length > 0 ? tools : undefined,
 		};
@@ -156,7 +171,7 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 		throw new Error(`Cannot sum prompts ${a} and ${b} since you should only use tools or functions, but not both`);
 	}
 	if ((promptHasTools(a) || promptHasTools(b)) && (isTextPromptPotentiallyWithFunctions(a) && isTextPromptPotentiallyWithFunctions(b))) {
-		const tools = [...(promptHasTools(a) ? a.tools : []), ...(promptHasTools(b) ? b.tools : [])];
+		const tools = (promptHasTools(a) ? a.tools : []).concat(promptHasTools(b) ? b.tools : []);
 		const prompt: (TextPrompt & ToolPrompt) = {
 			type: 'text',
 			text: sumPromptStrings((isPlainPrompt(a) ? a : a.text), (isPlainPrompt(b) ? b : b.text)),
@@ -166,7 +181,7 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	}
 	if ((promptHasFunctions(a) || promptHasFunctions(b)) && (isTextPromptPotentiallyWithFunctions(a) && isTextPromptPotentiallyWithFunctions(b))) {
 		// valid, should return TextPrompt & FunctionPrompt
-		const functions = [...(promptHasFunctions(a) ? a.functions : []), ...(promptHasFunctions(b) ? b.functions : [])];
+		const functions = (promptHasFunctions(a) ? a.functions : []).concat(promptHasFunctions(b) ? b.functions : []);
 		const prompt: (TextPrompt & FunctionPrompt) = {
 			type: 'text',
 			text: sumPromptStrings((isPlainPrompt(a) ? a : a.text), (isPlainPrompt(b) ? b : b.text)),
@@ -187,21 +202,21 @@ function sumPrompts(a: RenderedPrompt | undefined, b: RenderedPrompt | undefined
 	// Sum together content with plain text
 	if (isPlainPrompt(a) && isPromptContent(b)) {
 		return {
-			...b,
+			type: b.type,
 			content: sumPromptStrings(a, b.content),
 			images: b.images,
 		}
 	} else if (isPlainPrompt(b) && isPromptContent(a)) {
 		return {
-			...a,
+			type: a.type,
 			content: sumPromptStrings(a.content, b),
 			images: a.images,
 		}
 	} else if (isPromptContent(a) && isPromptContent(b)) {
 		return {
-			...a,
+			type: a.type,
 			content: sumPromptStrings(a.content, b.content),
-			images: [...(a.images ?? []), ...(b.images ?? [])],
+			images: (a.images ?? []).concat(b.images ?? []),
 		}
 	}
 
@@ -1193,15 +1208,15 @@ type RenderWithLevelPartialTypeWithCount = RenderWithLevelPartialType & { tokenC
 async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | NormalizedNode, level: number, tokenizer: PriomptTokenizer): Promise<RenderWithLevelPartialTypeWithCount> {
 	if (Array.isArray(elem)) {
 		return (await Promise.all(elem.map(e => renderWithLevelAndCountTokens(e, level, tokenizer)))).reduce((a, b) => {
-			return {
-				prompt: sumPrompts(a.prompt, b.prompt),
-				tokenCount: a.tokenCount + b.tokenCount,
-				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
-				outputHandlers: [...a.outputHandlers, ...b.outputHandlers],
-				streamHandlers: [...a.streamHandlers, ...b.streamHandlers],
-				streamResponseObjectHandlers: [...a.streamResponseObjectHandlers, ...b.streamResponseObjectHandlers],
-				config: mergeConfigs(a.config, b.config),
-			};
+			// Safe to mutate in place because the reduction starts with a new empty object
+			a.prompt = sumPrompts(a.prompt, b.prompt);
+			a.tokenCount += b.tokenCount;
+			a.emptyTokenCount += b.emptyTokenCount;
+			b.outputHandlers.forEach(handler => a.outputHandlers.push(handler));
+			b.streamHandlers.forEach(handler => a.streamHandlers.push(handler));
+			b.streamResponseObjectHandlers.forEach(handler => a.streamResponseObjectHandlers.push(handler));
+			a.config = mergeConfigsInPlace(a.config, b.config);
+			return a;
 		}, {
 			prompt: undefined,
 			tokenCount: 0,
@@ -1940,14 +1955,15 @@ function renderWithLevel(
 			)
 		);
 		const reducedResult = results.reduce((a, b) => {
-			return {
-				prompt: sumPrompts(a.prompt, b.prompt),
-				emptyTokenCount: a.emptyTokenCount + b.emptyTokenCount,
-				outputHandlers: a.outputHandlers.concat(b.outputHandlers),
-				streamHandlers: a.streamHandlers.concat(b.streamHandlers),
-				streamResponseObjectHandlers: a.streamResponseObjectHandlers.concat(b.streamResponseObjectHandlers),
-				config: mergeConfigs(a.config, b.config),
-			};
+			// Modifying a in place is safe because we start the reduction with a new empty object with new arrays
+			// Merging by creating new arrays in each reduction step creates lots of new objects and requires lots of garbage collection
+			a.prompt = sumPrompts(a.prompt, b.prompt);
+			a.emptyTokenCount += b.emptyTokenCount;
+			b.outputHandlers.forEach((handler) => a.outputHandlers.push(handler));
+			b.streamHandlers.forEach((handler) => a.streamHandlers.push(handler));
+			b.streamResponseObjectHandlers.forEach((handler) => a.streamResponseObjectHandlers.push(handler));
+			a.config = mergeConfigsInPlace(a.config, b.config);
+			return a;
 		}, {
 			prompt: undefined,
 			emptyTokenCount: 0,

@@ -287,3 +287,150 @@ describe.skip("Images", () => {
     );
   });
 });
+
+describe("Large prompts with many new lines and priority levels", () => {
+  function TestLargePrompt(props: PromptProps): PromptElement {
+    return (
+      <>
+        <SystemMessage>You are a helpful assistant.</SystemMessage>
+        <UserMessage>
+          {Array(100)
+            .fill(null)
+            .map((_, i) => (
+              <scope p={i * 10}>
+                This is line {i + 1} of the large prompt.
+                {i % 10 === 0 && <br />}
+                {i % 20 === 0 && <hr />}
+              </scope>
+            ))}
+        </UserMessage>
+        <AssistantMessage>
+          Understood. How can I help you with this large prompt?
+        </AssistantMessage>
+        <UserMessage>
+          <scope p={1000}>
+            This is a high priority message that should always be included.
+          </scope>
+          <scope p={500}>
+            This is a medium priority message that might be included.
+          </scope>
+          {Array(50)
+            .fill(null)
+            .map((_, i) => (
+              <scope p={i * 10}>
+                This is a message with priority {i * 10}.
+              </scope>
+            ))}
+        </UserMessage>
+      </>
+    );
+  }
+
+  it("should render the large prompt correctly", async () => {
+    const rendered = await render(TestLargePrompt({}), {
+      tokenLimit: 1000,
+      tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
+    });
+    expect(isChatPrompt(rendered.prompt)).toBe(true);
+    if (!isChatPrompt(rendered.prompt)) return;
+
+    expect(rendered.prompt.messages.length).toBe(4);
+    expect(rendered.prompt.messages[0].role).toBe("system");
+    expect(rendered.prompt.messages[1].role).toBe("user");
+    expect(rendered.prompt.messages[2].role).toBe("assistant");
+    expect(rendered.prompt.messages[3].role).toBe("user");
+
+    // Check that the high priority message is included
+    expect(rendered.prompt.messages[3].content).toContain(
+      "This is a high priority message that should always be included."
+    );
+
+    // Check that some of the dynamic priority messages are included
+    const dynamicPriorityCount =
+      (rendered.prompt.messages[3].content as string).match(
+        /This is a message with priority/g
+      )?.length ?? 0;
+    expect(dynamicPriorityCount).toBeGreaterThan(0);
+    expect(dynamicPriorityCount).toBeLessThan(50);
+
+    // Check that the token count is within the limit
+    expect(rendered.tokenCount).toBeLessThanOrEqual(2000);
+  });
+
+  it("should handle different token limits", async () => {
+    const tokenLimits = [500, 1000, 1500, 2000, 3000];
+
+    for (const limit of tokenLimits) {
+      const rendered = await render(TestLargePrompt({}), {
+        tokenLimit: limit,
+        tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
+      });
+
+      expect(isChatPrompt(rendered.prompt)).toBe(true);
+      if (!isChatPrompt(rendered.prompt)) return;
+
+      expect(rendered.tokenCount).toBeLessThanOrEqual(limit);
+
+      // Check that the number of included messages increases with the token limit
+      const userMessageContent = rendered.prompt.messages[3].content as string;
+      const dynamicPriorityCount =
+        userMessageContent.match(/This is a message with priority/g)?.length ??
+        0;
+
+      if (limit > 1000) {
+        expect(dynamicPriorityCount).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  function TestNestedPriorityLevels(props: PromptProps): PromptElement {
+    return (
+      <UserMessage>
+        <scope p={1000}>
+          Top level high priority
+          <scope p={500}>
+            Nested medium priority
+            <scope p={100}>
+              Deeply nested low priority
+              <scope p={50}>Very deeply nested very low priority</scope>
+            </scope>
+          </scope>
+        </scope>
+        {Array(10)
+          .fill(null)
+          .map((_, i) => (
+            <scope p={(10 - i) * 100}>
+              Priority level {(10 - i) * 100}
+              <scope p={(10 - i) * 50}>
+                Nested priority level {(10 - i) * 50}
+              </scope>
+            </scope>
+          ))}
+      </UserMessage>
+    );
+  }
+
+  it("should handle nested priority levels correctly", async () => {
+    const rendered = await render(TestNestedPriorityLevels({}), {
+      tokenLimit: 70,
+      tokenizer: getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base"),
+    });
+
+    expect(isChatPrompt(rendered.prompt)).toBe(true);
+    if (!isChatPrompt(rendered.prompt)) return;
+
+    const content = rendered.prompt.messages[0].content as string;
+
+    expect(content).toContain("Top level high priority");
+    expect(content).toContain("Nested medium priority");
+    expect(content).toContain("Priority level 1000");
+    expect(content).toContain("Priority level 900");
+
+    // Lower priority items might be excluded due to token limit
+    const lowerPriorityCount = (content.match(/Priority level [1-9]/g) || [])
+      .length;
+    expect(lowerPriorityCount).toBeLessThan(9);
+
+    expect(rendered.tokenCount).toBeLessThanOrEqual(500);
+  });
+});
