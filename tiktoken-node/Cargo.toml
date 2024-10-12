@@ -8,15 +8,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
-napi = { version = "2.12.2", default-features = false, features = [
+napi = { version = "2.16.11", default-features = false, features = [
   "napi4",
   "async",
 ] }
+napi-derive = "2.16.11"
 rustc-hash = "1.1.0"
 base64 = "0.21.0"
 pathdiff = "0.2"
 log = { version = "0.4.21", features = ["kv"] }
-napi-derive = "2.12.2"
 tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "86157ca3e9e235760cf5ffca08b6de996fe0e7d9" }
 rayon = "1.7.0"
 anyhow = "1.0.69"

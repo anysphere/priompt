@@ -1,11 +1,11 @@
 use anyhow::Context;
 use base64::Engine;
 use napi::bindgen_prelude::Error;
-use napi::bindgen_prelude::FromNapiValue;
-use napi::bindgen_prelude::ToNapiValue;
+use napi::bindgen_prelude::create_custom_tokio_runtime;
 use napi_derive::napi;
 use rustc_hash::FxHashMap;
 use tiktoken::EncodingFactoryError;
+use tokio::runtime::Builder;
 use once_cell::sync::Lazy;
 
 use std::collections::HashMap;
@@ -492,6 +492,18 @@ impl SyncTokenizer {
 #[napi]
 pub fn get_tokenizer() -> Result<Tokenizer, Error> {
   TOKENIZER.clone()
+}
+
+#[allow(clippy::expect_used)]
+#[napi::module_init]
+fn init() {
+  let rt = Builder::new_multi_thread()
+    .enable_all()
+    .worker_threads(2)
+    .thread_name("tokenizer-tokio")
+    .build()
+    .expect("Failed to build tokio runtime");
+  create_custom_tokio_runtime(rt);
 }
 
 #[cfg(test)]
