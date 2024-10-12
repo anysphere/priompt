@@ -809,7 +809,7 @@ const App = () => {
         if (!response.ok) {
           throw new Error("Error fetching jsoonL: " + response.statusText);
         }
-        return response.json();
+        return response.json().then((arr) => arr[0]);
       })
       .then((data) => {
         setTokenCountUsed(data.tokenCount);
