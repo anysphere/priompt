@@ -25,6 +25,7 @@ export {
 	CreateCompletionResponse,
 	CreateCompletionRequestPrompt,
 	ChatCompletionRequestMessageRoleEnum,
+	CreateCompletionResponseUsage,
 	// Function
 	CreateChatCompletionRequestFunctionCall,
 	ChatCompletionRequestMessageFunctionCall,
