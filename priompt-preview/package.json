@@ -23,7 +23,7 @@
     "build": {
       "command": "vite build",
       "files": [
-        "src/**/*",
+        "src/**/*.ts",
         "tsconfig.json"
       ],
       "output": [
@@ -31,13 +31,14 @@
       ],
       "clean": "if-file-deleted",
       "dependencies": [
-        "tsc-build"
+        "priompt:build"
       ]
     },
     "tsc-build": {
       "command": "tsc --build --pretty",
+      "clean": "if-file-deleted",
       "files": [
-        "src/**/*",
+        "src/**/*.ts",
         "tsconfig.json"
       ],
       "output": [
@@ -45,8 +46,7 @@
       ],
       "dependencies": [
         "priompt:build"
-      ],
-      "clean": "if-file-deleted"
+      ]
     },
     "priompt:build": {
       "command": "pnpm i",

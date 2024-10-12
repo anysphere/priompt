@@ -34,7 +34,7 @@
   },
   "wireit": {
     "build": {
-      "clean": false,
+      "clean": "if-file-deleted",
       "command": "napi build --platform --release",
       "files": [
         "src/**",
@@ -43,9 +43,7 @@
         "build.rs"
       ],
       "output": [
-        "tiktoken-node.*.node",
-        "index.js",
-        "index.d.ts"
+        "tiktoken-node.*.node"
       ]
     }
   }

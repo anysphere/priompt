@@ -43,7 +43,8 @@
       ],
       "dependencies": [
         "../tiktoken-node:build"
-      ]
+      ],
+      "clean": "if-file-deleted"
     },
     "test": {
       "command": "vitest",
