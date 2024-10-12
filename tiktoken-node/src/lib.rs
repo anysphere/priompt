@@ -1,12 +1,12 @@
 use anyhow::Context;
 use base64::Engine;
-use napi::bindgen_prelude::Error;
 use napi::bindgen_prelude::create_custom_tokio_runtime;
+use napi::bindgen_prelude::Error;
 use napi_derive::napi;
+use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 use tiktoken::EncodingFactoryError;
 use tokio::runtime::Builder;
-use once_cell::sync::Lazy;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,15 +21,14 @@ use std::io::{self, BufRead};
 
 const LLAMA_PATH: &str = "./Meta-Llama-3-70B-Instruct";
 
-static TOKENIZER: Lazy<Result<Tokenizer, Error>> = Lazy::new(|| {
-  Tokenizer::new().map_err(|e| Error::from_reason(e.to_string()))
-});
+static TOKENIZER: Lazy<Result<Tokenizer, Error>> =
+  Lazy::new(|| Tokenizer::new().map_err(|e| Error::from_reason(e.to_string())));
 
 static ENCODINGS: Lazy<Result<Arc<Encodings>, EncodingFactoryError>> = Lazy::new(|| {
   Ok(Arc::new(Encodings {
     cl100k_encoding: tiktoken::EncodingFactory::cl100k_im()?,
-    llama3_encoding: llama_tokenizer().map_err(|e|
-      EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?,
+    llama3_encoding: llama_tokenizer()
+      .map_err(|e| EncodingFactoryError::UnableToCreateEncoding(e.to_string()))?,
     o200k_encoding: tiktoken::EncodingFactory::o200k_im()?,
   }))
 });
@@ -179,7 +178,10 @@ impl TokenizerActor {
   fn handle_message(&self, msg: TokenizerMessage) {
     match msg {
       TokenizerMessage::ExactNumTokens { respond_to, text, encoding, special_token_handling } => {
-        let tokens = self.get_encoding(encoding).encode(&text, &special_token_handling).context("Error encoding string");
+        let tokens = self
+          .get_encoding(encoding)
+          .encode(&text, &special_token_handling)
+          .context("Error encoding string");
 
         let num_tokens = match tokens {
           Ok(t) => Ok(t.len() as i32),
@@ -190,7 +192,10 @@ impl TokenizerActor {
         let _ = respond_to.send(num_tokens);
       }
       TokenizerMessage::EncodeTokens { respond_to, text, encoding, special_token_handling } => {
-        let tokens = self.get_encoding(encoding).encode(&text, &special_token_handling).context("Error encoding string");
+        let tokens = self
+          .get_encoding(encoding)
+          .encode(&text, &special_token_handling)
+          .context("Error encoding string");
 
         let tokens = match tokens {
           Ok(t) => Ok(t.into_iter().map(|t| t as u32).collect()),
@@ -220,7 +225,9 @@ impl TokenizerActor {
         let _ = respond_to.send(bytes);
       }
       TokenizerMessage::DecodeTokens { respond_to, tokens, encoding } => {
-        let text = self.get_encoding(encoding).decode(&tokens.into_iter().map(|t| t as usize).collect::<Vec<_>>());
+        let text = self
+          .get_encoding(encoding)
+          .decode(&tokens.into_iter().map(|t| t as usize).collect::<Vec<_>>());
 
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(Ok(text));
@@ -272,7 +279,7 @@ impl Tokenizer {
   pub fn new() -> Result<Self, tiktoken::EncodingFactoryError> {
     // we allow 100 outstanding requests before we fail
     // ideally we should never hit this limit... queueing up would be bad
-    let (sender, receiver) = crossbeam_channel::bounded(100);
+    let (sender, receiver) = crossbeam_channel::bounded(256);
     for i in 0..3 {
       let actor = TokenizerActor::new(receiver.clone(), ENCODINGS.clone().unwrap());
       std::thread::Builder::new()
@@ -303,8 +310,10 @@ impl Tokenizer {
       },
     };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -332,8 +341,10 @@ impl Tokenizer {
       },
     };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -355,8 +366,10 @@ impl Tokenizer {
       },
     };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -372,8 +385,10 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::ApproximateNumTokens { respond_to: send, text, encoding };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -401,8 +416,10 @@ impl Tokenizer {
       },
     };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -419,8 +436,10 @@ impl Tokenizer {
     let msg =
       TokenizerMessage::EncodeSingleToken { respond_to: send, bytes: bytes.to_vec(), encoding };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
@@ -435,8 +454,10 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::DecodeTokenBytes { respond_to: send, token, encoding };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result
         .map_err(|e| napi::Error::from_reason(e.to_string()))
@@ -454,8 +475,10 @@ impl Tokenizer {
     let (send, recv) = oneshot::channel();
     let msg = TokenizerMessage::DecodeTokens { respond_to: send, tokens: encoded_tokens, encoding };
 
-    self.sender.try_send(msg).map_err(|e|
-      Error::from_reason(format!("Actor task queue is full: {}", e)))?;
+    self
+      .sender
+      .try_send(msg)
+      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
     match recv.await {
       Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
       Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
