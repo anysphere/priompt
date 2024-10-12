@@ -785,6 +785,13 @@ export async function renderBinarySearch(
 		console.debug(`Validating prompt took ${validatingDuration} ms`);
 	}
 
+	// Try to output the prompt element node count for performance debugging
+	try {
+		statsd.distribution('priompt.promptElementNodeCount', getPromptElementNodeCount(elem));
+	} catch {
+		// ignore
+	}
+
 	const startTimeComputingPriorityLevels = performance.now();
 	// for now, we do a much simple thing, which is just to render the whole thing every time
 	const priorityLevels = new Set<number>();
@@ -3224,6 +3231,34 @@ function estimateLowerBoundTokensForPrompt(prompt: RenderedPrompt | undefined, t
 	const toolTokens = (promptHasTools(prompt) ? prompt.tools.reduce((a, b) => (a + estimateToolTokensUsingCharcount(b, tokenizer)[0]), 0) : 0);
 
 	return contentTokens + functionTokens + toolTokens;
+}
+
+function getPromptElementNodeCount(elem: PromptElement): number {
+	if (elem === undefined || elem === null || typeof elem === 'number' || typeof elem === 'boolean' || typeof elem === 'string') {
+		return 1;
+	}
+	if (Array.isArray(elem)) {
+		let nodeCount = 0;
+		elem.forEach(p => {
+			nodeCount += getPromptElementNodeCount(p);
+		});
+		return nodeCount;
+	}
+	switch (elem.type) {
+		case 'functionDefinition':
+		case 'toolDefinition':
+		case 'breaktoken':
+		case 'capture':
+		case 'config':
+		case 'empty':
+		case 'image':
+			return 1;
+		case 'first':
+		case 'isolate':
+		case 'scope':
+		case 'chat':
+			return 1 + getPromptElementNodeCount(elem.children);
+	}
 }
 
 export class TooManyTokensForBasePriority extends Error {
