@@ -9,7 +9,7 @@ import {
 } from "./lib";
 import { PromptElement, PromptProps } from "./types";
 import { AssistantMessage, SystemMessage, UserMessage } from "./components";
-import { getTokenizerByName } from './tokenizer';
+import { getTokenizerByName } from "./tokenizer";
 
 describe("isolate", () => {
   function Isolate(
@@ -113,7 +113,10 @@ describe("isolate", () => {
       tokenLimit: 1000,
       tokenizer: getTokenizerByName("cl100k_base"),
     });
-    const toTokens = await promptToTokens(donotbreak.prompt, getTokenizerByName("cl100k_base"));
+    const toTokens = await promptToTokens(
+      donotbreak.prompt,
+      getTokenizerByName("cl100k_base")
+    );
     expect(donotbreak.tokenCount).toBe(toTokens.length);
     expect(toTokens).toStrictEqual([
       2028, 374, 279, 1212, 315, 279, 10137, 13, 1115, 374, 279, 2132, 961, 315,
@@ -125,7 +128,10 @@ describe("isolate", () => {
       tokenizer: getTokenizerByName("cl100k_base"),
     });
     expect(dobreak.tokenCount).toBe(donotbreak.tokenCount + 1);
-    const toTokens2 = await promptToTokens(dobreak.prompt, getTokenizerByName("cl100k_base"));
+    const toTokens2 = await promptToTokens(
+      dobreak.prompt,
+      getTokenizerByName("cl100k_base")
+    );
     expect(dobreak.tokenCount).toBe(toTokens2.length);
     expect(toTokens2).toStrictEqual([
       2028, 374, 279, 1212, 315, 279, 281, 15091, 13, 1115, 374, 279, 2132, 961,
@@ -159,7 +165,10 @@ describe("isolate", () => {
         lastMessageIsIncomplete: true,
       }
     );
-    const toTokens = await promptToTokens(donotbreak.prompt, getTokenizerByName("cl100k_base"));
+    const toTokens = await promptToTokens(
+      donotbreak.prompt,
+      getTokenizerByName("cl100k_base")
+    );
     expect(donotbreak.tokenCount).toBe(toTokens.length);
     expect(toTokens).toStrictEqual([
       100264, 9125, 100266, 2028, 374, 279, 1212, 315, 279, 10137, 382, 2028,
@@ -173,7 +182,10 @@ describe("isolate", () => {
       lastMessageIsIncomplete: true,
     });
     expect(dobreak.tokenCount).toBe(donotbreak.tokenCount + 1);
-    const toTokens2 = await promptToTokens(dobreak.prompt, getTokenizerByName("cl100k_base"));
+    const toTokens2 = await promptToTokens(
+      dobreak.prompt,
+      getTokenizerByName("cl100k_base")
+    );
     expect(dobreak.tokenCount).toBe(toTokens2.length);
     expect(toTokens2).toStrictEqual([
       100264, 9125, 100266, 2028, 374, 279, 1212, 315, 279, 10137, 627, 198,
@@ -198,9 +210,37 @@ describe("isolate", () => {
       tokenizer: getTokenizerByName("cl100k_base"),
       lastMessageIsIncomplete: true,
     });
+
     expect(specialTokens.tokenCount).toBeGreaterThanOrEqual(24);
-    const toTokens = await promptToTokens(specialTokens.prompt, getTokenizerByName("cl100k_base"));
+    const toTokens = await promptToTokens(
+      specialTokens.prompt,
+      getTokenizerByName("cl100k_base")
+    );
     expect(specialTokens.tokenCount).toBe(toTokens.length);
+    expect(toTokens).toStrictEqual([
+      100264, 9125, 100266, 27, 91, 318, 5011, 91, 29, 100265, 100264, 882,
+      100266, 27, 91, 13798, 27363, 91, 29, 100265, 100264, 78191, 100266, 27,
+      91, 8862, 728, 428, 91, 29,
+    ]);
+  });
+  it("handle all special tokens encoded", async () => {
+    const specialTokens = await render(SpecialTokensPrompt(), {
+      tokenLimit: 1000,
+      tokenizer: getTokenizerByName("cl100k_base_special_tokens"),
+      lastMessageIsIncomplete: true,
+    });
+
+    expect(specialTokens.tokenCount).toBeGreaterThanOrEqual(24);
+    const toTokens = await promptToTokens(
+      specialTokens.prompt,
+      getTokenizerByName("cl100k_base_special_tokens")
+    );
+    expect(specialTokens.tokenCount).toBe(toTokens.length);
+    expect(toTokens).toStrictEqual([
+      100264, 9125, 100266, 100264, 100265, 100264, 882, 100266, 27, 91, 13798,
+      27363, 91, 29, 100265, 100264, 78191, 100266, 27, 91, 8862, 728, 428, 91,
+      29,
+    ]);
   });
 });
 

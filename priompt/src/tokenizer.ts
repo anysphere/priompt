@@ -7,6 +7,7 @@
 // supply-chain attacks here
 import tiktoken, { SyncTokenizer } from '@anysphere/tiktoken-node';
 import { PromptContent } from './types';
+import { promptStringToString } from '.';
 
 
 const CL100K_BASE = 'cl100k_base';
@@ -59,8 +60,8 @@ function contentArrayToStringContent(content: Array<string | PromptContent>): st
 	return newContent;
 }
 
-function openaiChatMessagesToPrompt(messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], tokenizer: UsableTokenizer): string {
-	const parts = messages.map(msg => {
+function cl100kChatMessagesToPrompt(messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], tokenizer: UsableTokenizer): string {
+	const parts = messages.map((msg, i) => {
 		const headerString = getHeaderStringForMessage(msg, tokenizer);
 		let newContent: string;
 		if (Array.isArray(msg.content)) {
@@ -68,9 +69,33 @@ function openaiChatMessagesToPrompt(messages: { role: OpenAIMessageRole, name?: 
 		} else {
 			newContent = msg.content;
 		}
-		return headerString + newContent;
+		if (i !== 0) {
+			// Openai cl100k always adds the eos token before every non-starting message
+			return CL100K_END_TOKEN_STRING + headerString + newContent;
+		} else {
+			return headerString + newContent;
+		}
 	})
 	return parts.join('');
+}
+async function cl100kChatMessagesToTokens(messages: { role: OpenAIMessageRole, name?: string, to?: string, content: string | string[] }[], tokenizer: UsableTokenizer): Promise<number[]> {
+	const parts = await Promise.all(messages.map(async (msg, i) => {
+		const headerTokens = await getHeaderTokensForMessage(msg, tokenizer);
+		let contentTokens: number[]
+		if (Array.isArray(msg.content)) {
+			const stringContentArray = contentArrayToStringContent(msg.content)
+			contentTokens = (await Promise.all(stringContentArray.map(content => encodeTokens(content, { tokenizer: tokenizer })))).flat()
+		} else {
+			contentTokens = await encodeTokens(msg.content, { tokenizer: tokenizer });
+		}
+		if (i !== 0) {
+			// Openai cl100k always adds the eos token before every non-starting message
+			return [CL100K_END_TOKEN, ...headerTokens, ...contentTokens]
+		} else {
+			return [...headerTokens, ...contentTokens]
+		}
+	}))
+	return parts.flat();
 }
 
 export const CL100K: PriomptTokenizer = {
@@ -83,12 +108,8 @@ export const CL100K: PriomptTokenizer = {
 	getEosTokenId: () => CL100K_END_TOKEN,
 	getHeaderStringForMessage: (message) => getHeaderStringForMessage(message, 'cl100k_base'),
 	getHeaderTokensForMessage: (message) => getHeaderTokensForMessage(message, 'cl100k_base'),
-	applyChatTemplate: (messages) => openaiChatMessagesToPrompt(messages, 'cl100k_base'),
-	applyChatTemplateTokens: async (messages) => {
-		const prompt = openaiChatMessagesToPrompt(messages, 'cl100k_base');
-		const tokens = await encodeTokens(prompt, { tokenizer: 'cl100k_base' });
-		return tokens;
-	},
+	applyChatTemplate: (messages) => cl100kChatMessagesToPrompt(messages, 'cl100k_base'),
+	applyChatTemplateTokens: async (messages) => cl100kChatMessagesToTokens(messages, 'cl100k_base'),
 	shouldAddEosTokenToEachMessage: true
 }
 export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
@@ -101,12 +122,8 @@ export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
 	getEosTokenId: () => CL100K_END_TOKEN,
 	getHeaderStringForMessage: (message) => getHeaderStringForMessage(message, 'cl100k_base_special_tokens'),
 	getHeaderTokensForMessage: (message) => getHeaderTokensForMessage(message, 'cl100k_base_special_tokens'),
-	applyChatTemplate: (messages) => openaiChatMessagesToPrompt(messages, 'cl100k_base_special_tokens'),
-	applyChatTemplateTokens: async (messages) => {
-		const prompt = openaiChatMessagesToPrompt(messages, 'cl100k_base_special_tokens');
-		const tokens = await encodeTokens(prompt, { tokenizer: 'cl100k_base_special_tokens' });
-		return tokens;
-	},
+	applyChatTemplate: (messages) => cl100kChatMessagesToPrompt(messages, 'cl100k_base_special_tokens'),
+	applyChatTemplateTokens: async (messages) => cl100kChatMessagesToTokens(messages, 'cl100k_base_special_tokens'),
 	shouldAddEosTokenToEachMessage: true
 }
 
