@@ -17,7 +17,7 @@ rustc-hash = "1.1.0"
 base64 = "0.21.0"
 pathdiff = "0.2"
 log = { version = "0.4.21", features = ["kv"] }
-tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "b9ac46c3c7073dd15a9110d59e27934f9a8fed4e" }
+tiktoken = { git = "https://github.com/anysphere/tiktoken-rs", rev = "753e0877630ff51c84afd9c97b2394ab95b50c54" }
 rayon = "1.7.0"
 anyhow = "1.0.69"
 tokio = { version = "1.13.0", features = [

@@ -44,7 +44,6 @@ export type PriomptTokenizer = {
 	numTokens: (text: string) => Promise<number>;
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text: string) => number;
 	estimateNumTokensFast: (text: string) => Promise<number>;
-	estimateNumTokensNoSpecialTokensFast: (text: string) => Promise<number>;
 	estimateTokensUsingCharCount: (text: string) => [number, number];
 	getHeaderStringForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => string;
 	getHeaderTokensForMessage: (message: { role: OpenAIMessageRole, name?: string, to?: string }) => Promise<number[]>;
@@ -124,7 +123,6 @@ export const CL100K: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'cl100k_base' }),
-	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'cl100k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base'),
 	getEosToken: () => CL100K_END_TOKEN_STRING,
 	getEosTokenId: () => CL100K_END_TOKEN,
@@ -141,7 +139,6 @@ export const CL100K_SPECIAL_TOKENS: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'cl100k_base_special_tokens' }),
-	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'cl100k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'cl100k_base_special_tokens'),
 	getEosToken: () => CL100K_END_TOKEN_STRING,
 	getEosTokenId: () => CL100K_END_TOKEN,
@@ -159,7 +156,6 @@ export const O200K: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'o200k_base' }),
-	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'o200k_base' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base'),
 	getEosToken: () => O200K_END_TOKEN_STRING,
 	getEosTokenId: () => O200K_END_TOKEN,
@@ -177,7 +173,6 @@ export const O200K_SPECIAL_TOKENS: PriomptTokenizer = {
 	numTokens: (text) => numTokens(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'o200k_base_special_tokens' }),
-	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'o200k_base_special_tokens' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'o200k_base_special_tokens'),
 	getEosToken: () => O200K_END_TOKEN_STRING,
 	getEosTokenId: () => O200K_END_TOKEN,
@@ -191,14 +186,13 @@ export const O200K_SPECIAL_TOKENS: PriomptTokenizer = {
 const CODESTRAL_BOS_TOKEN = '<s>';
 const CODESTRAL_EOS_TOKEN = '</s>';
 const CODESTRAL_EOS_TOKEN_ID = 2;
-export const CODESTRAL_ONLY_USE_ESTIMATE_NUM_TOKENS_NO_SPECIAL_TOKENS_FAST: PriomptTokenizer = {
+export const CODESTRAL_ONLY_USE_ESTIMATE_NUM_TOKENS_FAST: PriomptTokenizer = {
 	name: 'codestral',
 	encodeTokens: (text) => encodeTokens(text, { tokenizer: 'codestral' }),
 	decodeTokens: (tokens) => decodeTokens(tokens, { tokenizer: 'codestral' }),
 	numTokens: (text) => numTokens(text, { tokenizer: 'codestral' }),
 	estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL: (text) => estimateNumTokensFast_SYNCHRONOUS_BE_CAREFUL(text, { tokenizer: 'codestral' }),
 	estimateNumTokensFast: (text) => estimateNumTokensFast(text, { tokenizer: 'codestral' }),
-	estimateNumTokensNoSpecialTokensFast: (text) => estimateNumTokensNoSpecialTokensFast(text, { tokenizer: 'codestral' }),
 	estimateTokensUsingCharCount: (text) => estimateTokensUsingCharcount(text, 'codestral'),
 	getEosToken: () => CODESTRAL_EOS_TOKEN,
 	getEosTokenId: () => CODESTRAL_EOS_TOKEN_ID,
@@ -218,7 +212,7 @@ export const getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS = (name: UsableTokeni
 		case 'o200k_base':
 			return O200K;
 		case 'codestral':
-			return CODESTRAL_ONLY_USE_ESTIMATE_NUM_TOKENS_NO_SPECIAL_TOKENS_FAST;
+			return CODESTRAL_ONLY_USE_ESTIMATE_NUM_TOKENS_FAST;
 		default:
 			throw new Error(`Unknown tokenizer ${name}`);
 	}
@@ -269,24 +263,12 @@ export async function estimateNumTokensFast(text: string, opts: {
 	switch (tokenizerName) {
 		case 'cl100k_base':
 		case 'cl100k_base_special_tokens':
-			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.Cl100k);
+			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.Cl100k, false);
 		case 'o200k_base':
 		case 'o200k_base_special_tokens':
-			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.O200k);
-		default:
-			throw new Error(`Unknown tokenizer ${tokenizerName}`);
-	}
-}
-
-export async function estimateNumTokensNoSpecialTokensFast(text: string, opts: {
-	tokenizer: UsableTokenizer;
-}): Promise<number> {
-	const tokenizerName = opts.tokenizer;
-	const textWithoutSpaces = text.replace(/ /g, '\u2581');
-
-	switch (tokenizerName) {
+			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.O200k, false);
 		case 'codestral':
-			return tokenizerObject.estimateNumTokensNoSpecialTokensFast(textWithoutSpaces, tiktoken.SupportedEncoding.Codestral);
+			return tokenizerObject.approxNumTokens(text, tiktoken.SupportedEncoding.Codestral, true);
 		default:
 			throw new Error(`Unknown tokenizer ${tokenizerName}`);
 	}

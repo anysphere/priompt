@@ -20,10 +20,9 @@ export const enum SpecialTokenAction {
 export declare function getTokenizer(): Tokenizer
 export class Tokenizer {
   exactNumTokensNoSpecialTokens(text: string, encoding: SupportedEncoding): Promise<number>
-  estimateNumTokensNoSpecialTokensFast(text: string, encoding: SupportedEncoding): Promise<number>
   exactNumTokens(text: string, encoding: SupportedEncoding, specialTokenDefaultAction: SpecialTokenAction, specialTokenOverrides: Record<string, SpecialTokenAction>): Promise<number>
   encodeCl100KNoSpecialTokens(text: string): Promise<Array<number>>
-  approxNumTokens(text: string, encoding: SupportedEncoding): Promise<number>
+  approxNumTokens(text: string, encoding: SupportedEncoding, replaceSpacesWithLowerOneEighthBlock: boolean): Promise<number>
   encode(text: string, encoding: SupportedEncoding, specialTokenDefaultAction: SpecialTokenAction, specialTokenOverrides: Record<string, SpecialTokenAction>): Promise<Array<number>>
   encodeSingleToken(bytes: Uint8Array, encoding: SupportedEncoding): Promise<number>
   decodeByte(token: number, encoding: SupportedEncoding): Promise<Uint8Array>

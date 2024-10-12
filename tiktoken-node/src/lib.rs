@@ -87,11 +87,7 @@ enum TokenizerMessage {
     respond_to: oneshot::Sender<anyhow::Result<i32>>,
     text: String,
     encoding: SupportedEncoding,
-  },
-  ApproximateNumTokensNoSpecialTokensFast {
-    respond_to: oneshot::Sender<anyhow::Result<i32>>,
-    text: String,
-    encoding: SupportedEncoding,
+    replace_spaces_with_lower_one_eighth_block: bool,
   },
 }
 
@@ -200,13 +196,6 @@ impl TokenizerActor {
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(num_tokens);
       }
-      TokenizerMessage::ApproximateNumTokensNoSpecialTokensFast { respond_to, text, encoding } => {
-        let num_tokens =
-          self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text);
-
-        // The `let _ =` ignores any errors when sending.
-        let _ = respond_to.send(Ok(num_tokens as i32));
-      }
       TokenizerMessage::EncodeTokens { respond_to, text, encoding, special_token_handling } => {
         let tokens = self
           .get_encoding(encoding)
@@ -248,8 +237,8 @@ impl TokenizerActor {
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(Ok(text));
       }
-      TokenizerMessage::ApproximateNumTokens { respond_to, text, encoding } => {
-        let tokens = self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text);
+      TokenizerMessage::ApproximateNumTokens { respond_to, text, encoding, replace_spaces_with_lower_one_eighth_block } => {
+        let tokens = self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text, replace_spaces_with_lower_one_eighth_block);
 
         // The `let _ =` ignores any errors when sending.
         let _ = respond_to.send(Ok(tokens as i32));
@@ -337,29 +326,6 @@ impl Tokenizer {
   }
 
   #[napi]
-  pub async fn estimate_num_tokens_no_special_tokens_fast(
-    &self,
-    text: String,
-    encoding: SupportedEncoding,
-  ) -> Result<i32, Error> {
-    let (send, recv) = oneshot::channel();
-    let msg = TokenizerMessage::ApproximateNumTokensNoSpecialTokensFast {
-      respond_to: send,
-      text,
-      encoding,
-    };
-
-    self
-      .sender
-      .try_send(msg)
-      .map_err(|e| Error::from_reason(format!("Actor task queue is full: {}", e)))?;
-    match recv.await {
-      Ok(result) => result.map_err(|e| Error::from_reason(e.to_string())),
-      Err(e) => Err(Error::from_reason(format!("Actor task has been killed: {}", e.to_string()))),
-    }
-  }
-
-  #[napi]
   pub async fn exact_num_tokens(
     &self,
     text: String,
@@ -420,9 +386,10 @@ impl Tokenizer {
     &self,
     text: String,
     encoding: SupportedEncoding,
+    replace_spaces_with_lower_one_eighth_block: bool,
   ) -> Result<i32, Error> {
     let (send, recv) = oneshot::channel();
-    let msg = TokenizerMessage::ApproximateNumTokens { respond_to: send, text, encoding };
+    let msg = TokenizerMessage::ApproximateNumTokens { respond_to: send, text, encoding, replace_spaces_with_lower_one_eighth_block };
 
     self
       .sender
@@ -539,7 +506,7 @@ impl SyncTokenizer {
 
   #[napi]
   pub fn approx_num_tokens(&self, text: String, encoding: SupportedEncoding) -> Result<i32, Error> {
-    Ok(self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text) as i32)
+    Ok(self.get_encoding(encoding).estimate_num_tokens_no_special_tokens_fast(&text, false) as i32)
   }
 
   fn get_encoding(&self, encoding: SupportedEncoding) -> &tiktoken::Encoding {
