@@ -15,9 +15,6 @@
   "homepage": "https://github.com/anysphere/priompt",
   "author": "Arvid Lunnemark",
   "engines": {
-    "npm": "please-use-pnpm",
-    "yarn": "please-use-pnpm",
-    "pnpm": ">= 8.3.0 < 9",
     "node": ">= 18.15.0"
   },
   "main": "./dist/index.js",
