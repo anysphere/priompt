@@ -24,6 +24,8 @@ or
 pnpm add @anysphere/priompt && pnpm add -D @anysphere/priompt-preview
 ```
 
+See [py-priompt](https://github.com/zenbase-ai/py-priompt) for a Python version.
+
 ## Examples
 
 Read [examples/README.md](examples/README.md) to run the examples.
