@@ -1,4 +1,5 @@
 import { promptToOpenAIChatMessages, promptToOpenAIChatRequest, render, renderun } from '@anysphere/priompt';
+import { CL100K } from '@anysphere/priompt/dist/tokenizer';
 import { handlePriomptPreview } from './priompt-preview-handlers';
 import { ArvidStory, ExamplePrompt, SimplePrompt } from './prompt';
 import fastifyCors from "@fastify/cors";
@@ -54,32 +55,20 @@ async function main() {
 		return reply.type("text/plain").send(`Welcome to Priompt examples.`);
 	});
 	S.get("/message", async (request, reply) => {
-		const query = request.query as { message: string; name: string };
-		if (query.message === undefined || query.name === undefined) {
-			return reply.status(400).send("Bad request; message and name are required.");
-		}
-		const message = query.message as string;
-		const name = query.name as string;
-		const prompt = ExamplePrompt({ message, name }, { dump: process.env.NODE_ENV === "development" });
-		const output = await render(prompt, {
-			model: "gpt-3.5-turbo"
+		const query = request.query as { message: string; name: string; numTokens: string };
+		const tokenLimit = parseInt(query.numTokens);
+
+		const prompt = ExamplePrompt({
+			message: query.message,
+			name: query.name
 		});
 
-		const requestConfig: CreateChatCompletionRequest = {
-			model: "gpt-3.5-turbo",
-			messages: promptToOpenAIChatMessages(output.prompt),
-		};
+		const rendered = await render(prompt, {
+			tokenizer: CL100K,
+			tokenLimit: tokenLimit
+		});
 
-		try {
-			const openaiResult = await openai.createChatCompletion(requestConfig);
-
-			const openaiOutput = openaiResult.data.choices[0].message;
-
-			return reply.type("text/plain").send(openaiOutput?.content);
-		} catch (error) {
-			console.error(error);
-			return reply.status(500).send("Internal server error.");
-		}
+		return rendered;
 	});
 	S.get("/database", async (request, reply) => {
 		const query = request.query as { message: string; confuse: string | undefined; };
