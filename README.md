@@ -77,8 +77,9 @@ The building blocks of a priompt prompt are:
 3. `<empty>`: for specifying empty space, useful for reserving tokens for generation.
 4. `<capture>`: capture the output and parse it right within the prompt.
 5. `<isolate>`: isolate a section of the prompt with its own token limit. This is useful for guaranteeing that the start of the prompt will be the same for caching purposes. it would be nice to extend this to allow token limits like `100% - 100`.
-6. `<br/>`: force a token break at a particular location, which is useful for ensuring exact tokenization matches between two parts of a prompt (e.g. when implementing something like speculative edits).
-7. `<config>`: specify a few common configuration properties, such as `stop` token and `maxResponseTokens`, which can make the priompt dump more self-contained and help with evals.
+6. `<max>`: specify a token limit for a section of the prompt, but unlike `<isolate>`, the inner scopes participate in the global priority calculation. This allows you to limit the tokens used by a section while still allowing high-priority content within that section to be prioritized globally.
+7. `<br/>`: force a token break at a particular location, which is useful for ensuring exact tokenization matches between two parts of a prompt (e.g. when implementing something like speculative edits).
+8. `<config>`: specify a few common configuration properties, such as `stop` token and `maxResponseTokens`, which can make the priompt dump more self-contained and help with evals.
 
 You can create components all you want, just like in React. The builtin components are:
 
@@ -97,7 +98,7 @@ You can create components all you want, just like in React. The builtin componen
 
 A few things that would be cool to add:
 
-1. A `<max>` block: specify a `limit` on the number of tokens within a scope, but unlike `<isolate>`, include the inner scopes in the global priority calculation.
+1. ~~A `<max>` block: specify a `limit` on the number of tokens within a scope, but unlike `<isolate>`, include the inner scopes in the global priority calculation.~~ ✅ **IMPLEMENTED**
 2. Performance-optimized rendering of big trees: minimizing time spent tokenizing is part of it, but part of it is also working around JavaScript object allocation, and it is possible that writing the entire rendering engine in Rust, for example, would make it a lot faster.
 
 ## Caveats

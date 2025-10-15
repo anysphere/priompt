@@ -391,6 +391,29 @@ export function createElement(tag: ((props: BaseProps & Record<string, unknown>)
 					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
 					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined,
 					name: (props !== null && typeof props.name === 'string') ? props.name : undefined,
+					onEject: props.onEject,
+					onInclude: props.onInclude,
+				};
+			}
+		case 'max':
+			{
+				// must have tokenLimit
+				if (!props || typeof props.tokenLimit !== 'number') {
+					throw new Error(`max tag must have a tokenLimit prop, got ${props}`);
+				}
+
+				return {
+					type: 'scope',
+					children: [{
+						type: 'max',
+						tokenLimit: props.tokenLimit,
+						children: children.flat(),
+					}],
+					absolutePriority: (typeof props.p === 'number') ? props.p : undefined,
+					relativePriority: (typeof props.prel === 'number') ? props.prel : undefined,
+					name: (props !== null && typeof props.name === 'string') ? props.name : undefined,
+					onEject: props.onEject,
+					onInclude: props.onInclude,
 				};
 			}
 		case 'capture':
@@ -1157,6 +1180,7 @@ function normalizePrompt(elem: PromptElement): NormalizedPromptElement {
 				case 'config':
 				case 'capture':
 				case 'isolate':
+				case 'max':
 				case 'breaktoken':
 				case 'image':
 				case 'empty': {
@@ -1407,6 +1431,43 @@ async function renderWithLevelAndCountTokens(elem: NormalizedNode[] | Normalized
 				streamResponseObjectHandlers: elem.cachedRenderOutput.streamResponseObjectHandlers,
 				config: emptyConfig(),
 			}
+		}
+		case 'max': {
+			// Unlike isolate, max blocks participate in global priority calculation
+			// but still enforce a local token limit by rendering children with the smaller limit
+			const maxResult = await renderWithLevelAndCountTokens(elem.children, level, tokenizer);
+			
+			// If the result exceeds our token limit, we need to find a higher priority cutoff
+			// that keeps us within the limit
+			if (maxResult.tokenCount > elem.tokenLimit) {
+				// Find the minimum priority level that keeps us under the token limit
+				// We'll use binary search approach similar to the main renderer
+				const childPriorityLevels = new Set<number>();
+				computePriorityLevels(elem.children, level, childPriorityLevels);
+				const sortedChildLevels = Array.from(childPriorityLevels).sort((a, b) => b - a);
+				
+				// Binary search for the right priority cutoff
+				let left = 0;
+				let right = sortedChildLevels.length;
+				let bestResult = maxResult;
+				
+				while (left < right) {
+					const mid = Math.floor((left + right) / 2);
+					const testLevel = sortedChildLevels[mid];
+					const testResult = await renderWithLevelAndCountTokens(elem.children, testLevel, tokenizer);
+					
+					if (testResult.tokenCount <= elem.tokenLimit) {
+						bestResult = testResult;
+						right = mid;
+					} else {
+						left = mid + 1;
+					}
+				}
+				
+				return bestResult;
+			}
+			
+			return maxResult;
 		}
 		case 'chat': {
 			const p = await renderWithLevelAndCountTokens(elem.children, level, tokenizer);
@@ -1667,6 +1728,11 @@ function renderWithLevelAndEarlyExitWithTokenEstimation(elem: PromptElement, lev
 				emptyTokenCount += elem.cachedRenderOutput.tokensReserved;
 				return;
 			}
+			case 'max': {
+				// For max blocks, we render children normally but enforce the token limit locally
+				renderInPlace(elem.children);
+				return;
+			}
 			case 'scope': {
 				if (elem.absolutePriority === undefined) {
 					throw new Error(`BUG!! computePriorityLevels should have set absolutePriority for all scopes`);
@@ -1825,6 +1891,7 @@ function hydrateEmptyTokenCount(elem: PromptElement, tokenizer: PriomptTokenizer
 		case 'capture':
 		case 'image':
 		case 'isolate':
+		case 'max':
 		case 'breaktoken':
 		case 'config':
 		case 'toolDefinition':
@@ -1891,6 +1958,11 @@ function hydrateIsolates(elem: PromptElement, tokenizer: PriomptTokenizer, shoul
 				return promise;
 			}
 			return;
+		}
+		case 'max': {
+			// Max blocks don't need special hydration like isolates
+			// They participate in normal rendering flow
+			return hydrateIsolates(elem.children, tokenizer, shouldBuildSourceMap);
 		}
 		case 'chat': {
 			return hydrateIsolates(elem.children, tokenizer, shouldBuildSourceMap);
@@ -2046,6 +2118,20 @@ function renderWithLevel(
 				result.streamHandlers.push(...elem.cachedRenderOutput.streamHandlers);
 				result.streamResponseObjectHandlers.push(...elem.cachedRenderOutput.streamResponseObjectHandlers);
 				return elem.cachedRenderOutput.sourceMap;
+			}
+			case 'max': {
+				// For max blocks, we render children normally but enforce the token limit locally
+				// This will be handled by the recursive call to renderWithLevelInPlace
+				const sourceMap = renderWithLevelInPlace(elem.children, sourceInfo !== undefined ? {
+					name: `max(${elem.tokenLimit})`,
+					isLast: sourceInfo.isLast,
+				} : undefined);
+				return (sourceMap === undefined || sourceInfo === undefined) ? undefined : {
+					name: sourceInfo.name,
+					children: [sourceMap],
+					start: 0,
+					end: sourceMap.end
+				};
 			}
 			case 'scope': {
 				if (elem.absolutePriority === undefined) {
@@ -2358,6 +2444,7 @@ function validateNoUnhandledTypes(elem: PromptElement): void {
 			return;
 		}
 		case 'isolate':
+		case 'max':
 		case 'breaktoken':
 		case 'config':
 		case 'capture':
@@ -2391,6 +2478,7 @@ function validateNotBothAbsoluteAndRelativePriority(elem: PromptElement): void {
 	switch (elem.type) {
 		case 'chat':
 		case 'isolate':
+		case 'max':
 		case 'first': {
 			for (const child of elem.children) {
 				validateNotBothAbsoluteAndRelativePriority(child);
@@ -2448,6 +2536,13 @@ function validateNoChildrenHigherPriorityThanParent(elem: PromptElement, parentP
 		case 'isolate': {
 			// we explicitly do not send in the parent priority because the isolate is isolated!!
 			validateNoChildrenHigherPriorityThanParent(elem.children);
+			return;
+		}
+		case 'max': {
+			// max blocks participate in global priority calculation, so we do send the parent priority
+			for (const child of elem.children) {
+				validateNoChildrenHigherPriorityThanParent(child, parentPriority);
+			}
 			return;
 		}
 		case 'capture':
@@ -2519,6 +2614,14 @@ function computePriorityLevels(elem: AnyNode[] | AnyNode, parentPriority: number
 		}
 		case 'isolate': {
 			// nothing happens because we fully re-render
+			return;
+		}
+		case 'max': {
+			// Unlike isolate, max blocks participate in global priority calculation
+			// We compute priorities for children and include them in global levels
+			for (const child of elem.children) {
+				computePriorityLevels(child, parentPriority, levels);
+			}
 			return;
 		}
 		case 'scope': {
@@ -2610,6 +2713,7 @@ function computePriorityLevelsTokensMapping(elem: NormalizedNode[] | NormalizedN
 			return;
 		}
 		case 'isolate':
+		case 'max':
 		case 'breaktoken':
 		case 'capture':
 		case 'config':
@@ -3126,6 +3230,7 @@ export function getPromptElementNodeCount(elem: PromptElement): number {
 			return 1;
 		case 'first':
 		case 'isolate':
+		case 'max':
 		case 'scope':
 		case 'chat':
 			return 1 + getPromptElementNodeCount(elem.children);
