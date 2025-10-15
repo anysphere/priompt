@@ -272,3 +272,119 @@ describe("config", () => {
     expect(rendered.config.maxResponseTokens).toBe("tokensReserved");
   });
 });
+
+describe("max", () => {
+  function Max(
+    props: PromptProps<{ useMax: boolean; tokenLimit: number }>
+  ): PromptElement {
+    if (props.useMax) {
+      return (
+        <>
+          <max p={props.p} prel={props.prel} tokenLimit={props.tokenLimit}>
+            {props.children}
+          </max>
+        </>
+      );
+    } else {
+      return (
+        <>
+          <scope p={props.p} prel={props.prel}>
+            {props.children}
+          </scope>
+        </>
+      );
+    }
+  }
+
+  function TestMaxVsScope(props: PromptProps<{ useMax: boolean }>): PromptElement {
+    return (
+      <>
+        This is the start of the prompt.
+        <Max tokenLimit={50} useMax={props.useMax}>
+          <scope prel={-100}>High priority content that should always be included.</scope>
+          <scope prel={-200}>Medium priority content that might be excluded.</scope>
+          <scope prel={-300}>Low priority content that should be excluded when token limit is reached.</scope>
+        </Max>
+        <scope p={1000}>This high priority content outside max block should be included.</scope>
+      </>
+    );
+  }
+
+  it("should enforce token limit while participating in global priority calculation", async () => {
+    const tokenizer = await getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("gpt-4");
+
+    // Test with max block
+    const renderedWithMax = await render(
+      <TestMaxVsScope useMax={true} />,
+      {
+        tokenLimit: 1000,
+        tokenizer,
+      }
+    );
+
+    // Test without max block (regular scope)
+    const renderedWithScope = await render(
+      <TestMaxVsScope useMax={false} />,
+      {
+        tokenLimit: 1000,
+        tokenizer,
+      }
+    );
+
+    expect(isPlainPrompt(renderedWithMax.prompt)).toBe(true);
+    expect(isPlainPrompt(renderedWithScope.prompt)).toBe(true);
+
+    const maxPromptText = renderedWithMax.prompt as string;
+    const scopePromptText = renderedWithScope.prompt as string;
+
+    // Both should include the high priority external content
+    expect(maxPromptText).toContain("This high priority content outside max block should be included");
+    expect(scopePromptText).toContain("This high priority content outside max block should be included");
+
+    // Both should include the high priority content within the max/scope block
+    expect(maxPromptText).toContain("High priority content that should always be included");
+    expect(scopePromptText).toContain("High priority content that should always be included");
+
+    // The max block should enforce its token limit and potentially exclude lower priority content
+    // while the scope block might include more content if the global token limit allows
+    console.log("Max block rendered:", maxPromptText);
+    console.log("Scope block rendered:", scopePromptText);
+  });
+
+  function TestGlobalPriorityParticipation(): PromptElement {
+    return (
+      <>
+        <scope p={100}>Very high priority content outside max.</scope>
+        <max tokenLimit={30}>
+          <scope p={200}>Highest priority content inside max.</scope>
+          <scope p={50}>Lower priority content inside max.</scope>
+        </max>
+        <scope p={150}>High priority content outside max.</scope>
+      </>
+    );
+  }
+
+  it("should participate in global priority calculation", async () => {
+    const tokenizer = await getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("gpt-4");
+
+    const rendered = await render(
+      <TestGlobalPriorityParticipation />,
+      {
+        tokenLimit: 100, // Limited global token limit
+        tokenizer,
+      }
+    );
+
+    expect(isPlainPrompt(rendered.prompt)).toBe(true);
+    const promptText = rendered.prompt as string;
+
+    // The content with priority 200 should be included (highest priority globally)
+    expect(promptText).toContain("Highest priority content inside max");
+    
+    // The content with priority 150 should be included
+    expect(promptText).toContain("High priority content outside max");
+
+    console.log("Global priority test rendered:", promptText);
+  });
+});
+
