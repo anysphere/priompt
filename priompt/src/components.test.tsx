@@ -938,3 +938,175 @@ describe("Complex PromptElement Regression Tests", () => {
     expect(rendered).toMatchSnapshot();
   });
 });
+
+describe("Max Block Tests", () => {
+  const tokenizer = getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS("cl100k_base");
+
+  it("should render a PromptElement with max block that enforces token limits", async () => {
+    function MaxBlockPrompt(props: PromptProps): PromptElement {
+      return (
+        <>
+          <SystemMessage>
+            System message outside max block
+          </SystemMessage>
+          <max tokenLimit={50}>
+            <UserMessage>
+              This is a user message inside max block that is quite long and should be truncated
+              <scope p={900}>High priority content</scope>
+              <scope p={800}>Medium priority content</scope>
+              <scope p={700}>Low priority content that should be excluded when token limit is hit</scope>
+            </UserMessage>
+          </max>
+          <AssistantMessage>
+            <scope p={950}>Very high priority content outside max block</scope>
+            <scope p={850}>High priority content outside max block</scope>
+          </AssistantMessage>
+        </>
+      );
+    }
+
+    const rendered = await Priompt.render(MaxBlockPrompt({}), {
+      tokenLimit: 1000,
+      tokenizer,
+      shouldBuildSourceMap: true,
+    });
+    
+    delete rendered.durationMs;
+    expect(rendered).toMatchSnapshot();
+  });
+
+  it("should include max block children in global priority calculation unlike isolate", async () => {
+    function MaxVsIsolatePrompt(props: PromptProps): PromptElement {
+      return (
+        <>
+          <SystemMessage>
+            System message
+          </SystemMessage>
+          <max tokenLimit={200}>
+            <UserMessage>
+              <scope p={950}>Max block high priority content</scope>
+              <scope p={850}>Max block medium priority content</scope>
+              <scope p={750}>Max block low priority content</scope>
+            </UserMessage>
+          </max>
+          <isolate tokenLimit={200}>
+            <UserMessage>
+              <scope p={940}>Isolate block high priority content</scope>
+              <scope p={840}>Isolate block medium priority content</scope>
+              <scope p={740}>Isolate block low priority content</scope>
+            </UserMessage>
+          </isolate>
+          <AssistantMessage>
+            <scope p={900}>Global high priority content</scope>
+            <scope p={800}>Global medium priority content</scope>
+            <scope p={700}>Global low priority content</scope>
+          </AssistantMessage>
+        </>
+      );
+    }
+
+    const rendered = await Priompt.render(MaxVsIsolatePrompt({}), {
+      tokenLimit: 300, // Tight limit to test priority behavior
+      tokenizer,
+      shouldBuildSourceMap: true,
+    });
+    
+    delete rendered.durationMs;
+    expect(rendered).toMatchSnapshot();
+  });
+
+  it("should handle nested max blocks correctly", async () => {
+    function NestedMaxBlockPrompt(props: PromptProps): PromptElement {
+      return (
+        <>
+          <SystemMessage>
+            Outer system message
+          </SystemMessage>
+          <max tokenLimit={100}>
+            <UserMessage>
+              Outer max block
+              <max tokenLimit={50}>
+                <scope p={900}>Inner max block content</scope>
+                <scope p={800}>More inner content</scope>
+              </max>
+            </UserMessage>
+          </max>
+          <AssistantMessage>
+            <scope p={950}>Outside max blocks</scope>
+          </AssistantMessage>
+        </>
+      );
+    }
+
+    const rendered = await Priompt.render(NestedMaxBlockPrompt({}), {
+      tokenLimit: 500,
+      tokenizer,
+      shouldBuildSourceMap: true,
+    });
+    
+    delete rendered.durationMs;
+    expect(rendered).toMatchSnapshot();
+  });
+
+  it("should handle max block with different priority levels correctly", async () => {
+    function MaxPriorityTestPrompt(props: PromptProps): PromptElement {
+      return (
+        <>
+          <SystemMessage>
+            System message
+          </SystemMessage>
+          <max tokenLimit={30}>
+            <UserMessage>
+              {/* These should be prioritized based on their p values even within max block */}
+              <scope p={1000}>Highest priority in max block</scope>
+              <scope p={900}>High priority in max block</scope>
+              <scope p={800}>Medium priority in max block</scope>
+              <scope p={700}>Low priority in max block</scope>
+            </UserMessage>
+          </max>
+          <AssistantMessage>
+            <scope p={950}>High priority outside max</scope>
+          </AssistantMessage>
+        </>
+      );
+    }
+
+    const rendered = await Priompt.render(MaxPriorityTestPrompt({}), {
+      tokenLimit: 200,
+      tokenizer,
+      shouldBuildSourceMap: true,
+    });
+    
+    delete rendered.durationMs;
+    expect(rendered).toMatchSnapshot();
+  });
+
+  it("should return empty when max block cannot fit any content", async () => {
+    function EmptyMaxBlockPrompt(props: PromptProps): PromptElement {
+      return (
+        <>
+          <SystemMessage>
+            System message
+          </SystemMessage>
+          <max tokenLimit={5}> {/* Very small limit */}
+            <UserMessage>
+              This is a very long message that definitely cannot fit within 5 tokens and should result in an empty max block
+            </UserMessage>
+          </max>
+          <AssistantMessage>
+            This should still be included
+          </AssistantMessage>
+        </>
+      );
+    }
+
+    const rendered = await Priompt.render(EmptyMaxBlockPrompt({}), {
+      tokenLimit: 1000,
+      tokenizer,
+      shouldBuildSourceMap: true,
+    });
+    
+    delete rendered.durationMs;
+    expect(rendered).toMatchSnapshot();
+  });
+});
