@@ -49,6 +49,11 @@ export type Isolate = {
 	cachedRenderOutput?: RenderOutput;
 } & IsolateProps;
 
+export type Max = {
+	type: 'max';
+	children: Node[];
+} & MaxProps;
+
 export type ChatImage = {
 	type: 'image';
 } & ImageProps;
@@ -61,6 +66,10 @@ export type CaptureProps = {
 }
 
 export type IsolateProps = {
+	tokenLimit: number;
+}
+
+export type MaxProps = {
 	tokenLimit: number;
 }
 
@@ -165,7 +174,7 @@ export type FunctionToolDefinition = {
 	}
 }
 
-export type Node = FunctionDefinition | ToolDefinition | BreakToken | First | Isolate | Capture | Config | Scope | Empty | ChatMessage | ChatImage | string | null | undefined | number | false;
+export type Node = FunctionDefinition | ToolDefinition | BreakToken | First | Isolate | Max | Capture | Config | Scope | Empty | ChatMessage | ChatImage | string | null | undefined | number | false;
 
 export type PromptElement = Node[] | Node;
 
@@ -201,6 +210,7 @@ export namespace JSX {
 		first: Omit<Omit<BaseProps, 'p'>, 'prel'>;
 		capture: Omit<BaseProps, 'children'> & CaptureProps;
 		isolate: BaseProps & IsolateProps;
+		max: BaseProps & MaxProps;
 		config: Omit<BaseProps, 'children'> & Partial<ConfigProps>;
 	}
 	type Element = PromptElement;
