@@ -6,6 +6,7 @@ import {
   promptHasFunctions,
   promptToTokens,
   render,
+  replaceOpenaiSpecialTokens,
 } from "./lib";
 import { PromptElement, PromptProps } from "./types";
 import { AssistantMessage, SystemMessage, UserMessage } from "./components";
@@ -270,5 +271,14 @@ describe("config", () => {
     expect(isPlainPrompt(rendered.prompt)).toBe(true);
     expect(rendered.config.stop).toBe("\n");
     expect(rendered.config.maxResponseTokens).toBe("tokensReserved");
+  });
+});
+
+describe("replaceOpenaiSpecialTokens", () => {
+  it("treats special tokens literally and preserves non-token text with pipes", () => {
+    // Normal text containing pipes or angle brackets should not be corrupted
+    const input = "a | b < c > d <|im_start|> user <|im_end|>";
+    const result = replaceOpenaiSpecialTokens(input);
+    expect(result).toBe("a | b < c > d <im_start> user <im_end>");
   });
 });
