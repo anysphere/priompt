@@ -61,7 +61,7 @@ const OPENAI_SPECIAL_TOKENS = [
 ]
 export function replaceOpenaiSpecialTokens(s: string): string {
 	for (const token of OPENAI_SPECIAL_TOKENS) {
-		s = s.replace(new RegExp(token, 'g'), token.replace("<|", "<").replace("|>", ">"));
+		s = s.replaceAll(token, token.replace("<|", "<").replace("|>", ">"));
 	}
 	return s;
 }
