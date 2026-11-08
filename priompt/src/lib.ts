@@ -29,12 +29,13 @@ function getImageMimeType(bytes: Uint8Array): string {
 
 export function chatPromptToString(prompt: ChatPrompt): string {
 	return prompt.messages.map((message) => {
-		return `<|im_start|>${message.role}<|im_sep|>${message.content}<|im_end|>`;
+		const content = message.content !== undefined ? promptStringToString(message.content) : '';
+		return `<|im_start|>${message.role}<|im_sep|>${content}<|im_end|>`;
 	}).join('\n');
 }
 export function functionPromptToString(prompt: FunctionPrompt): string {
 	return prompt.functions.map((func) => {
-		JSON.stringify(func);
+		return JSON.stringify(func);
 	}).join('\n');
 }
 const OPENAI_SPECIAL_TOKENS = [
