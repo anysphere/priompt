@@ -1,13 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Priompt from "./index";
 import {
+  chatPromptToString,
+  functionPromptToString,
   isChatPrompt,
   isPlainPrompt,
   promptHasFunctions,
   promptToTokens,
   render,
 } from "./lib";
-import { PromptElement, PromptProps } from "./types";
+import {
+  ChatAndFunctionPromptFunction,
+  ChatPrompt,
+  FunctionPrompt,
+  PromptElement,
+  PromptProps,
+} from "./types";
 import { AssistantMessage, SystemMessage, UserMessage } from "./components";
 import { getTokenizerByName_ONLY_FOR_OPENAI_TOKENIZERS } from "./tokenizer";
 
@@ -270,5 +278,90 @@ describe("config", () => {
     expect(isPlainPrompt(rendered.prompt)).toBe(true);
     expect(rendered.config.stop).toBe("\n");
     expect(rendered.config.maxResponseTokens).toBe("tokensReserved");
+  });
+});
+
+describe("functionPromptToString", () => {
+  it("serializes functions as newline-separated JSON strings", () => {
+    const fn1: ChatAndFunctionPromptFunction = {
+      name: "get_weather",
+      description: "Get current weather",
+      parameters: {
+        type: "object",
+        properties: { location: { type: "string" } },
+      },
+    };
+    const fn2: ChatAndFunctionPromptFunction = {
+      name: "search_web",
+      description: "Search web for query",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string" } },
+      },
+    };
+    const prompt: FunctionPrompt = {
+      functions: [fn1, fn2],
+    };
+    const result = functionPromptToString(prompt);
+    expect(result).toBe(`${JSON.stringify(fn1)}\n${JSON.stringify(fn2)}`);
+  });
+
+  it("handles empty functions array", () => {
+    const prompt: FunctionPrompt = { functions: [] };
+    expect(functionPromptToString(prompt)).toBe("");
+  });
+});
+
+describe("chatPromptToString", () => {
+  it("formats chat prompt messages with string content", () => {
+    const prompt: ChatPrompt = {
+      type: "chat",
+      messages: [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: "Hello!" },
+      ],
+    };
+    expect(chatPromptToString(prompt)).toBe(
+      "<|im_start|>system<|im_sep|>You are a helpful assistant.<|im_end|>\n<|im_start|>user<|im_sep|>Hello!<|im_end|>"
+    );
+  });
+
+  it("formats messages with PromptString arrays without commas", () => {
+    const prompt: ChatPrompt = {
+      type: "chat",
+      messages: [
+        { role: "user", content: ["Hello", " world", "!"] },
+      ],
+    };
+    expect(chatPromptToString(prompt)).toBe(
+      "<|im_start|>user<|im_sep|>Hello world!<|im_end|>"
+    );
+  });
+
+  it("handles assistant messages with undefined content", () => {
+    const prompt: ChatPrompt = {
+      type: "chat",
+      messages: [
+        {
+          role: "assistant",
+          toolCalls: [
+            {
+              index: 0,
+              id: "call_123",
+              tool: {
+                type: "function",
+                function: {
+                  name: "get_weather",
+                  arguments: '{"location":"San Francisco"}',
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    expect(chatPromptToString(prompt)).toBe(
+      "<|im_start|>assistant<|im_sep|><|im_end|>"
+    );
   });
 });

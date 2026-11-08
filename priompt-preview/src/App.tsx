@@ -46,7 +46,11 @@ function isPlainPrompt(
 function chatPromptToString(prompt: ChatPrompt): string {
   return prompt.messages
     .map((message) => {
-      return `<|im_start|>${message.role}<|im_sep|>${message.content}<|im_end|>`;
+      const content =
+        message.content !== undefined
+          ? promptStringToString(message.content)
+          : "";
+      return `<|im_start|>${message.role}<|im_sep|>${content}<|im_end|>`;
     })
     .join("\n");
 }
