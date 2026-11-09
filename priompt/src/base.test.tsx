@@ -6,6 +6,7 @@ import {
   promptHasFunctions,
   promptToTokens,
   render,
+  replaceOpenaiSpecialTokens,
 } from "./lib";
 import { PromptElement, PromptProps } from "./types";
 import { AssistantMessage, SystemMessage, UserMessage } from "./components";
@@ -270,5 +271,19 @@ describe("config", () => {
     expect(isPlainPrompt(rendered.prompt)).toBe(true);
     expect(rendered.config.stop).toBe("\n");
     expect(rendered.config.maxResponseTokens).toBe("tokensReserved");
+  });
+});
+
+describe("replaceOpenaiSpecialTokens", () => {
+  it("treats special tokens literally and preserves regular angle brackets", () => {
+    expect(replaceOpenaiSpecialTokens("Write <hello> tag")).toBe("Write <hello> tag");
+    expect(replaceOpenaiSpecialTokens("if (a < 10 || b > 20)")).toBe("if (a < 10 || b > 20)");
+    expect(replaceOpenaiSpecialTokens("Hello <|endoftext|> world")).toBe("Hello <endoftext> world");
+    expect(
+      replaceOpenaiSpecialTokens("<|im_start|>system<|im_sep|>test<|im_end|>")
+    ).toBe("<im_start>system<im_sep>test<im_end>");
+    expect(
+      replaceOpenaiSpecialTokens("Tag <div class='test'> and <|fim_prefix|>code<|fim_suffix|>")
+    ).toBe("Tag <div class='test'> and <fim_prefix>code<fim_suffix>");
   });
 });

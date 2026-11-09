@@ -59,11 +59,19 @@ const OPENAI_SPECIAL_TOKENS = [
 	"<|ghissue|>",
 	"<|ghreview|>",
 ]
+function escapeRegExp(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const OPENAI_SPECIAL_TOKENS_REGEX = new RegExp(
+	OPENAI_SPECIAL_TOKENS.map((token) => escapeRegExp(token)).join('|'),
+	'g'
+);
+
 export function replaceOpenaiSpecialTokens(s: string): string {
-	for (const token of OPENAI_SPECIAL_TOKENS) {
-		s = s.replace(new RegExp(token, 'g'), token.replace("<|", "<").replace("|>", ">"));
-	}
-	return s;
+	return s.replace(OPENAI_SPECIAL_TOKENS_REGEX, (token) =>
+		token.replace("<|", "<").replace("|>", ">")
+	);
 }
 
 export function isChatPrompt(prompt: RenderedPrompt | undefined): prompt is ChatPrompt {
